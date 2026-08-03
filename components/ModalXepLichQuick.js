@@ -218,34 +218,80 @@ export default function ModalXepLichQuick({
             </div>
           </div>
 
-          {/* TÙY CHỈNH GIỜ TỰ DO HOÀN TOÀN */}
-          <div className="grid grid-cols-2 gap-3 bg-[var(--color-surface-1)] p-3 rounded-2xl border border-[var(--color-glass-border)]">
+          {/* BỘ CHỌN GIỜ 24H DỄ BẤM 1 CHẠM */}
+          <div className="bg-[var(--color-surface-1)] p-3.5 rounded-2xl border border-[var(--color-glass-border)] space-y-3">
+            {/* Hàng chọn Giờ vào */}
             <div>
-              <label className="block text-xs font-bold text-[var(--color-text-secondary)] mb-1">
-                Giờ vào (Bắt đầu)
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[var(--color-glass-border)] rounded-xl text-white text-base font-bold text-center outline-none focus:border-amber-500"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <span>🟢 Giờ vào:</span>
+                  <span className="text-sm font-black text-white bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                    {startTime}
+                  </span>
+                </span>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="px-2 py-0.5 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-xs font-bold outline-none"
+                  title="Nhập giờ thủ công nếu cần"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {['07:00', '08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '17:00', '18:00'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setStartTime(t)}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 ${
+                      startTime === t
+                        ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] scale-105'
+                        : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[rgba(255,255,255,0.06)] hover:text-white'
+                    }`}
+                  >
+                    {parseInt(t)}h
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Hàng chọn Giờ ra */}
             <div>
-              <label className="block text-xs font-bold text-[var(--color-text-secondary)] mb-1">
-                Giờ ra (Kết thúc)
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[var(--color-glass-border)] rounded-xl text-white text-base font-bold text-center outline-none focus:border-amber-500"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-rose-400 flex items-center gap-1">
+                  <span>🔴 Giờ ra:</span>
+                  <span className="text-sm font-black text-white bg-rose-500/20 px-2 py-0.5 rounded-lg border border-rose-500/30">
+                    {endTime}
+                  </span>
+                </span>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="px-2 py-0.5 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-xs font-bold outline-none"
+                  title="Nhập giờ thủ công nếu cần"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {['12:00', '13:00', '14:00', '17:00', '18:00', '21:00', '22:00', '23:00'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setEndTime(t)}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 ${
+                      endTime === t
+                        ? 'bg-rose-500 text-white border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)] scale-105'
+                        : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[rgba(255,255,255,0.06)] hover:text-white'
+                    }`}
+                  >
+                    {parseInt(t)}h
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="col-span-2 text-center text-xs text-amber-400 font-bold pt-1">
-              ⏱️ Tổng thời gian: <span className="text-base text-white">{hours} giờ</span>
+
+            <div className="text-center text-xs text-amber-400 font-bold pt-2 border-t border-[rgba(255,255,255,0.06)]">
+              ⏱️ Số giờ tự tính: <span className="text-base font-black text-white">{hours} tiếng</span>
             </div>
           </div>
 
