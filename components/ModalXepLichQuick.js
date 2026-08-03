@@ -24,10 +24,10 @@ export default function ModalXepLichQuick({
     editItem ? editItem.employee_id : ''
   );
   const [startTime, setStartTime] = useState(
-    editItem?.start_time ? editItem.start_time.slice(0, 5) : '08:00'
+    editItem?.start_time ? editItem.start_time.slice(0, 5) : '09:00'
   );
   const [endTime, setEndTime] = useState(
-    editItem?.end_time ? editItem.end_time.slice(0, 5) : '13:00'
+    editItem?.end_time ? editItem.end_time.slice(0, 5) : '14:00'
   );
   const [note, setNote] = useState(editItem?.note || '');
   const [submitting, setSubmitting] = useState(false);
@@ -194,17 +194,17 @@ export default function ModalXepLichQuick({
             <div className="grid grid-cols-4 gap-1.5">
               <button
                 type="button"
-                onClick={() => applyPreset('08:00', '13:00')}
+                onClick={() => applyPreset('09:00', '14:00')}
                 className="py-1.5 px-1 bg-[var(--color-surface-2)] hover:bg-amber-500/20 text-xs font-semibold rounded-lg text-amber-300 border border-[var(--color-glass-border)] cursor-pointer"
               >
-                Sáng (8-13h)
+                Sáng (9-14h)
               </button>
               <button
                 type="button"
-                onClick={() => applyPreset('13:00', '18:00')}
+                onClick={() => applyPreset('14:00', '18:00')}
                 className="py-1.5 px-1 bg-[var(--color-surface-2)] hover:bg-amber-500/20 text-xs font-semibold rounded-lg text-amber-300 border border-[var(--color-glass-border)] cursor-pointer"
               >
-                Chiều (13-18h)
+                Chiều (14-18h)
               </button>
               <button
                 type="button"
