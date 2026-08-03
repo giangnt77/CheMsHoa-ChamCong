@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getToday } from '@/lib/utils';
+import { getToday, formatDateISO } from '@/lib/utils';
 
 /**
  * Ca làm cố định — nhân viên chỉ cần bấm 1 nút.
@@ -130,7 +130,7 @@ export default function QuickShiftPicker({ onSubmit, loading }) {
     for (let i = 0; i < 7; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = formatDateISO(d);
       days.push(dateStr);
     }
 

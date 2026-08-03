@@ -26,6 +26,7 @@ import {
   formatCurrency,
   formatDateShort,
   getInitials,
+  getToday,
 } from '@/lib/utils';
 
 function AdminContent() {
@@ -48,7 +49,7 @@ function AdminContent() {
 
   // Month picker & Date picker for scheduling
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-  const [schedDate, setSchedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [schedDate, setSchedDate] = useState(getToday());
   const [availabilities, setAvailabilities] = useState([]);
   const [daySchedule, setDaySchedule] = useState([]);
 

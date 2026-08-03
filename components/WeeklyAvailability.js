@@ -20,15 +20,15 @@ function formatDateISO(dateObj) {
   return `${year}-${month}-${day}`;
 }
 
-function getNextWeekDays() {
+function getWeekDays(offset = 0) {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0=CN, 1=T2...
-  const daysUntilNextMonday = 7 - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
-  const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextMonday);
+  const daysUntilNextMonday = (7 - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)) + (offset * 7);
+  const targetMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextMonday);
 
   const days = [];
   for (let i = 0; i < 7; i++) {
-    const dayObj = new Date(nextMonday.getFullYear(), nextMonday.getMonth(), nextMonday.getDate() + i);
+    const dayObj = new Date(targetMonday.getFullYear(), targetMonday.getMonth(), targetMonday.getDate() + i);
     days.push(formatDateISO(dayObj));
   }
   return days;
@@ -38,7 +38,8 @@ const DAY_NAMES = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ
 
 export default function WeeklyAvailability({ employee, onUpdate }) {
   const toast = useToast();
-  const days = getNextWeekDays();
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = Tuần sau, 1 = Tuần sau nữa
+  const days = getWeekDays(weekOffset);
 
   // Selected state: { [dateStr]: 'full' | 'option' | 'off' }
   const [availability, setAvailability] = useState({});
@@ -51,7 +52,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
 
   useEffect(() => {
     loadAvailability();
-  }, [employee]);
+  }, [employee, weekOffset]);
 
   async function loadAvailability() {
     setLoading(true);
@@ -149,13 +150,29 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     <div className="glass rounded-3xl p-5 md:p-7 space-y-6 shadow-2xl">
       {/* Header */}
       <div className="border-b border-[rgba(255,255,255,0.08)] pb-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-black text-lg md:text-2xl flex items-center gap-2.5 text-white">
-            <span className="text-2xl">✋</span> Đăng Ký Lịch Tuần Sau
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-black text-lg md:text-2xl flex items-center gap-2 text-white">
+            <span className="text-2xl">✋</span> Đăng Ký Lịch Làm
           </h3>
-          <span className="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs px-3.5 py-1 rounded-full font-black tracking-wide shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-            ⚡ TUẦN SAU
-          </span>
+          <div className="flex items-center gap-1.5 bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.1)]">
+            <button
+              onClick={() => setWeekOffset(prev => prev - 1)}
+              className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] hover:bg-amber-500/20 rounded-xl border border-[rgba(255,255,255,0.05)] cursor-pointer"
+              title="Tuần trước"
+            >
+              ◀
+            </button>
+            <span className="text-xs font-black text-amber-400 px-1">
+              {weekOffset === 0 ? '⚡ Tuần sau' : weekOffset === 1 ? '⏭️ Tuần sau nữa' : weekOffset === -1 ? '📍 Tuần này' : `Tuần ${weekOffset > 0 ? '+' + weekOffset : weekOffset}`}
+            </span>
+            <button
+              onClick={() => setWeekOffset(prev => prev + 1)}
+              className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] hover:bg-amber-500/20 rounded-xl border border-[rgba(255,255,255,0.05)] cursor-pointer"
+              title="Tuần sau"
+            >
+              ▶
+            </button>
+          </div>
         </div>
         <p className="text-xs md:text-sm text-[var(--color-text-secondary)] mt-1.5 font-semibold">
           📅 Lịch tuần: <span className="text-amber-400 font-extrabold">{getWeekLabel()}</span>

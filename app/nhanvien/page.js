@@ -99,13 +99,22 @@ function EmployeeContent() {
     }
   }
 
-  async function handleLogin(name, showToast = true, pin = '1234') {
+  async function handleLogin(name, showToast = true, pin = '1234', isNew = false) {
     setAuthLoading(true);
     try {
       let emp = await getEmployeeByName(name);
       if (!emp) {
-        emp = await createEmployee(name, pin);
-        if (showToast) toast.success('Chào mừng!', `Đã tạo tài khoản cho ${emp.name} (Mã PIN: ${emp.pin})`);
+        if (isNew) {
+          emp = await createEmployee(name, pin);
+          if (showToast) toast.success('Chào mừng!', `Đã tạo tài khoản cho ${emp.name}`);
+        } else {
+          // Nhân viên cũ đã bị Admin xóa -> Clear localStorage
+          localStorage.removeItem('chemshoa_employee_name');
+          setEmployee(null);
+          setAuthLoading(false);
+          setInitialLoading(false);
+          return;
+        }
       } else {
         if (showToast) toast.success('Xin chào!', `Chào mừng ${emp.name} quay lại`);
       }
@@ -121,7 +130,7 @@ function EmployeeContent() {
   }
 
   async function handleSelectEmployee(name, isNew, pin = '1234') {
-    await handleLogin(name, true, pin);
+    await handleLogin(name, true, pin, isNew);
   }
 
   function handleLogout() {

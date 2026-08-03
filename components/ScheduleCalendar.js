@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getScheduleByDateRange, getBranches } from '@/lib/supabase';
-import { getCalendarDays } from '@/lib/utils';
+import { getCalendarDays, getToday } from '@/lib/utils';
 
 /**
  * ScheduleCalendar — Calendar tháng hiển thị lịch làm việc chính thức.
@@ -24,7 +24,7 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
   const [schedule, setSchedule] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const today = now.toISOString().split('T')[0];
+  const today = getToday();
   const [selectedDate, setSelectedDate] = useState(today);
 
   useEffect(() => {

@@ -36,10 +36,11 @@ export default function ModalXepLichQuick({
 
   // Tính số giờ
   function calcHours(st, et) {
+    if (!st || !et || st === et) return 0;
     const [sh, sm] = st.split(':').map(Number);
     const [eh, em] = et.split(':').map(Number);
     let h = (eh * 60 + em - (sh * 60 + sm)) / 60;
-    if (h <= 0) h += 24;
+    if (h < 0) h += 24;
     return Math.round(h * 100) / 100;
   }
 
