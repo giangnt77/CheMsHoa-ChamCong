@@ -1,0 +1,494 @@
+@import "tailwindcss";
+
+/* ============================================
+   CUSTOM THEME - Chè Ms Hoa
+   Warm Dark Premium Theme
+   ============================================ */
+
+@theme inline {
+  --color-background: #0c0c14;
+  --color-foreground: #f5f5f5;
+  --color-surface-1: rgba(255, 255, 255, 0.03);
+  --color-surface-2: rgba(255, 255, 255, 0.06);
+  --color-surface-3: rgba(255, 255, 255, 0.09);
+  --color-surface-hover: rgba(255, 255, 255, 0.12);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-text-muted: #6b6b80;
+  --color-text-secondary: #a0a0b0;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-coral-400: #fb7185;
+  --color-coral-500: #f43f5e;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-sky-400: #38bdf8;
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-playfair);
+}
+
+/* ============================================
+   BASE STYLES & AI NEON AESTHETICS
+   ============================================ */
+body {
+  background: #090911;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(244, 63, 94, 0.12) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--color-foreground);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* ============================================
+   ANIMATED BACKGROUND ORBS
+   ============================================ */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-orb-1 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, #f59e0b 0%, #ef4444 100%);
+  opacity: 0.18;
+  top: -120px;
+  right: -100px;
+  animation: float 18s ease-in-out infinite;
+}
+
+.bg-orb-2 {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, #8b5cf6 0%, #ec4899 100%);
+  opacity: 0.15;
+  bottom: -80px;
+  left: -80px;
+  animation: float 22s ease-in-out infinite -6s;
+}
+
+.bg-orb-3 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, #10b981 0%, #3b82f6 100%);
+  opacity: 0.12;
+  top: 40%;
+  left: 40%;
+  animation: float 20s ease-in-out infinite -12s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  25% { transform: translate(35px, -45px) scale(1.12) rotate(45deg); }
+  50% { transform: translate(-30px, 30px) scale(0.92) rotate(90deg); }
+  75% { transform: translate(45px, 25px) scale(1.08) rotate(135deg); }
+}
+
+/* ============================================
+   NEO-GLASSMORPHISM & AI GLOW CARDS
+   ============================================ */
+.glass {
+  background: rgba(20, 20, 32, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass-glow {
+  background: rgba(25, 25, 40, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
+}
+
+.glass-hover:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+}
+
+/* ============================================
+   GRADIENT TEXT
+   ============================================ */
+.text-gradient {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #f43f5e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-cool {
+  background: linear-gradient(135deg, #38bdf8 0%, #8b5cf6 50%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================
+   TACTILE 3D BUTTONS & GLOWS
+   ============================================ */
+.btn-gradient {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-gradient:active {
+  transform: scale(0.96) translateY(1px);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25);
+}
+
+.btn-gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35);
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-gradient-success:active {
+  transform: scale(0.96) translateY(1px);
+}
+
+.btn-gradient-danger {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  box-shadow: 0 4px 20px rgba(244, 63, 94, 0.35);
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-gradient-danger:active {
+  transform: scale(0.96) translateY(1px);
+}
+
+/* ============================================
+   SHINE EFFECT ON BUTTONS
+   ============================================ */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s;
+}
+
+.btn-shine:hover::before {
+  left: 100%;
+}
+
+/* ============================================
+   CALENDAR STYLES
+   ============================================ */
+.calendar-day {
+  transition: all 150ms;
+}
+
+.calendar-day:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.calendar-day.has-shift {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.calendar-day.today {
+  border: 1px solid #f59e0b;
+}
+
+.calendar-day.has-shift.today {
+  background: rgba(245, 158, 11, 0.25);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes bounceIn {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(245, 158, 11, 0.5); }
+}
+
+.animate-bounce-in { animation: bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.animate-fade-in-up { animation: fadeInUp 0.6s ease both; }
+.animate-fade-in-up-delay-1 { animation: fadeInUp 0.6s ease 0.2s both; }
+.animate-fade-in-up-delay-2 { animation: fadeInUp 0.6s ease 0.4s both; }
+.animate-fade-in-up-delay-3 { animation: fadeInUp 0.6s ease 0.6s both; }
+.animate-fade-in { animation: fadeIn 0.5s ease both; }
+.animate-slide-in-right { animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.animate-slide-out-right { animation: slideOutRight 0.3s ease forwards; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   FORM INPUTS DARK THEME & DROPDOWN FIX
+   ============================================ */
+select,
+select option,
+select optgroup {
+  background-color: #12121f !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+select optgroup {
+  background-color: #0c0c14 !important;
+  color: #fbbf24 !important; /* màu vàng nổi bật cho tiêu đề nhóm */
+  font-weight: bold !important;
+  padding: 6px 0 !important;
+}
+
+select option {
+  padding: 10px !important;
+  background-color: #1a1a2e !important;
+  color: #ffffff !important;
+}
+
+select option:hover,
+select option:focus,
+select option:active,
+select option:checked {
+  background-color: #f59e0b !important;
+  color: #000000 !important;
+}
+
+input[type="date"],
+input[type="time"],
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  color-scheme: dark !important;
+}
+
+/* ============================================
+   TOAST NOTIFICATIONS
+   ============================================ */
+.toast-enter {
+  animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toast-exit {
+  animation: slideOutRight 0.3s ease forwards;
+}
+
+/* ============================================
+   HERO CARD HOVER
+   ============================================ */
+.hero-card {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hero-card:hover {
+  transform: translateY(-8px);
+  border-color: #f59e0b;
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+}
+
+/* ============================================
+   STAT CARD DECORATIVE CORNER
+   ============================================ */
+.stat-corner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 0 16px 0 50%;
+  opacity: 0.1;
+}
+
+.stat-corner-amber::after { background: #f59e0b; }
+.stat-corner-emerald::after { background: #10b981; }
+.stat-corner-coral::after { background: #f43f5e; }
+.stat-corner-sky::after { background: #38bdf8; }
+
+/* ============================================
+   MODAL ANIMATION
+   ============================================ */
+.modal-backdrop {
+  transition: all 250ms;
+}
+
+.modal-content {
+  transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-backdrop.active .modal-content {
+  transform: scale(1) translateY(0);
+}
+
+/* ============================================
+   PENALTY CARD
+   ============================================ */
+.penalty-card {
+  transition: all 150ms;
+}
+
+.penalty-card:hover {
+  background: rgba(244, 63, 94, 0.12);
+}
+
+/* ============================================
+   EMPLOYEE CARD (Admin)
+   ============================================ */
+.employee-card-hover {
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.employee-card-hover:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+/* ============================================
+   PDF EXPORT STYLES
+   ============================================ */
+.pdf-export-area {
+  background: white !important;
+  color: #1a1a1a !important;
+  padding: 24px;
+}
+
+.pdf-export-area table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pdf-export-area th,
+.pdf-export-area td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.pdf-export-area th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+/* ============================================
+   EMPLOYEE SELECTOR BUTTONS
+   ============================================ */
+.emp-select-btn {
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.emp-select-btn:hover {
+  transform: translateX(6px);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.emp-select-btn:active {
+  transform: scale(0.98);
+}
+
+/* ============================================
+   SHIFT SELECT BUTTONS
+   ============================================ */
+.shift-select-btn {
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shift-select-btn:hover {
+  transform: translateX(4px);
+}
+
+.shift-select-btn:active {
+  transform: scale(0.97);
+}
+
+/* ============================================
+   DAY SELECT BUTTONS
+   ============================================ */
+.day-select-btn {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.day-select-btn:active {
+  transform: scale(0.96);
+}
+
+/* ============================================
+   PIN INPUT
+   ============================================ */
+.pin-input {
+  letter-spacing: 1em;
+  text-indent: 1em;
+}
+
+.pin-input::placeholder {
+  letter-spacing: normal;
+  text-indent: 0;
+}
