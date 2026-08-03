@@ -136,9 +136,11 @@ function AdminContent() {
 
   async function loadEmployeeData() {
     try {
-      const monthStr = selectedMonth;
-      const startDate = `${monthStr}-01`;
-      const endDate = `${monthStr}-31`;
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).getDate();
+      const mStr = String(month).padStart(2, '0');
+      const startDate = `${year}-${mStr}-01`;
+      const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
       const [sched, penalties] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getPenaltiesByEmployee(selectedEmployee.id, selectedMonth),

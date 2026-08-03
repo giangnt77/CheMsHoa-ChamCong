@@ -51,9 +51,11 @@ function EmployeeContent() {
 
   async function loadEmployeeHours() {
     try {
-      const [year, month] = selectedMonth.split('-');
-      const startDate = `${year}-${month}-01`;
-      const endDate = `${year}-${month}-31`;
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const lastDay = new Date(year, month, 0).getDate();
+      const mStr = String(month).padStart(2, '0');
+      const startDate = `${year}-${mStr}-01`;
+      const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
       const schedData = await getScheduleByDateRange(startDate, endDate);
       
       // Filter for this employee
