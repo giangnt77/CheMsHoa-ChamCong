@@ -181,41 +181,49 @@ function EmployeeContent() {
               </div>
 
               {/* Lương thỏa thuận đ/giờ */}
-              <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center relative group">
-                <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1 flex items-center justify-center gap-1">
-                  <span>💵 Lương thỏa thuận</span>
-                  {!editingRate && (
+              <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center flex flex-col justify-between">
+                <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1">
+                  💵 Lương thỏa thuận
+                </div>
+
+                {editingRate ? (
+                  <div className="flex items-center justify-center gap-1.5 my-1">
+                    <input
+                      type="number"
+                      value={rateInput}
+                      onChange={(e) => setRateInput(e.target.value)}
+                      className="w-24 px-2 py-1.5 bg-[#12121e] border border-amber-400 rounded-xl text-white text-sm font-bold text-center outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveRate}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black border-0 cursor-pointer active:scale-95"
+                    >
+                      Lưu
+                    </button>
+                    <button
+                      onClick={() => setEditingRate(false)}
+                      className="px-2 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] text-xs font-bold border-0 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-xl font-black text-white">
+                      {formatCurrency(hourlyRate)}
+                      <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
+                    </div>
                     <button
                       onClick={() => {
                         setEditingRate(true);
                         setRateInput(String(hourlyRate));
                       }}
-                      className="text-amber-400 hover:text-amber-300 border-0 bg-transparent cursor-pointer p-0.5 text-xs font-bold"
-                      title="Sửa mức lương theo thỏa thuận"
+                      className="mt-1.5 px-3 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all active:scale-95 inline-flex items-center gap-1"
                     >
-                      ✏️
-                    </button>
-                  )}
-                </div>
-
-                {editingRate ? (
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    <input
-                      type="number"
-                      value={rateInput}
-                      onChange={(e) => setRateInput(e.target.value)}
-                      className="w-24 px-2 py-1 bg-[#12121e] border border-amber-400 rounded-lg text-white text-xs font-bold text-center outline-none"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSaveRate}
-                      className="px-2 py-1 rounded-lg bg-emerald-500 text-black text-xs font-black border-0 cursor-pointer"
-                    >
-                      Lưu
+                      <span>✏️</span> Sửa lương/h
                     </button>
                   </div>
-                ) : (
-                  <div className="text-xl font-black text-white">{formatCurrency(hourlyRate)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span></div>
                 )}
               </div>
 
