@@ -186,7 +186,21 @@ export default function ModalXepLichQuick({
             <label className="block text-xs font-bold text-[var(--color-text-muted)] uppercase mb-1.5">
               Gợi ý mốc ca (bấm để chọn nhanh):
             </label>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => applyPreset('07:30', '14:30')}
+                className="py-1.5 px-1 bg-amber-500/20 hover:bg-amber-500/30 text-xs font-bold rounded-lg text-amber-300 border border-amber-500/30 cursor-pointer"
+              >
+                🍳 Bếp 7:30-14:30
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('07:30', '17:30')}
+                className="py-1.5 px-1 bg-amber-500/20 hover:bg-amber-500/30 text-xs font-bold rounded-lg text-amber-300 border border-amber-500/30 cursor-pointer"
+              >
+                🍳 Bếp 7:30-17:30
+              </button>
               <button
                 type="button"
                 onClick={() => applyPreset('09:00', '14:00')}
@@ -238,7 +252,7 @@ export default function ModalXepLichQuick({
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((t) => (
+                {['07:30', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -249,7 +263,7 @@ export default function ModalXepLichQuick({
                         : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[rgba(255,255,255,0.06)] hover:text-white'
                     }`}
                   >
-                    {parseInt(t)}h
+                    {t.includes(':30') ? t : `${parseInt(t)}h`}
                   </button>
                 ))}
               </div>
@@ -273,7 +287,7 @@ export default function ModalXepLichQuick({
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {['13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map((t) => (
+                {['13:00', '14:00', '14:30', '15:00', '16:00', '17:00', '17:30', '18:00', '19:00', '20:00', '21:00', '22:00'].map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -284,7 +298,7 @@ export default function ModalXepLichQuick({
                         : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[rgba(255,255,255,0.06)] hover:text-white'
                     }`}
                   >
-                    {parseInt(t)}h
+                    {t.includes(':30') ? t : `${parseInt(t)}h`}
                   </button>
                 ))}
               </div>
