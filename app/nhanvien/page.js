@@ -26,12 +26,11 @@ function EmployeeContent() {
   const [view, setView] = useState('schedule');
 
   // Worked hours & salary state
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [monthlyHours, setMonthlyHours] = useState(0);
   const [monthlyShiftsCount, setMonthlyShiftsCount] = useState(0);
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState('');
-
-  const currentMonth = getCurrentMonth();
 
   // Check localStorage for remembered name
   useEffect(() => {
@@ -43,16 +42,16 @@ function EmployeeContent() {
     }
   }, []);
 
-  // Load employee monthly hours whenever employee changes
+  // Load employee monthly hours whenever employee or selectedMonth changes
   useEffect(() => {
     if (employee) {
       loadEmployeeHours();
     }
-  }, [employee, currentMonth]);
+  }, [employee, selectedMonth]);
 
   async function loadEmployeeHours() {
     try {
-      const [year, month] = currentMonth.split('-');
+      const [year, month] = selectedMonth.split('-');
       const startDate = `${year}-${month}-01`;
       const endDate = `${year}-${month}-31`;
       const schedData = await getScheduleByDateRange(startDate, endDate);
@@ -66,6 +65,22 @@ function EmployeeContent() {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  function handlePrevMonth() {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    setSelectedMonth(`${year}-${month}`);
+  }
+
+  function handleNextMonth() {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    setSelectedMonth(`${year}-${month}`);
   }
 
   async function handleSaveRate() {
@@ -165,9 +180,32 @@ function EmployeeContent() {
              ========================================================================= */}
           <div className="glass rounded-3xl p-5 mb-5 space-y-4 shadow-xl border border-[rgba(245,158,11,0.25)] animate-fade-in-up">
             <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] pb-3">
-              <h3 className="font-black text-base text-white flex items-center gap-2">
-                <span>💰</span> Bảng Thu Nhập Tháng {currentMonth.split('-')[1]}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-black text-base text-white flex items-center gap-1.5">
+                  <span>💰</span> Thu Nhập
+                </h3>
+                {/* Bộ chọn tháng */}
+                <div className="flex items-center gap-1 bg-[var(--color-surface-2)] px-2 py-1 rounded-xl border border-[rgba(255,255,255,0.1)]">
+                  <button
+                    onClick={handlePrevMonth}
+                    className="text-xs text-[var(--color-text-secondary)] hover:text-white border-0 bg-transparent cursor-pointer px-1 font-bold"
+                    title="Tháng trước"
+                  >
+                    ◀
+                  </button>
+                  <span className="text-xs font-black text-amber-400">
+                    Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
+                  </span>
+                  <button
+                    onClick={handleNextMonth}
+                    className="text-xs text-[var(--color-text-secondary)] hover:text-white border-0 bg-transparent cursor-pointer px-1 font-bold"
+                    title="Tháng sau"
+                  >
+                    ▶
+                  </button>
+                </div>
+              </div>
+
               <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30">
                 {monthlyShiftsCount} ca làm
               </span>
