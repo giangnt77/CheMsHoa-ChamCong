@@ -101,47 +101,41 @@ export default function ModalXepLichQuick({
             <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-1.5">
               Nhân viên
             </label>
-            {isEditing ? (
-              <div className="p-3 bg-[var(--color-surface-2)] rounded-xl font-bold text-white text-base">
-                👤 {editItem.employees?.name}
-              </div>
-            ) : (
-              <select
-                value={selectedEmpId}
-                onChange={(e) => setSelectedEmpId(e.target.value)}
-                required
-                className="w-full px-4 py-3 bg-[var(--color-surface-2)] border border-[var(--color-glass-border)] rounded-xl text-white text-base font-bold outline-none focus:border-amber-500 cursor-pointer"
-              >
-                <option value="" disabled className="text-amber-400 font-bold">-- Bấm để chọn nhân viên --</option>
+            <select
+              value={selectedEmpId}
+              onChange={(e) => setSelectedEmpId(e.target.value)}
+              required
+              className="w-full px-4 py-3 bg-[var(--color-surface-2)] border border-[var(--color-glass-border)] rounded-xl text-white text-base font-bold outline-none focus:border-amber-500 cursor-pointer"
+            >
+              <option value="" disabled className="text-amber-400 font-bold">-- Bấm để chọn nhân viên --</option>
 
-                {/* Nhóm 1: Nhân viên ĐÃ ĐĂNG KÝ LÀM */}
-                {registeredEmps.length > 0 && (
-                  <option disabled className="bg-[var(--color-surface-3)] text-amber-400 font-bold py-1">
-                    ─── ✨ NHÂN VIÊN ĐÃ ĐĂNG KÝ LÀM ───
-                  </option>
-                )}
-                {registeredEmps.map((a) => (
-                  <option key={a.employee_id} value={a.employee_id} className="text-white font-bold bg-[#1a1a2e]">
-                    ✅ {a.employees?.name} ({a.type === 'full' ? 'Làm Cả Ngày' : `Tùy chọn: ${a.note || 'Ca linh hoạt'}`})
-                  </option>
-                ))}
-
-                {/* Nhóm 2: Nhân viên CHƯA ĐĂNG KÝ hoặc XIN NGHỈ */}
+              {/* Nhóm 1: Nhân viên ĐÃ ĐĂNG KÝ LÀM */}
+              {registeredEmps.length > 0 && (
                 <option disabled className="bg-[var(--color-surface-3)] text-amber-400 font-bold py-1">
-                  ─── 👥 NHÂN VIÊN CHƯA ĐĂNG KÝ / XIN NGHỈ ───
+                  ─── ✨ NHÂN VIÊN ĐÃ ĐĂNG KÝ LÀM ───
                 </option>
-                {employees
-                  .filter((e) => !registeredEmps.some((r) => r.employee_id === e.id))
-                  .map((e) => {
-                    const isOff = offEmps.some((o) => o.employee_id === e.id);
-                    return (
-                      <option key={e.id} value={e.id} className="text-white font-bold bg-[#1a1a2e]">
-                        {isOff ? `🛑 ${e.name} (Xin Nghỉ)` : `👤 ${e.name} (Chưa đăng ký ca)`}
-                      </option>
-                    );
-                  })}
-              </select>
-            )}
+              )}
+              {registeredEmps.map((a) => (
+                <option key={a.employee_id} value={a.employee_id} className="text-white font-bold bg-[#1a1a2e]">
+                  ✅ {a.employees?.name} ({a.type === 'full' ? 'Làm Cả Ngày' : `Tùy chọn: ${a.note || 'Ca linh hoạt'}`})
+                </option>
+              ))}
+
+              {/* Nhóm 2: Nhân viên CHƯA ĐĂNG KÝ hoặc XIN NGHỈ */}
+              <option disabled className="bg-[var(--color-surface-3)] text-amber-400 font-bold py-1">
+                ─── 👥 NHÂN VIÊN CHƯA ĐĂNG KÝ / XIN NGHỈ ───
+              </option>
+              {employees
+                .filter((e) => !registeredEmps.some((r) => r.employee_id === e.id))
+                .map((e) => {
+                  const isOff = offEmps.some((o) => o.employee_id === e.id);
+                  return (
+                    <option key={e.id} value={e.id} className="text-white font-bold bg-[#1a1a2e]">
+                      {isOff ? `🛑 ${e.name} (Xin Nghỉ)` : `👤 ${e.name} (Chưa đăng ký ca)`}
+                    </option>
+                  );
+                })}
+            </select>
 
             {/* Hộp Thông Tin & Ghi Chú Đăng Ký Của Nhân Viên Được Chọn */}
             {selectedEmpId && (() => {
