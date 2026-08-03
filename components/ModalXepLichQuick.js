@@ -150,13 +150,12 @@ export default function ModalXepLichQuick({
               }
               return (
                 <div
-                  className={`mt-2.5 p-3.5 rounded-2xl border text-xs font-bold shadow-md animate-fade-in ${
-                    avail.type === 'full'
+                  className={`mt-2.5 p-3.5 rounded-2xl border text-xs font-bold shadow-md animate-fade-in ${avail.type === 'full'
                       ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                       : avail.type === 'off'
-                      ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
-                      : 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                  }`}
+                        ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                        : 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                    }`}
                 >
                   <div className="flex items-center gap-1.5 font-black text-sm">
                     {avail.type === 'full' && <span>💪 Đã đăng ký: LÀM CẢ NGÀY</span>}
@@ -252,16 +251,15 @@ export default function ModalXepLichQuick({
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {['07:30', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((t) => (
+                {['07:30', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '14:30', '15:00', '16:00', '17:00', '17:30', '18:00', '19:00', '20:00'].map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setStartTime(t)}
-                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 ${
-                      startTime === t
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 ${startTime === t
                         ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.4)] scale-105'
                         : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[rgba(255,255,255,0.06)] hover:text-white'
-                    }`}
+                      }`}
                   >
                     {t.includes(':30') ? t : `${parseInt(t)}h`}
                   </button>
@@ -292,11 +290,10 @@ export default function ModalXepLichQuick({
                     key={t}
                     type="button"
                     onClick={() => setEndTime(t)}
-                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 ${
-                      endTime === t
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 ${endTime === t
                         ? 'bg-rose-500 text-white border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)] scale-105'
                         : 'bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] border-[rgba(255,255,255,0.06)] hover:text-white'
-                    }`}
+                      }`}
                   >
                     {t.includes(':30') ? t : `${parseInt(t)}h`}
                   </button>
