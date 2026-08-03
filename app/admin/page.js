@@ -7,7 +7,10 @@ import WeeklyMatrixBoard from '@/components/WeeklyMatrixBoard';
 import { ToastProvider, useToast } from '@/components/Toast';
 import {
   getEmployees,
+  createEmployee,
   updateEmployeeRate,
+  updateEmployeePin,
+  deleteEmployee,
   getBranches,
   getAvailabilityByDateRange,
   getScheduleByDateRange,
@@ -441,16 +444,37 @@ function AdminContent() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => {
-                            setEditingPinEmpId(emp.id);
-                            setNewPinInput(emp.pin || '1234');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-bold border border-amber-500/30 cursor-pointer transition-all active:scale-95 flex-shrink-0 flex items-center gap-1"
-                          title="Bấm để đổi mã PIN tùy ý cho nhân viên"
-                        >
-                          <span>🔑</span> Đổi PIN
-                        </button>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              setEditingPinEmpId(emp.id);
+                              setNewPinInput(emp.pin || '1234');
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-bold border border-amber-500/30 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                            title="Bấm để đổi mã PIN tùy ý cho nhân viên"
+                          >
+                            <span>🔑</span> Đổi PIN
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}" khỏi hệ thống?`)) {
+                                try {
+                                  await deleteEmployee(emp.id);
+                                  toast.success('Đã xóa', `Đã xóa nhân viên ${emp.name}`);
+                                  loadInitialData();
+                                } catch (err) {
+                                  console.error(err);
+                                  toast.error('Lỗi', 'Không thể xóa nhân viên');
+                                }
+                              }
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 cursor-pointer transition-all active:scale-95"
+                            title="Xóa nhân viên cũ không làm nữa"
+                          >
+                            🗑️ Xóa
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}

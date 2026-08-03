@@ -20,6 +20,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPin, setNewPin] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Selected Employee for PIN Auth
   const [selectedEmp, setSelectedEmp] = useState(null);
@@ -345,38 +346,84 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
           <>
             {!showNewForm ? (
               <div className="space-y-3 animate-fade-in-up-delay-1">
-                {employees.map((emp, idx) => {
-                  const gradients = [
-                    'from-amber-400 to-orange-500',
-                    'from-emerald-400 to-teal-500',
-                    'from-purple-400 to-indigo-500',
-                    'from-rose-400 to-pink-500',
-                    'from-sky-400 to-blue-500',
-                  ];
-                  const grad = gradients[idx % gradients.length];
+                {/* Ô TÌM KIẾM NHANH TÊN NHÂN VIÊN */}
+                {employees.length > 3 && (
+                  <div className="relative mb-3">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="🔍 Gõ tên của bạn để tìm nhanh..."
+                      className="w-full px-5 py-3.5 bg-[var(--color-surface-1)] border border-[rgba(245,158,11,0.3)] focus:border-amber-400 rounded-2xl text-white text-sm font-bold outline-none transition-all placeholder:text-[var(--color-text-muted)] shadow-md"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-3)] w-6 h-6 rounded-full flex items-center justify-center border-0 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {(() => {
+                  const filtered = employees.filter((e) =>
+                    e.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+                  );
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-8 glass rounded-3xl text-[var(--color-text-muted)]">
+                        <div className="text-3xl mb-2">🔍</div>
+                        <p className="text-sm font-bold">Không tìm thấy &quot;{searchQuery}&quot;</p>
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="mt-2 text-xs text-amber-400 font-bold border-0 bg-transparent cursor-pointer underline"
+                        >
+                          Xóa tìm kiếm
+                        </button>
+                      </div>
+                    );
+                  }
 
                   return (
-                    <button
-                      key={emp.id}
-                      onClick={() => handleSelectEmployeeCard(emp)}
-                      disabled={parentLoading}
-                      className="emp-select-btn w-full flex items-center gap-4 p-4 glass rounded-3xl cursor-pointer border border-[rgba(255,255,255,0.08)] hover:border-amber-500/60 active:scale-95 transition-all text-left group shadow-lg"
-                    >
-                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-tr ${grad} flex items-center justify-center font-black text-black text-lg flex-shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
-                        {getInitials(emp.name)}
-                      </div>
+                    <div className="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
+                      {filtered.map((emp, idx) => {
+                        const gradients = [
+                          'from-amber-400 to-orange-500',
+                          'from-emerald-400 to-teal-500',
+                          'from-purple-400 to-indigo-500',
+                          'from-rose-400 to-pink-500',
+                          'from-sky-400 to-blue-500',
+                        ];
+                        const grad = gradients[idx % gradients.length];
 
-                      <div className="flex-1 min-w-0">
-                        <span className="text-base md:text-lg font-black text-white block truncate">
-                          {emp.name}
-                        </span>
-                        <span className="text-xs text-amber-400 font-bold block">
-                          🔒 Bấm để nhập PIN & đăng ký lịch →
-                        </span>
-                      </div>
-                    </button>
+                        return (
+                          <button
+                            key={emp.id}
+                            onClick={() => handleSelectEmployeeCard(emp)}
+                            disabled={parentLoading}
+                            className="emp-select-btn w-full flex items-center gap-4 p-3.5 glass rounded-2xl cursor-pointer border border-[rgba(255,255,255,0.08)] hover:border-amber-500/60 active:scale-95 transition-all text-left group shadow-lg"
+                          >
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${grad} flex items-center justify-center font-black text-black text-base flex-shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
+                              {getInitials(emp.name)}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <span className="text-base font-black text-white block truncate">
+                                {emp.name}
+                              </span>
+                              <span className="text-xs text-amber-400 font-bold block">
+                                🔒 Bấm để chọn & đăng ký lịch →
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   );
-                })}
+                })()}
 
                 {employees.length === 0 && (
                   <div className="text-center py-10 glass rounded-3xl text-[var(--color-text-muted)]">
