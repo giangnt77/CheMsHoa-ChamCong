@@ -9,7 +9,8 @@ import { ToastProvider, useToast } from '@/components/Toast';
 import {
   getEmployeeByName,
   createEmployee,
-  getPenaltiesByEmployee,
+  getScheduleByDateRange,
+  updateEmployeeRate,
 } from '@/lib/supabase';
 import { getCurrentMonth, formatCurrency } from '@/lib/utils';
 
@@ -21,18 +22,65 @@ function EmployeeContent() {
   const [authLoading, setAuthLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // View state: Mặc định hiện Lịch Làm ('schedule') trước thay vì Đăng ký ca
-  const [view, setView] = useState('schedule'); // 'schedule' | 'availability'
+  // View state
+  const [view, setView] = useState('schedule');
+
+  // Worked hours & salary state
+  const [monthlyHours, setMonthlyHours] = useState(0);
+  const [monthlyShiftsCount, setMonthlyShiftsCount] = useState(0);
+  const [editingRate, setEditingRate] = useState(false);
+  const [rateInput, setRateInput] = useState('');
+
+  const currentMonth = getCurrentMonth();
 
   // Check localStorage for remembered name
   useEffect(() => {
     const saved = localStorage.getItem('chemshoa_employee_name');
     if (saved) {
-      handleLogin(saved, false); // false = don't show welcome toast on auto-restore
+      handleLogin(saved, false);
     } else {
       setInitialLoading(false);
     }
   }, []);
+
+  // Load employee monthly hours whenever employee changes
+  useEffect(() => {
+    if (employee) {
+      loadEmployeeHours();
+    }
+  }, [employee, currentMonth]);
+
+  async function loadEmployeeHours() {
+    try {
+      const [year, month] = currentMonth.split('-');
+      const startDate = `${year}-${month}-01`;
+      const endDate = `${year}-${month}-31`;
+      const schedData = await getScheduleByDateRange(startDate, endDate);
+      
+      // Filter for this employee
+      const myShifts = schedData.filter((s) => s.employee_id === employee.id);
+      const totalH = myShifts.reduce((sum, s) => sum + (Number(s.hours) || 5), 0);
+      
+      setMonthlyHours(Math.round(totalH * 100) / 100);
+      setMonthlyShiftsCount(myShifts.length);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleSaveRate() {
+    const rate = parseInt(rateInput);
+    if (!rate || rate <= 0) return;
+    try {
+      const updated = await updateEmployeeRate(employee.id, rate);
+      setEmployee(updated);
+      setEditingRate(false);
+      toast.success('Cập nhật', `Lương của bạn đã đặt: ${formatCurrency(rate)}/giờ`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể cập nhật lương');
+    }
+  }
 
   async function handleLogin(name, showToast = true, pin = '1234') {
     setAuthLoading(true);
@@ -64,6 +112,9 @@ function EmployeeContent() {
     localStorage.removeItem('chemshoa_employee_name');
   }
 
+  const hourlyRate = employee?.hourly_rate || 20000;
+  const estimatedSalary = monthlyHours * hourlyRate;
+
   if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
@@ -84,7 +135,7 @@ function EmployeeContent() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar
-        title="Chè Ms Hoa"
+        title="Tiệm Chè Ms Hoa"
         icon="🍵"
         employeeName={employee.name}
       />
@@ -98,7 +149,7 @@ function EmployeeContent() {
                 Xin chào, <span className="text-gradient">{employee.name}</span>! 👋
               </h1>
               <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                Xem lịch làm phân công & đăng ký ca rảnh
+                Xem lịch làm phân công & đăng ký ca làm
               </p>
             </div>
             <button
@@ -107,6 +158,73 @@ function EmployeeContent() {
             >
               🔄 Đổi
             </button>
+          </div>
+
+          {/* =========================================================================
+             BẢNG THỐNG KÊ GIỜ LÀM & TÍNH LƯƠNG TỰ ĐỘNG CÁ NHÂN
+             ========================================================================= */}
+          <div className="glass rounded-3xl p-5 mb-5 space-y-4 shadow-xl border border-[rgba(245,158,11,0.25)] animate-fade-in-up">
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] pb-3">
+              <h3 className="font-black text-base text-white flex items-center gap-2">
+                <span>💰</span> Bảng Thu Nhập Tháng {currentMonth.split('-')[1]}
+              </h3>
+              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30">
+                {monthlyShiftsCount} ca làm
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Tổng số giờ làm */}
+              <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center">
+                <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1">⏱️ Tổng số giờ làm</div>
+                <div className="text-2xl font-black text-amber-400">{monthlyHours} <span className="text-xs font-normal">tiếng</span></div>
+              </div>
+
+              {/* Lương thỏa thuận đ/giờ */}
+              <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center relative group">
+                <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1 flex items-center justify-center gap-1">
+                  <span>💵 Lương thỏa thuận</span>
+                  {!editingRate && (
+                    <button
+                      onClick={() => {
+                        setEditingRate(true);
+                        setRateInput(String(hourlyRate));
+                      }}
+                      className="text-amber-400 hover:text-amber-300 border-0 bg-transparent cursor-pointer p-0.5 text-xs font-bold"
+                      title="Sửa mức lương theo thỏa thuận"
+                    >
+                      ✏️
+                    </button>
+                  )}
+                </div>
+
+                {editingRate ? (
+                  <div className="flex items-center justify-center gap-1 mt-1">
+                    <input
+                      type="number"
+                      value={rateInput}
+                      onChange={(e) => setRateInput(e.target.value)}
+                      className="w-24 px-2 py-1 bg-[#12121e] border border-amber-400 rounded-lg text-white text-xs font-bold text-center outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveRate}
+                      className="px-2 py-1 rounded-lg bg-emerald-500 text-black text-xs font-black border-0 cursor-pointer"
+                    >
+                      Lưu
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-xl font-black text-white">{formatCurrency(hourlyRate)}<span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span></div>
+                )}
+              </div>
+
+              {/* Lương ước tính */}
+              <div className="p-4 bg-gradient-to-tr from-amber-500/20 to-orange-500/20 rounded-2xl border border-amber-500/40 text-center shadow-md">
+                <div className="text-xs text-amber-300 font-black mb-1">💰 Lương ước tính</div>
+                <div className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(estimatedSalary)}</div>
+              </div>
+            </div>
           </div>
 
           {/* Tab Toggle - Lịch Làm lên trước */}
@@ -129,7 +247,7 @@ function EmployeeContent() {
                   : 'bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
               }`}
             >
-              ✋ Đăng Ký Rảnh
+              ✋ Đăng Ký Làm
             </button>
           </div>
 
