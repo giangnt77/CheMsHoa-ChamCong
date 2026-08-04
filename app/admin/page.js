@@ -361,15 +361,9 @@ function AdminContent() {
 
           {/* ============ TAB: SCHEDULE (MA TRẬN XẾP LỊCH TUẦN 5 CHI NHÁNH) ============ */}
           {activeTab === 'schedule' && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Bảng Ma Trận Xếp Lịch Theo Tuần Cho 5 Chi Nhánh */}
+            <div className="animate-fade-in">
+              {/* Bảng Ma Trận Xếp Lịch Theo Tuần Cho 5 Chi Nhánh Tinh Gọn */}
               <WeeklyMatrixBoard employees={employees} toast={toast} />
-
-              {/* Overview Calendar Tháng Bên Dưới */}
-              <div className="mt-8">
-                <h3 className="font-bold text-lg mb-3">📊 Tổng Quan Lịch Phân Công Tháng</h3>
-                <ScheduleCalendar />
-              </div>
             </div>
           )}
 
