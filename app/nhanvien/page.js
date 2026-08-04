@@ -31,6 +31,22 @@ function EmployeeContent() {
   const [monthlyShiftsCount, setMonthlyShiftsCount] = useState(0);
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState('');
+  const [hideSalary, setHideSalary] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hideEmployeeSalary') === 'true';
+    }
+    return false;
+  });
+
+  function toggleHideSalary() {
+    setHideSalary((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hideEmployeeSalary', String(next));
+      }
+      return next;
+    });
+  }
 
   // Check localStorage for remembered name
   useEffect(() => {
@@ -195,6 +211,14 @@ function EmployeeContent() {
                 <h3 className="font-black text-base text-white flex items-center gap-1.5">
                   <span>💰</span> Thu Nhập
                 </h3>
+                <button
+                  type="button"
+                  onClick={toggleHideSalary}
+                  className="px-2.5 py-1 rounded-xl bg-[var(--color-surface-2)] text-amber-300 hover:bg-amber-500/20 text-xs font-bold border border-[rgba(255,255,255,0.1)] cursor-pointer flex items-center gap-1 transition-all active:scale-95"
+                  title={hideSalary ? 'Bấm để hiện mức lương' : 'Bấm để ẩn mức lương bảo mật'}
+                >
+                  <span>{hideSalary ? '🙈 Hiện Lương' : '👁️ Ẩn Lương'}</span>
+                </button>
                 {/* Bộ chọn tháng */}
                 <div className="flex items-center gap-1 bg-[var(--color-surface-2)] px-2 py-1 rounded-xl border border-[rgba(255,255,255,0.1)]">
                   <button
@@ -260,7 +284,7 @@ function EmployeeContent() {
                 ) : (
                   <div>
                     <div className="text-xl font-black text-white">
-                      {formatCurrency(hourlyRate)}
+                      {hideSalary ? '••••••' : formatCurrency(hourlyRate)}
                       <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
                     </div>
                     <button
@@ -279,7 +303,9 @@ function EmployeeContent() {
               {/* Lương ước tính */}
               <div className="p-4 bg-gradient-to-tr from-amber-500/20 to-orange-500/20 rounded-2xl border border-amber-500/40 text-center shadow-md">
                 <div className="text-xs text-amber-300 font-black mb-1">💰 Lương ước tính</div>
-                <div className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(estimatedSalary)}</div>
+                <div className="text-xl md:text-2xl font-black text-emerald-400">
+                  {hideSalary ? '•••••••• đ' : formatCurrency(estimatedSalary)}
+                </div>
               </div>
             </div>
           </div>
