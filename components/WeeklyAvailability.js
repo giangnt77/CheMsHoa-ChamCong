@@ -20,10 +20,23 @@ function formatDateISO(dateObj) {
   return `${year}-${month}-${day}`;
 }
 
+function getThisWeekDays() {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=CN, 1=T2...
+  const daysToSub = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysToSub);
+
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const dayObj = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    days.push(formatDateISO(dayObj));
+  }
+  return days;
+}
+
 function getNextWeekDays() {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0=CN, 1=T2...
-  // Số ngày đến Thứ 2 của tuần sau
   const daysUntilNextMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
   const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextMonday);
 
@@ -39,7 +52,8 @@ const DAY_NAMES = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ
 
 export default function WeeklyAvailability({ employee, onUpdate }) {
   const toast = useToast();
-  const days = getNextWeekDays();
+  const [weekType, setWeekType] = useState('next'); // 'this' | 'next'
+  const days = useMemo(() => (weekType === 'this' ? getThisWeekDays() : getNextWeekDays()), [weekType]);
 
   // Selected state: { [dateStr]: 'full' | 'option' | 'off' }
   const [availability, setAvailability] = useState({});
@@ -52,7 +66,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
 
   useEffect(() => {
     loadAvailability();
-  }, [employee]);
+  }, [employee, weekType]);
 
   async function loadAvailability() {
     setLoading(true);
@@ -149,17 +163,41 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   return (
     <div className="glass rounded-3xl p-5 md:p-7 space-y-6 shadow-2xl">
       {/* Header */}
-      <div className="border-b border-[rgba(255,255,255,0.08)] pb-4">
+      <div className="border-b border-[rgba(255,255,255,0.08)] pb-4 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h3 className="font-black text-lg md:text-2xl flex items-center gap-2 text-white">
-            <span className="text-2xl">✋</span> Đăng Ký Lịch Làm
+            <span className="text-2xl">✋</span> Đăng Ký Lịch Rảnh
           </h3>
-          <span className="px-3.5 py-1.5 text-xs font-black rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)] flex items-center gap-1">
-            ⚡ ĐĂNG KÝ TUẦN SAU
-          </span>
+
+          {/* Tab chọn Tuần Này vs Tuần Sau */}
+          <div className="flex bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.08)]">
+            <button
+              type="button"
+              onClick={() => setWeekType('this')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                weekType === 'this'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-[var(--color-text-muted)] hover:text-white'
+              }`}
+            >
+              ⚡ Tuần Này
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeekType('next')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                weekType === 'next'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-[var(--color-text-muted)] hover:text-white'
+              }`}
+            >
+              🚀 Tuần Sau
+            </button>
+          </div>
         </div>
-        <p className="text-xs md:text-sm text-[var(--color-text-secondary)] mt-1.5 font-semibold">
-          📅 Lịch tuần: <span className="text-amber-400 font-extrabold">{getWeekLabel()}</span>
+
+        <p className="text-xs md:text-sm text-[var(--color-text-secondary)] font-semibold">
+          📅 Đăng ký cho tuần: <span className="text-amber-400 font-extrabold">{getWeekLabel()}</span> ({weekType === 'next' ? 'Chốt lịch tuần sau' : 'Bổ sung lịch tuần này'})
         </p>
       </div>
 
