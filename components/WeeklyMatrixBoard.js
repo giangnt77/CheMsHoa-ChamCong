@@ -179,38 +179,38 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   }
 
   return (
-    <div className="space-y-4">
-      {/* Thanh điều hướng Tuần & Legend màu Chi Nhánh */}
-      <div className="glass rounded-3xl p-4 border border-[var(--color-glass-border)] flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
+    <div className="space-y-3">
+      {/* Thanh điều hướng Tuần & Legend màu Chi Nhánh - Góc Vuông Sang Trọng */}
+      <div className="glass rounded-lg p-3.5 border border-slate-700/80 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={prevWeek}
-            className="px-3 py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-white text-xs font-bold border-0 cursor-pointer transition-all active:scale-95"
+            className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer transition-all active:scale-95"
           >
             ◀ Tuần trước
           </button>
           <button
             type="button"
             onClick={goTodayWeek}
-            className="px-3 py-2 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95"
+            className="px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95"
           >
             Tuần này
           </button>
           <button
             type="button"
             onClick={nextWeek}
-            className="px-3 py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-white text-xs font-bold border-0 cursor-pointer transition-all active:scale-95"
+            className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer transition-all active:scale-95"
           >
             Tuần sau ▶
           </button>
         </div>
 
-        <div className="text-xs font-extrabold text-white">
-          📅 Lịch tuần: <span className="text-amber-400">{startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}</span>
+        <div className="text-xs md:text-sm font-black text-white">
+          📅 Lịch tuần: <span className="text-amber-400 font-black">{startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}</span>
         </div>
 
-        {/* Legend Chi Nhánh */}
+        {/* Legend Chi Nhánh - Phẳng Góc Vuông */}
         <div className="flex flex-wrap gap-1.5">
           {branches.map((b) => {
             const bColor = getBranchColor(b.name, b.color);
@@ -219,15 +219,15 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             return (
               <span
                 key={b.id}
-                className="text-[10px] font-black px-2 py-0.5 rounded-md border shadow-sm"
+                className="text-[11px] font-black px-2 py-0.5 rounded border"
                 style={{
-                  backgroundColor: isWhite ? '#ffffff' : `${bColor}35`,
+                  backgroundColor: isWhite ? '#ffffff' : `${bColor}30`,
                   borderColor: isWhite ? '#cbd5e1' : bColor,
                   color: isWhite ? '#0f172a' : '#ffffff',
                 }}
               >
                 <span
-                  className="w-2 h-2 rounded-full inline-block mr-1 border border-black/20"
+                  className="w-2 h-2 rounded-sm inline-block mr-1"
                   style={{ backgroundColor: bColor }}
                 />
                 {b.name}
@@ -238,27 +238,27 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       </div>
 
       {/* =========================================================================
-         BẢNG EXCEL MA TRẬN PHÂN CÔNG CHUẨN ĐÚNG THEO ẢNH MẪU
+         BẢNG EXCEL MA TRẬN PHÂN CÔNG GÓC VUÔNG CHUẨN KẺ Ô SẮC NÉT
          ========================================================================= */}
-      <div className="glass rounded-3xl p-3 border border-[var(--color-glass-border)] shadow-2xl overflow-x-auto custom-scrollbar">
+      <div className="glass rounded-lg p-2 border border-slate-700/80 overflow-x-auto custom-scrollbar">
         <table className="w-full min-w-[980px] border-collapse text-xs">
           <thead>
             {/* Hàng 1: Tên Thứ (T2 -> CN) */}
-            <tr className="bg-[var(--color-surface-2)] text-white border-b border-[rgba(255,255,255,0.12)]">
-              <th className="py-2.5 px-2 border-r border-[rgba(255,255,255,0.1)] w-12 text-center font-black">STT</th>
-              <th className="py-2.5 px-3 border-r border-[rgba(255,255,255,0.1)] w-48 text-left font-black">THỨ</th>
+            <tr className="bg-slate-800/90 text-white border-b border-slate-700">
+              <th className="py-2.5 px-2 border-r border-slate-700 w-12 text-center font-black">STT</th>
+              <th className="py-2.5 px-3 border-r border-slate-700 w-48 text-left font-black">THỨ</th>
               {weekDays.map((dStr, idx) => (
-                <th key={dStr} className="py-2.5 px-2 border-r border-[rgba(255,255,255,0.1)] text-center font-black uppercase text-amber-400 text-sm">
+                <th key={dStr} className="py-2.5 px-2 border-r border-slate-700 text-center font-black uppercase text-amber-400 text-sm">
                   {DAY_LABELS[idx]}
                 </th>
               ))}
             </tr>
             {/* Hàng 2: Ngày Tây (VD: 03/08, 04/08...) */}
-            <tr className="bg-[var(--color-surface-1)] text-amber-300/80 border-b border-[rgba(255,255,255,0.12)] text-[11px]">
-              <th className="py-1 px-2 border-r border-[rgba(255,255,255,0.06)]" />
-              <th className="py-1 px-3 border-r border-[rgba(255,255,255,0.06)] text-left font-bold">NGÀY TÂY</th>
+            <tr className="bg-slate-900/80 text-amber-300 border-b border-slate-700 text-xs">
+              <th className="py-1 px-2 border-r border-slate-700" />
+              <th className="py-1 px-3 border-r border-slate-700 text-left font-extrabold">NGÀY TÂY</th>
               {weekDays.map((dStr) => (
-                <th key={dStr} className="py-1 px-2 border-r border-[rgba(255,255,255,0.06)] text-center font-bold">
+                <th key={dStr} className="py-1 px-2 border-r border-slate-700 text-center font-black">
                   {dStr.split('-').reverse().slice(0, 2).join('/')}
                 </th>
               ))}
@@ -334,7 +334,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 return (
                                   <div
                                     key={shift.id}
-                                    className={`p-2 rounded-xl font-black text-xs md:text-sm leading-tight border shadow-sm transition-all ${
+                                    className={`p-2 rounded-md font-black text-xs md:text-sm leading-tight border transition-all ${
                                       isWhiteBg ? 'bg-white text-slate-900 border-slate-300' : 'text-white'
                                     }`}
                                     style={{

@@ -28,50 +28,34 @@
 }
 
 /* ============================================
-   BASE STYLES - Modern Clean Slate Theme
+   BASE STYLES - Flat Slate Dark Theme
    ============================================ */
 body {
-  background: #090d16;
-  color: #f1f5f9;
+  background: #0b0f19;
+  color: #f8fafc;
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
   padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
-/* Background Subtle Gradient */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: 
-    radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.05) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.05) 0%, transparent 45%);
-  pointer-events: none;
-  z-index: 0;
-}
-
 /* ============================================
-   NEO-GLASSMORPHISM & CLEAN CARDS
+   CLEAN FLAT CARDS - GÓC VUÔNG SẮC NÉT (SHARP & LOW RADIUS)
    ============================================ */
 .glass {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #151d2a;
+  border: 1px solid #263346;
+  border-radius: 0.5rem;
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 1.25rem;
+  background: #151d2a;
+  border: 1px solid #263346;
+  border-radius: 0.5rem;
 }
 
 .glass-glow {
-  background: rgba(25, 25, 40, 0.7);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
+  background: #151d2a;
+  border: 1px solid #f59e0b;
 }
 
 .glass-hover:hover {

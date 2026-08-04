@@ -438,17 +438,13 @@ function AdminContent() {
             </p>
           </div>
 
-          {/* Segmented Control Navigation Tabs - Dịu Mắt & Hiện Đại */}
-          <div className="flex gap-2 bg-slate-900/80 rounded-2xl p-1.5 border border-slate-800 mb-6 max-w-2xl mx-auto animate-fade-in">
-            {[
-              { id: 'schedule', label: '📅 Xếp Lịch' },
-              { id: 'employees', label: '👥 Nhân viên & Lương' },
-              { id: 'penalty', label: '⚠️ Phạt' },
-            ].map((tab) => (
+          {/* Segmented Control Navigation Tabs - Góc Vuông Phẳng */}
+          <div className="flex gap-2 bg-slate-900 rounded-lg p-1.5 border border-slate-700 mb-6 max-w-2xl mx-auto animate-fade-in">
+            {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black cursor-pointer border transition-all ${
+                className={`flex-1 py-2.5 px-3 rounded-md text-xs sm:text-sm font-black cursor-pointer border transition-all ${
                   activeTab === tab.id
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
                     : 'bg-transparent text-slate-400 border-transparent hover:text-white'

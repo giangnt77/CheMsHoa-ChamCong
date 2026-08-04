@@ -190,7 +190,7 @@ function EmployeeContent() {
       <main className="flex-1 relative z-10 px-4 md:px-6 py-6">
         <div className="max-w-7xl mx-auto space-y-4">
           {/* Header Chào & Đổi Tài Khoản - Chữ To Rõ */}
-          <div className="glass rounded-3xl p-4 flex items-center justify-between flex-wrap gap-3 border border-[rgba(255,255,255,0.08)]">
+          <div className="glass rounded-lg p-4 flex items-center justify-between flex-wrap gap-3 border border-slate-700">
             <div>
               <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
                 <span>Xin chào, <span className="text-amber-400 font-black">{employee.name}</span>! 👋</span>
@@ -205,7 +205,7 @@ function EmployeeContent() {
               <button
                 type="button"
                 onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
-                className="px-3.5 py-2 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs md:text-sm font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs md:text-sm font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
               >
                 <span>💰</span>
                 <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
@@ -215,14 +215,14 @@ function EmployeeContent() {
 
           {/* BẢNG TÍNH LƯƠNG TỰ ĐỘNG CÁ NHÂN (ẨN/HIỆN THEO NHU CẦU) */}
           {isIncomeExpanded && (
-            <div className="glass rounded-3xl p-4 border border-amber-500/30 animate-fade-in space-y-3">
+            <div className="glass rounded-lg p-4 border border-amber-500/30 animate-fade-in space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2 border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">💰</span>
                   <h3 className="font-black text-base text-white">Thu Nhập Cá Nhân</h3>
                 </div>
                 {/* Bộ chọn tháng */}
-                <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-xl border border-white/10">
+                <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-md border border-white/10">
                   <button onClick={handlePrevMonth} className="text-slate-300 hover:text-white font-bold text-sm">◀</button>
                   <span className="text-xs md:text-sm font-black text-amber-400">
                     Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
@@ -232,15 +232,15 @@ function EmployeeContent() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                <div className="p-3 bg-slate-900/60 rounded-2xl border border-white/5 text-center">
+                <div className="p-3 bg-slate-900/60 rounded-md border border-white/5 text-center">
                   <div className="text-xs text-slate-400 font-bold mb-1">⏱️ Tổng số giờ làm</div>
                   <div className="text-xl md:text-2xl font-black text-amber-400">{monthlyHours} <span className="text-xs font-normal">tiếng</span> ({monthlyShiftsCount} ca)</div>
                 </div>
-                <div className="p-3 bg-slate-900/60 rounded-2xl border border-white/5 text-center">
+                <div className="p-3 bg-slate-900/60 rounded-md border border-white/5 text-center">
                   <div className="text-xs text-slate-400 font-bold mb-1">💵 Lương thỏa thuận</div>
                   <div className="text-xl md:text-2xl font-black text-white">{formatCurrency(currentRate)}<span className="text-xs font-normal text-slate-400">/h</span></div>
                 </div>
-                <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/30 text-center">
+                <div className="p-3 bg-amber-500/10 rounded-md border border-amber-500/30 text-center">
                   <div className="text-xs text-amber-300 font-black mb-1">💰 Lương ước tính</div>
                   <div className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(monthlySalary)}</div>
                 </div>
@@ -248,11 +248,11 @@ function EmployeeContent() {
             </div>
           )}
 
-          {/* Tab Navigation - Tinh gọn & Sắc nét */}
-          <div className="flex gap-2 bg-slate-900/80 rounded-2xl p-1.5 border border-slate-800 mb-6 animate-fade-in-up">
+          {/* Tab Navigation - Góc Vuông Phẳng */}
+          <div className="flex gap-2 bg-slate-900 rounded-lg p-1.5 border border-slate-700 mb-6 animate-fade-in-up">
             <button
               onClick={() => setView('schedule')}
-              className={`flex-1 py-2.5 rounded-xl font-black text-sm cursor-pointer border transition-all ${
+              className={`flex-1 py-2.5 rounded-md font-black text-sm cursor-pointer border transition-all ${
                 view === 'schedule'
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
                   : 'bg-transparent text-slate-400 border-transparent hover:text-white'
@@ -262,7 +262,7 @@ function EmployeeContent() {
             </button>
             <button
               onClick={() => setView('availability')}
-              className={`flex-1 py-2.5 rounded-xl font-black text-sm cursor-pointer border transition-all ${
+              className={`flex-1 py-2.5 rounded-md font-black text-sm cursor-pointer border transition-all ${
                 view === 'availability'
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
                   : 'bg-transparent text-slate-400 border-transparent hover:text-white'
