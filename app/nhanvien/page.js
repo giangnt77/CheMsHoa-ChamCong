@@ -210,13 +210,6 @@ function EmployeeContent() {
                 <span>💰</span>
                 <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
               </button>
-
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-2xl text-xs md:text-sm text-slate-200 font-bold transition-all cursor-pointer"
-              >
-                🔄 Đổi NV
-              </button>
             </div>
           </div>
 
