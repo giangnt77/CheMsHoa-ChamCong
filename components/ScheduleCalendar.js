@@ -39,9 +39,10 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
   async function loadData() {
     setLoading(true);
     try {
-      const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
-      const startDate = `${monthStr}-01`;
-      const endDate = `${monthStr}-31`;
+      const mStr = String(month + 1).padStart(2, '0');
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const startDate = `${year}-${mStr}-01`;
+      const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
       const [schedData, branchData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getBranches(),
@@ -49,7 +50,7 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
       setSchedule(schedData);
       setBranches(branchData);
     } catch (err) {
-      console.error(err);
+      console.error('Error loading schedule calendar data:', err);
     }
     setLoading(false);
   }
