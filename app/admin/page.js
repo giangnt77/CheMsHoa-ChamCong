@@ -57,9 +57,10 @@ function AdminContent() {
   // Loading
   const [loading, setLoading] = useState(true);
 
-  // Penalty form
+  // Penalty & Bonus form
   const [penaltyAmount, setPenaltyAmount] = useState('');
   const [penaltyReason, setPenaltyReason] = useState('');
+  const [recordType, setRecordType] = useState('bonus'); // 'bonus' | 'penalty'
 
   // Rate & PIN edit
   const [editingRate, setEditingRate] = useState(false);
@@ -204,52 +205,77 @@ function AdminContent() {
     const amount = parseInt(penaltyAmount);
     if (!amount || !penaltyReason.trim()) return;
     try {
+      const isBonus = recordType === 'bonus';
+      const cleanReason = penaltyReason.trim();
+      const finalReason = isBonus && !cleanReason.startsWith('[THƯỞNG]')
+        ? `[THƯỞNG] ${cleanReason}`
+        : cleanReason;
+
       await createPenalty({
         employee_id: selectedEmployee.id,
         month: selectedMonth,
         amount,
-        reason: penaltyReason.trim(),
+        type: isBonus ? 'bonus' : 'penalty',
+        reason: finalReason,
       });
-      toast.warning('Phạt đã thêm', `${formatCurrency(amount)} - ${penaltyReason}`);
+
+      if (isBonus) {
+        toast.success('Đã thêm thưởng!', `🎁 +${formatCurrency(amount)} - ${cleanReason}`);
+      } else {
+        toast.warning('Đã thêm phạt!', `⚠️ -${formatCurrency(amount)} - ${cleanReason}`);
+      }
+
       setPenaltyAmount('');
       setPenaltyReason('');
       loadEmployeeData();
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi', 'Không thể thêm phạt');
+      toast.error('Lỗi', 'Không thể lưu khoản thưởng/phạt');
     }
   }
 
   async function handleDeletePenalty(id) {
     try {
       await deletePenalty(id);
-      toast.info('Đã xóa', 'Đã xóa khoản phạt');
+      toast.info('Đã xóa', 'Đã xóa khoản thưởng/phạt');
       loadEmployeeData();
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi', 'Không thể xóa phạt');
+      toast.error('Lỗi', 'Không thể xóa');
     }
   }
 
-  // Salary calculation
+  // Salary calculation including gross, bonus, penalty, net
   const salaryData = useMemo(() => {
     if (!selectedEmployee) return null;
     const totalShifts = empSchedule.length;
-    // Mặc định mỗi ca 5 tiếng hoặc tính theo hours field nếu có
     const totalHours = empSchedule.reduce((sum, s) => sum + (Number(s.hours) || 5), 0);
     const rate = selectedEmployee.hourly_rate || 20000;
     const grossSalary = totalHours * rate;
-    const totalPenalty = empPenalties.reduce((sum, p) => sum + p.amount, 0);
-    const netSalary = grossSalary - totalPenalty;
+
+    let totalBonus = 0;
+    let totalPenalty = 0;
+
+    empPenalties.forEach((p) => {
+      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      if (isBonus) {
+        totalBonus += Math.abs(p.amount);
+      } else {
+        totalPenalty += Math.abs(p.amount);
+      }
+    });
+
+    const netSalary = grossSalary + totalBonus - totalPenalty;
     return {
       totalHours: Math.round(totalHours * 100) / 100,
       totalShifts,
       rate,
       grossSalary,
+      totalBonus,
       totalPenalty,
       netSalary,
     };
-  }, [empSchedule, empPenalties, selectedEmployee]);
+  }, [selectedEmployee, empSchedule, empPenalties]);
 
   function prevMonth() {
     const [y, m] = selectedMonth.split('-').map(Number);
@@ -577,24 +603,28 @@ function AdminContent() {
                           </div>
                         </div>
 
-                        {/* Summary Stats Cards */}
+                        {/* Summary Stats Cards - 5 Thẻ Chi Tiết */}
                         {salaryData && (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3.5 border border-[rgba(255,255,255,0.06)]">
-                              <div className="text-xs text-[var(--color-text-muted)] font-bold uppercase mb-1">📅 Ca đã làm</div>
-                              <div className="text-xl font-extrabold text-amber-400">{salaryData.totalShifts} ca</div>
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
+                              <div className="text-[11px] text-[var(--color-text-muted)] font-bold uppercase mb-1">📅 Ca đã làm</div>
+                              <div className="text-base font-extrabold text-amber-400">{salaryData.totalShifts} ca ({salaryData.totalHours}h)</div>
                             </div>
-                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3.5 border border-[rgba(255,255,255,0.06)]">
-                              <div className="text-xs text-[var(--color-text-muted)] font-bold uppercase mb-1">💵 Tổng Lương</div>
-                              <div className="text-base font-extrabold text-emerald-400">{formatCurrency(salaryData.grossSalary)}</div>
+                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
+                              <div className="text-[11px] text-[var(--color-text-muted)] font-bold uppercase mb-1">💵 Lương Ca</div>
+                              <div className="text-sm font-extrabold text-blue-400">{formatCurrency(salaryData.grossSalary)}</div>
                             </div>
-                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3.5 border border-[rgba(255,255,255,0.06)]">
-                              <div className="text-xs text-[var(--color-text-muted)] font-bold uppercase mb-1">⚠️ Tiền Phạt</div>
-                              <div className="text-base font-extrabold text-rose-400">-{formatCurrency(salaryData.totalPenalty)}</div>
+                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
+                              <div className="text-[11px] text-emerald-400 font-bold uppercase mb-1">🎁 Thưởng</div>
+                              <div className="text-sm font-extrabold text-emerald-400">+{formatCurrency(salaryData.totalBonus)}</div>
                             </div>
-                            <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-2xl p-3.5 border border-amber-500/40">
-                              <div className="text-xs text-amber-300 font-extrabold uppercase mb-1">🎉 Thực Nhận</div>
-                              <div className="text-base font-black text-white">{formatCurrency(salaryData.netSalary)}</div>
+                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
+                              <div className="text-[11px] text-rose-400 font-bold uppercase mb-1">⚠️ Phạt</div>
+                              <div className="text-sm font-extrabold text-rose-400">-{formatCurrency(salaryData.totalPenalty)}</div>
+                            </div>
+                            <div className="col-span-2 sm:col-span-1 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-2xl p-3 border border-amber-500/40">
+                              <div className="text-[11px] text-amber-300 font-extrabold uppercase mb-1">🎉 Thực Nhận</div>
+                              <div className="text-sm font-black text-white">{formatCurrency(salaryData.netSalary)}</div>
                             </div>
                           </div>
                         )}
@@ -634,37 +664,41 @@ function AdminContent() {
             </div>
           )}
 
-          {/* ============ TAB: PENALTY ============ */}
+          {/* ============ TAB: REWARD & PENALTY (THƯỞNG & PHẠT GỘP CHUNG) ============ */}
           {activeTab === 'penalty' && (
             <div className="animate-fade-in">
               {!selectedEmployee ? (
                 <div className="text-center py-16 text-[var(--color-text-muted)]">
-                  <div className="text-4xl mb-3 opacity-50">⚠️</div>
-                  <p>Chọn nhân viên từ tab &quot;Nhân viên&quot; trước</p>
+                  <div className="text-4xl mb-3 opacity-50">🎁</div>
+                  <p>Chọn nhân viên để xem hoặc thêm tiền Thưởng / Phạt</p>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  <div className="glass rounded-2xl p-5 flex items-center justify-between flex-wrap gap-4">
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  <div className="glass rounded-3xl p-5 flex items-center justify-between flex-wrap gap-4 border border-[var(--color-glass-border)]">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-red-500 flex items-center justify-center font-extrabold text-white text-sm">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-emerald-500 flex items-center justify-center font-extrabold text-white text-base shadow-md">
                         {getInitials(selectedEmployee.name)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-white text-base">{selectedEmployee.name}</h3>
-                        <p className="text-xs text-[var(--color-text-muted)]">{getMonthName(selectedMonth)}</p>
+                        <h3 className="font-extrabold text-white text-lg flex items-center gap-2">
+                          <span>{selectedEmployee.name}</span>
+                        </h3>
+                        <p className="text-xs text-[var(--color-text-muted)] font-semibold">
+                          Thống kê Thưởng & Phạt • <span className="text-amber-400 font-bold">{getMonthName(selectedMonth)}</span>
+                        </p>
                       </div>
                     </div>
 
                     {/* Ô chọn nhân viên trực tiếp */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-[var(--color-text-muted)] font-bold uppercase">Chọn NV:</span>
+                      <span className="text-xs text-[var(--color-text-muted)] font-bold uppercase">Nhân viên:</span>
                       <select
                         value={selectedEmployee.id}
                         onChange={(e) => {
                           const emp = employees.find((em) => em.id === e.target.value);
                           if (emp) setSelectedEmployee(emp);
                         }}
-                        className="px-4 py-2 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-bold outline-none cursor-pointer"
+                        className="px-4 py-2.5 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-extrabold outline-none cursor-pointer focus:border-amber-500"
                       >
                         {employees.map((emp) => (
                           <option key={emp.id} value={emp.id}>
@@ -675,64 +709,134 @@ function AdminContent() {
                     </div>
                   </div>
 
-                  {/* Add Penalty Form */}
-                  <div className="glass rounded-2xl p-6">
-                    <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                      <span>➕</span> Thêm phạt / trừ lương
-                    </h3>
+                  {/* Form Thêm Khoản Thưởng / Phạt */}
+                  <div className="glass rounded-3xl p-6 border border-[var(--color-glass-border)] shadow-xl">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                      <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                        <span>➕</span> Ghi Nhận Khoản Tiền Cho {selectedEmployee.name}
+                      </h3>
+
+                      {/* Nút Toggle Loại Khoản: Thưởng (+) vs Phạt (-) */}
+                      <div className="flex bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.08)]">
+                        <button
+                          type="button"
+                          onClick={() => setRecordType('bonus')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${
+                            recordType === 'bonus'
+                              ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                              : 'text-[var(--color-text-muted)] hover:text-white'
+                          }`}
+                        >
+                          <span>🎁</span> THƯỞNG (+)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRecordType('penalty')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${
+                            recordType === 'penalty'
+                              ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]'
+                              : 'text-[var(--color-text-muted)] hover:text-white'
+                          }`}
+                        >
+                          <span>⚠️</span> PHẠT (-)
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-[var(--color-text-secondary)] uppercase mb-2">Số tiền (VNĐ)</label>
+                        <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-2">
+                          Số tiền (VNĐ)
+                        </label>
                         <input
                           type="number"
                           value={penaltyAmount}
                           onChange={(e) => setPenaltyAmount(e.target.value)}
-                          placeholder="VD: 50000"
-                          className="w-full px-4 py-3 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm outline-none"
+                          placeholder={recordType === 'bonus' ? 'VD: 100000 (Thưởng)' : 'VD: 50000 (Phạt)'}
+                          className="w-full px-4 py-3 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-bold outline-none focus:border-amber-500"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-[var(--color-text-secondary)] uppercase mb-2">Lý do</label>
+                        <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-2">
+                          Lý do
+                        </label>
                         <input
                           type="text"
                           value={penaltyReason}
                           onChange={(e) => setPenaltyReason(e.target.value)}
-                          placeholder="VD: Đi trễ 3 lần"
-                          className="w-full px-4 py-3 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm outline-none"
+                          placeholder={recordType === 'bonus' ? 'VD: Thưởng làm tốt, doanh số...' : 'VD: Đi trễ 20 phút, vi phạm...'}
+                          className="w-full px-4 py-3 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-bold outline-none focus:border-amber-500"
                         />
                       </div>
                       <div className="flex items-end">
                         <button
+                          type="button"
                           onClick={handleAddPenalty}
                           disabled={!penaltyAmount || !penaltyReason.trim()}
-                          className="w-full py-3 rounded-xl btn-gradient-danger text-white font-semibold text-sm cursor-pointer border-0"
+                          className={`w-full py-3 rounded-xl font-extrabold text-sm cursor-pointer border-0 shadow-lg transition-all active:scale-95 ${
+                            recordType === 'bonus'
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black'
+                              : 'bg-gradient-to-r from-rose-500 to-red-600 text-white'
+                          }`}
                         >
-                          ⚠️ Thêm phạt
+                          {recordType === 'bonus' ? '🎁 Thêm Tiền Thưởng' : '⚠️ Thêm Tiền Phạt'}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Penalty List */}
-                  <div className="glass rounded-2xl p-6">
-                    <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                      <span>📋</span> Danh sách phạt - {getMonthName(selectedMonth)}
+                  {/* Danh Sách Khoản Thưởng & Phạt */}
+                  <div className="glass rounded-3xl p-6 border border-[var(--color-glass-border)] shadow-xl">
+                    <h3 className="font-extrabold text-base text-white mb-4 flex items-center gap-2">
+                      <span>📋</span> Danh sách Thưởng & Phạt - {getMonthName(selectedMonth)} ({empPenalties.length} khoản)
                     </h3>
                     {empPenalties.length === 0 ? (
-                      <p className="text-sm text-[var(--color-text-muted)] text-center py-4">Không có khoản phạt nào 🎉</p>
+                      <p className="text-xs text-[var(--color-text-muted)] text-center py-6 font-semibold">
+                        Chưa có khoản Thưởng hoặc Phạt nào trong tháng này ✨
+                      </p>
                     ) : (
-                      <div className="space-y-2">
-                        {empPenalties.map((p) => (
-                          <div key={p.id} className="bg-[rgba(244,63,94,0.08)] border border-[rgba(244,63,94,0.2)] rounded-xl p-4 flex items-center justify-between">
-                            <div>
-                              <div className="font-semibold text-sm text-[var(--color-coral-400)]">{p.reason}</div>
+                      <div className="space-y-2.5">
+                        {empPenalties.map((p) => {
+                          const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+                          const displayReason = p.reason ? p.reason.replace('[THƯỞNG] ', '') : '';
+
+                          return (
+                            <div
+                              key={p.id}
+                              className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-md ${
+                                isBonus
+                                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                                  : 'bg-rose-500/10 border-rose-500/30'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl">{isBonus ? '🎁' : '⚠️'}</span>
+                                <div>
+                                  <div className={`font-extrabold text-sm ${isBonus ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                    {displayReason}
+                                  </div>
+                                  <span className="text-[11px] text-[var(--color-text-muted)] font-semibold">
+                                    {isBonus ? 'Khoản Thưởng' : 'Khoản Phạt'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <span className={`font-black text-base ${isBonus ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                  {isBonus ? `+${formatCurrency(p.amount)}` : `-${formatCurrency(p.amount)}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePenalty(p.id)}
+                                  className="w-8 h-8 rounded-xl bg-black/30 hover:bg-rose-500 hover:text-white text-xs font-bold border-0 cursor-pointer flex items-center justify-center transition-all"
+                                  title="Xóa khoản này"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className="font-bold text-[var(--color-coral-400)]">-{formatCurrency(p.amount)}</span>
-                              <button onClick={() => handleDeletePenalty(p.id)} className="text-xs text-[var(--color-coral-400)] border-0 bg-transparent cursor-pointer">🗑️</button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
