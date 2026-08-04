@@ -56,7 +56,7 @@ function EmployeeContent() {
       const startDate = `${year}-${mStr}-01`;
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
       const schedData = await getScheduleByDateRange(startDate, endDate);
-      
+
       const myShifts = schedData.filter((s) => s.employee_id === employee.id);
       let totalH = 0;
       myShifts.forEach((s) => {
@@ -239,11 +239,10 @@ function EmployeeContent() {
                   e.stopPropagation();
                   setIsIncomeExpanded(!isIncomeExpanded);
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all active:scale-95 flex-shrink-0 ${
-                  isIncomeExpanded
+                className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all active:scale-95 flex-shrink-0 ${isIncomeExpanded
                     ? 'bg-amber-500 text-black border-amber-400 shadow-md'
                     : 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25'
-                }`}
+                  }`}
               >
                 {isIncomeExpanded ? '▲ Thu nhỏ' : '👁️ Xem Lương'}
               </button>
@@ -270,7 +269,7 @@ function EmployeeContent() {
                         <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
                       </div>
                       <span className="text-[10px] text-amber-400/80 font-bold block mt-1">
-                        🔒 Do Admin cài đặt
+                        🔒 Do a Giang đặt
                       </span>
                     </div>
                   </div>
@@ -289,21 +288,19 @@ function EmployeeContent() {
           <div className="flex gap-1 bg-[var(--color-surface-1)] rounded-xl p-1 mb-5 animate-fade-in-up">
             <button
               onClick={() => setView('schedule')}
-              className={`flex-1 py-3 rounded-lg font-bold text-base cursor-pointer border-0 transition-all ${
-                view === 'schedule'
+              className={`flex-1 py-3 rounded-lg font-bold text-base cursor-pointer border-0 transition-all ${view === 'schedule'
                   ? 'bg-[var(--color-surface-3)] text-white shadow-md'
                   : 'bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-              }`}
+                }`}
             >
               📅 Lịch Làm Việc
             </button>
             <button
               onClick={() => setView('availability')}
-              className={`flex-1 py-3 rounded-lg font-bold text-base cursor-pointer border-0 transition-all ${
-                view === 'availability'
+              className={`flex-1 py-3 rounded-lg font-bold text-base cursor-pointer border-0 transition-all ${view === 'availability'
                   ? 'bg-[var(--color-surface-3)] text-white shadow-md'
                   : 'bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-              }`}
+                }`}
             >
               ✋ Đăng Ký Làm
             </button>
