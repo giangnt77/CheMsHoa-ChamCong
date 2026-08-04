@@ -251,50 +251,79 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
                         )}
                       </div>
 
-                      {/* Danh Sách Các Ca Làm Trong Ngày */}
+                      {/* Danh Sách Các Ca Làm Trong Ngày - Sắp xếp ưu tiên: 1. Ca của Tôi -> 2. Ca cùng Chi Nhánh -> 3. Ca khác */}
                       <div className="space-y-2.5">
-                        {items.map((shift) => {
-                          const isMe = shift.employee_id === highlightEmployeeId;
-                          const branchColor = shift.branches?.color || '#f59e0b';
+                        {(() => {
+                          const myShiftInDay = items.find((s) => s.employee_id === highlightEmployeeId);
+                          const myBranchId = myShiftInDay ? myShiftInDay.branch_id : null;
 
-                          return (
-                            <div
-                              key={shift.id}
-                              className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
-                                isMe
-                                  ? 'bg-amber-500/20 border-amber-400 text-white shadow-lg'
-                                  : 'bg-[var(--color-surface-2)] border-[var(--color-glass-border)] text-white/90'
-                              }`}
-                            >
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: branchColor }}
-                                  />
-                                  <span
-                                    className="font-extrabold text-xs px-2 py-0.5 rounded-md text-white"
-                                    style={{ backgroundColor: `${branchColor}35` }}
-                                  >
-                                    CN {shift.branches?.name}
-                                  </span>
-                                  <span className="font-extrabold text-sm text-white truncate">
-                                    {isMe ? `⭐ ${shift.employees?.name} (TÔI)` : shift.employees?.name}
-                                  </span>
-                                </div>
-                                <div className="text-xs font-black text-amber-300 mt-1.5 flex items-center gap-1">
-                                  <span>⏰ {shift.start_time ? `${shift.start_time.slice(0, 5)} — ${shift.end_time?.slice(0, 5)}` : `${shift.hours || 5}h`}</span>
-                                  <span className="text-[10px] text-[var(--color-text-muted)] font-bold">({shift.hours || 5} tiếng)</span>
-                                </div>
-                                {shift.note && (
-                                  <div className="text-xs text-[var(--color-text-muted)] italic truncate mt-1">
-                                    💬 {shift.note}
+                          const sortedItems = [...items].sort((a, b) => {
+                            const aIsMe = a.employee_id === highlightEmployeeId;
+                            const bIsMe = b.employee_id === highlightEmployeeId;
+                            if (aIsMe) return -1;
+                            if (bIsMe) return 1;
+
+                            if (myBranchId) {
+                              const aSameBranch = a.branch_id === myBranchId;
+                              const bSameBranch = b.branch_id === myBranchId;
+                              if (aSameBranch && !bSameBranch) return -1;
+                              if (!aSameBranch && bSameBranch) return 1;
+                            }
+
+                            return (a.branches?.name || '').localeCompare(b.branches?.name || '');
+                          });
+
+                          return sortedItems.map((shift) => {
+                            const isMe = shift.employee_id === highlightEmployeeId;
+                            const isSameBranch = myBranchId && shift.branch_id === myBranchId && !isMe;
+                            const branchColor = shift.branches?.color || '#f59e0b';
+
+                            return (
+                              <div
+                                key={shift.id}
+                                className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                                  isMe
+                                    ? 'bg-amber-500/25 border-amber-400 text-white shadow-lg ring-1 ring-amber-400/50'
+                                    : isSameBranch
+                                    ? 'bg-[var(--color-surface-2)] border-amber-500/30 text-white'
+                                    : 'bg-[var(--color-surface-1)] border-[var(--color-glass-border)] text-white/80'
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: branchColor }}
+                                    />
+                                    <span
+                                      className="font-extrabold text-xs px-2 py-0.5 rounded-md text-white"
+                                      style={{ backgroundColor: `${branchColor}35` }}
+                                    >
+                                      CN {shift.branches?.name}
+                                    </span>
+                                    <span className="font-extrabold text-sm text-white truncate">
+                                      {isMe ? `⭐ ${shift.employees?.name} (TÔI)` : shift.employees?.name}
+                                    </span>
+                                    {isSameBranch && (
+                                      <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                                        👥 Cùng CN
+                                      </span>
+                                    )}
                                   </div>
-                                )}
+                                  <div className="text-xs font-black text-amber-300 mt-1.5 flex items-center gap-1">
+                                    <span>⏰ {shift.start_time ? `${shift.start_time.slice(0, 5)} — ${shift.end_time?.slice(0, 5)}` : `${shift.hours || 5}h`}</span>
+                                    <span className="text-[10px] text-[var(--color-text-muted)] font-bold">({shift.hours || 5} tiếng)</span>
+                                  </div>
+                                  {shift.note && (
+                                    <div className="text-xs text-[var(--color-text-muted)] italic truncate mt-1">
+                                      💬 {shift.note}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
                   );
