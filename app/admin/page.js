@@ -440,7 +440,11 @@ function AdminContent() {
 
           {/* Segmented Control Navigation Tabs - Góc Vuông Phẳng */}
           <div className="flex gap-2 bg-slate-900 rounded-lg p-1.5 border border-slate-700 mb-6 max-w-2xl mx-auto animate-fade-in">
-            {TABS.map((tab) => (
+            {[
+              { id: 'schedule', label: '📅 Xếp Lịch' },
+              { id: 'employees', label: '👥 Nhân viên & Lương' },
+              { id: 'penalty', label: '⚠️ Phạt' },
+            ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
