@@ -28,80 +28,42 @@
 }
 
 /* ============================================
-   BASE STYLES & AI NEON AESTHETICS
+   BASE STYLES - Modern Clean Slate Theme
    ============================================ */
 body {
-  background: #090911;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(244, 63, 94, 0.12) 0px, transparent 50%);
-  background-attachment: fixed;
-  color: var(--color-foreground);
+  background: #090d16;
+  color: #f1f5f9;
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
   padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
-/* ============================================
-   ANIMATED BACKGROUND ORBS
-   ============================================ */
-.bg-orb {
+/* Background Subtle Gradient */
+body::before {
+  content: '';
   position: fixed;
-  border-radius: 50%;
-  filter: blur(90px);
+  inset: 0;
+  background: 
+    radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.05) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.05) 0%, transparent 45%);
   pointer-events: none;
   z-index: 0;
 }
 
-.bg-orb-1 {
-  width: 450px;
-  height: 450px;
-  background: radial-gradient(circle, #f59e0b 0%, #ef4444 100%);
-  opacity: 0.18;
-  top: -120px;
-  right: -100px;
-  animation: float 18s ease-in-out infinite;
-}
-
-.bg-orb-2 {
-  width: 380px;
-  height: 380px;
-  background: radial-gradient(circle, #8b5cf6 0%, #ec4899 100%);
-  opacity: 0.15;
-  bottom: -80px;
-  left: -80px;
-  animation: float 22s ease-in-out infinite -6s;
-}
-
-.bg-orb-3 {
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, #10b981 0%, #3b82f6 100%);
-  opacity: 0.12;
-  top: 40%;
-  left: 40%;
-  animation: float 20s ease-in-out infinite -12s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
-  25% { transform: translate(35px, -45px) scale(1.12) rotate(45deg); }
-  50% { transform: translate(-30px, 30px) scale(0.92) rotate(90deg); }
-  75% { transform: translate(45px, 25px) scale(1.08) rotate(135deg); }
-}
-
 /* ============================================
-   NEO-GLASSMORPHISM & AI GLOW CARDS
+   NEO-GLASSMORPHISM & CLEAN CARDS
    ============================================ */
 .glass {
-  background: rgba(20, 20, 32, 0.65);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.25rem;
 }
 
 .glass-glow {

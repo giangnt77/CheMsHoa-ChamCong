@@ -332,20 +332,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 return (
                                   <div
                                     key={shift.id}
-                                    className={`p-1.5 rounded-xl font-black text-[11px] leading-tight shadow-md border ${
-                                      isWhiteBg ? 'text-slate-950 font-extrabold' : 'text-white'
+                                    className={`p-1.5 rounded-xl font-extrabold text-[11px] leading-tight border transition-all ${
+                                      isWhiteBg ? 'bg-white text-slate-900 border-slate-300 shadow-sm' : 'text-white'
                                     }`}
                                     style={{
-                                      backgroundColor: isWhiteBg ? '#ffffff' : `${bColor}dd`,
-                                      borderColor: isWhiteBg ? '#cbd5e1' : bColor,
-                                      color: isWhiteBg ? '#020617' : '#ffffff',
-                                      boxShadow: isWhiteBg ? '0 2px 10px rgba(255,255,255,0.4)' : `0 2px 8px ${bColor}40`,
+                                      backgroundColor: isWhiteBg ? '#ffffff' : bColor,
+                                      borderColor: isWhiteBg ? '#e2e8f0' : `${bColor}cc`,
+                                      color: isWhiteBg ? '#0f172a' : '#ffffff',
                                     }}
                                   >
-                                    <div className="text-[11px] font-black">{timeRange}</div>
+                                    <div className="text-[11px] font-black tracking-tight">{timeRange}</div>
                                     <div className="text-[10px] opacity-90 mt-0.5 flex items-center justify-center gap-1 font-bold">
                                       <span>CN {shift.branches?.name}</span>
-                                      <span className="opacity-75">({shift.hours || 5}h)</span>
+                                      <span className="opacity-80">({shift.hours || 5}h)</span>
                                     </div>
                                     {shift.note && (
                                       <div className="text-[9px] font-semibold italic opacity-90 truncate mt-0.5">

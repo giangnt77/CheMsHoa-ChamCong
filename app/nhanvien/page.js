@@ -305,23 +305,25 @@ function EmployeeContent() {
             )}
           </div>
 
-          {/* Tab Toggle - Lịch Làm lên trước */}
-          <div className="flex gap-1 bg-[var(--color-surface-1)] rounded-xl p-1 mb-5 animate-fade-in-up">
+          {/* Tab Navigation - Tinh gọn & Sắc nét */}
+          <div className="flex gap-2 bg-slate-900/80 rounded-2xl p-1.5 border border-slate-800 mb-6 animate-fade-in-up">
             <button
               onClick={() => setView('schedule')}
-              className={`flex-1 py-3 rounded-lg font-bold text-base cursor-pointer border-0 transition-all ${view === 'schedule'
-                  ? 'bg-[var(--color-surface-3)] text-white shadow-md'
-                  : 'bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                }`}
+              className={`flex-1 py-2.5 rounded-xl font-black text-sm cursor-pointer border transition-all ${
+                view === 'schedule'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                  : 'bg-transparent text-slate-400 border-transparent hover:text-white'
+              }`}
             >
               📅 Lịch Làm Việc
             </button>
             <button
               onClick={() => setView('availability')}
-              className={`flex-1 py-3 rounded-lg font-bold text-base cursor-pointer border-0 transition-all ${view === 'availability'
-                  ? 'bg-[var(--color-surface-3)] text-white shadow-md'
-                  : 'bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
-                }`}
+              className={`flex-1 py-2.5 rounded-xl font-black text-sm cursor-pointer border transition-all ${
+                view === 'availability'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                  : 'bg-transparent text-slate-400 border-transparent hover:text-white'
+              }`}
             >
               ✋ Đăng Ký Làm
             </button>

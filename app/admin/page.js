@@ -438,8 +438,8 @@ function AdminContent() {
             </p>
           </div>
 
-          {/* Tabs - Chỉ 3 ô gọn gàng */}
-          <div className="flex gap-1 bg-[var(--color-surface-1)] rounded-xl p-1 mb-6 overflow-x-auto">
+          {/* Segmented Control Navigation Tabs - Dịu Mắt & Hiện Đại */}
+          <div className="flex gap-2 bg-slate-900/80 rounded-2xl p-1.5 border border-slate-800 mb-6 max-w-2xl mx-auto animate-fade-in">
             {[
               { id: 'schedule', label: '📅 Xếp Lịch' },
               { id: 'employees', label: '👥 Nhân viên & Lương' },
@@ -448,10 +448,10 @@ function AdminContent() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 min-w-[100px] py-3 px-3 rounded-xl text-sm font-extrabold cursor-pointer border-0 transition-all ${
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black cursor-pointer border transition-all ${
                   activeTab === tab.id
-                    ? 'bg-[var(--color-surface-3)] text-white shadow-lg'
-                    : 'bg-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                    : 'bg-transparent text-slate-400 border-transparent hover:text-white'
                 }`}
               >
                 {tab.label}
