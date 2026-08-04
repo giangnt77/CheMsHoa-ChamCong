@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import EmployeeSelector from '@/components/EmployeeSelector';
 import WeeklyAvailability from '@/components/WeeklyAvailability';
@@ -12,8 +12,10 @@ import {
   createEmployee,
   getScheduleByDateRange,
   updateEmployeeRate,
+  getEmployeeRates,
+  calculateSalaryFromShifts,
 } from '@/lib/supabase';
-import { getCurrentMonth, formatCurrency } from '@/lib/utils';
+import { getCurrentMonth, formatCurrency, getToday } from '@/lib/utils';
 
 function EmployeeContent() {
   const toast = useToast();
@@ -35,6 +37,8 @@ function EmployeeContent() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [monthlyHours, setMonthlyHours] = useState(0);
   const [monthlyShiftsCount, setMonthlyShiftsCount] = useState(0);
+  const [monthlySalary, setMonthlySalary] = useState(0);
+  const [empRates, setEmpRates] = useState([]);
   const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
 
   // Check localStorage for remembered name
@@ -61,15 +65,24 @@ function EmployeeContent() {
       const mStr = String(month).padStart(2, '0');
       const startDate = `${year}-${mStr}-01`;
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
-      const schedData = await getScheduleByDateRange(startDate, endDate);
+
+      const [schedData, rates] = await Promise.all([
+        getScheduleByDateRange(startDate, endDate),
+        getEmployeeRates(employee.id),
+      ]);
+
+      setEmpRates(rates);
 
       const myShifts = schedData.filter((s) => s.employee_id === employee.id);
-      let totalH = 0;
-      myShifts.forEach((s) => {
-        totalH += Number(s.hours) || 0;
-      });
-      setMonthlyHours(totalH);
+      const { totalHours, grossSalary } = calculateSalaryFromShifts(
+        myShifts,
+        rates,
+        employee.hourly_rate || 20000
+      );
+
+      setMonthlyHours(totalHours);
       setMonthlyShiftsCount(myShifts.length);
+      setMonthlySalary(grossSalary);
     } catch (err) {
       console.error('Error loading employee hours:', err);
     }
@@ -125,8 +138,8 @@ function EmployeeContent() {
     setInitialLoading(false);
   }
 
-  async function handleSelectEmployee(name, isNew, pin = '1234') {
-    await handleLogin(name, true, pin, isNew);
+  async function handleSelectEmployee(name) {
+    await handleLogin(name, true);
   }
 
   function handleLogout() {
@@ -134,8 +147,20 @@ function EmployeeContent() {
     localStorage.removeItem('chemshoa_employee_name');
   }
 
-  const hourlyRate = employee?.hourly_rate || 20000;
-  const estimatedSalary = monthlyHours * hourlyRate;
+  // Mức lương hiệu lực hiện tại (tính tới ngày hôm nay)
+  const currentRate = useMemo(() => {
+    if (!employee) return 20000;
+    const todayStr = getToday();
+    const sortedRates = [...empRates].sort((a, b) => a.effective_date.localeCompare(b.effective_date));
+    let rate = employee.hourly_rate || 20000;
+    for (let i = sortedRates.length - 1; i >= 0; i--) {
+      if (sortedRates[i].effective_date <= todayStr) {
+        rate = Number(sortedRates[i].hourly_rate);
+        break;
+      }
+    }
+    return rate;
+  }, [employee, empRates]);
 
   if (initialLoading) {
     return (
@@ -261,7 +286,7 @@ function EmployeeContent() {
                     </div>
                     <div>
                       <div className="text-xl font-black text-white">
-                        {formatCurrency(hourlyRate)}
+                        {formatCurrency(currentRate)}
                         <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
                       </div>
                       <span className="text-[10px] text-amber-400/80 font-bold block mt-1">
@@ -273,7 +298,7 @@ function EmployeeContent() {
                   {/* Lương ước tính */}
                   <div className="p-3.5 bg-gradient-to-tr from-amber-500/20 to-orange-500/20 rounded-2xl border border-amber-500/40 text-center shadow-md">
                     <div className="text-xs text-amber-300 font-black mb-1">💰 Lương ước tính</div>
-                    <div className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(estimatedSalary)}</div>
+                    <div className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(monthlySalary)}</div>
                   </div>
                 </div>
               </div>
@@ -302,10 +327,10 @@ function EmployeeContent() {
             </button>
           </div>
 
-          {/* SCHEDULE VIEW (Bảng lịch làm tuần chuẩn Excel phân công bởi chủ) */}
+          {/* SCHEDULE VIEW (Bảng lịch làm tuần chuẩn Excel phân công bởi chủ - CHỈ XEM, KHÔNG ĐƯỢC CHỈNH SỬA) */}
           {view === 'schedule' && (
             <div className="animate-fade-in">
-              <WeeklyMatrixBoard employees={employees} highlightEmployeeId={employee.id} />
+              <WeeklyMatrixBoard employees={employees} highlightEmployeeId={employee.id} readOnly={true} />
             </div>
           )}
 

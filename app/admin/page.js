@@ -19,6 +19,10 @@ import {
   getPenaltiesByEmployee,
   createPenalty,
   deletePenalty,
+  getEmployeeRates,
+  addEmployeeRate,
+  deleteEmployeeRate,
+  calculateSalaryFromShifts,
 } from '@/lib/supabase';
 import {
   getCurrentMonth,
@@ -166,23 +170,58 @@ function AdminContent() {
     }
   }
 
+  // Rate History state
+  const [empRates, setEmpRates] = useState([]);
+  const [showAddRateModal, setShowAddRateModal] = useState(false);
+  const [inputRateValue, setInputRateValue] = useState('24000');
+  const [inputRateDate, setInputRateDate] = useState(getToday());
+
   async function loadEmployeeData() {
+    if (!selectedEmployee) return;
     try {
       const [year, month] = selectedMonth.split('-').map(Number);
       const lastDay = new Date(year, month, 0).getDate();
       const mStr = String(month).padStart(2, '0');
       const startDate = `${year}-${mStr}-01`;
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
-      const [sched, penalties] = await Promise.all([
+      const [sched, penalties, rates] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getPenaltiesByEmployee(selectedEmployee.id, selectedMonth),
+        getEmployeeRates(selectedEmployee.id),
       ]);
       const mySched = sched.filter(s => s.employee_id === selectedEmployee.id);
       setEmpSchedule(mySched);
       setEmpPenalties(penalties);
+      setEmpRates(rates);
     } catch (err) {
       console.error(err);
       toast.error('Lỗi', 'Không thể tải dữ liệu nhân viên');
+    }
+  }
+
+  async function handleAddRate(e) {
+    e.preventDefault();
+    const rate = parseInt(inputRateValue);
+    if (!rate || rate <= 0 || !inputRateDate) return;
+    try {
+      await addEmployeeRate(selectedEmployee.id, rate, inputRateDate);
+      toast.success('Đã lưu mốc lương!', `Lương ${formatCurrency(rate)}/h áp dụng từ ngày ${inputRateDate.split('-').reverse().join('/')}`);
+      setShowAddRateModal(false);
+      loadEmployeeData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Cần tạo bảng', err.message || 'Không thể thêm mốc lương');
+    }
+  }
+
+  async function handleDeleteRate(id) {
+    try {
+      await deleteEmployeeRate(id);
+      toast.info('Đã xóa', 'Đã xóa mốc lương');
+      loadEmployeeData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể xóa mốc lương');
     }
   }
 
@@ -232,13 +271,14 @@ function AdminContent() {
 
   async function handleAddPenalty() {
     const amount = parseInt(penaltyAmount);
-    if (!amount || !penaltyReason.trim()) return;
+    if (!amount || !penaltyReason.trim() || !selectedEmployee) return;
     try {
       const isBonus = recordType === 'bonus';
       const cleanReason = penaltyReason.trim();
-      const finalReason = isBonus && !cleanReason.startsWith('[THƯỞNG]')
-        ? `[THƯỞNG] ${cleanReason}`
-        : cleanReason;
+      const prefix = isBonus ? '[THƯỞNG]' : '[PHẠT]';
+      const finalReason = cleanReason.startsWith('[THƯỞNG]') || cleanReason.startsWith('[PHẠT]')
+        ? cleanReason
+        : `${prefix} ${cleanReason}`;
 
       await createPenalty({
         employee_id: selectedEmployee.id,
@@ -258,8 +298,8 @@ function AdminContent() {
       setPenaltyReason('');
       loadEmployeeData();
     } catch (err) {
-      console.error(err);
-      toast.error('Lỗi', 'Không thể lưu khoản thưởng/phạt');
+      console.error('handleAddPenalty error:', err);
+      toast.error('Lỗi', err.message || 'Không thể lưu khoản thưởng/phạt');
     }
   }
 
@@ -274,13 +314,17 @@ function AdminContent() {
     }
   }
 
-  // Salary calculation including gross, bonus, penalty, net
+  // Salary calculation including gross, bonus, penalty, net with dynamic rates history
   const salaryData = useMemo(() => {
     if (!selectedEmployee) return null;
     const totalShifts = empSchedule.length;
-    const totalHours = empSchedule.reduce((sum, s) => sum + (Number(s.hours) || 5), 0);
-    const rate = selectedEmployee.hourly_rate || 20000;
-    const grossSalary = totalHours * rate;
+    const defaultRate = selectedEmployee.hourly_rate || 20000;
+
+    const { totalHours, grossSalary, shiftDetails } = calculateSalaryFromShifts(
+      empSchedule,
+      empRates,
+      defaultRate
+    );
 
     let totalBonus = 0;
     let totalPenalty = 0;
@@ -296,15 +340,16 @@ function AdminContent() {
 
     const netSalary = grossSalary + totalBonus - totalPenalty;
     return {
-      totalHours: Math.round(totalHours * 100) / 100,
+      totalHours,
       totalShifts,
-      rate,
+      rate: defaultRate,
       grossSalary,
       totalBonus,
       totalPenalty,
       netSalary,
+      shiftDetails,
     };
-  }, [selectedEmployee, empSchedule, empPenalties]);
+  }, [selectedEmployee, empSchedule, empPenalties, empRates]);
 
   function prevMonth() {
     const [y, m] = selectedMonth.split('-').map(Number);
@@ -598,8 +643,8 @@ function AdminContent() {
                                     type="text"
                                     maxLength={6}
                                     value={newPinInput}
-                                    onChange={(e) => setNewPinInput(e.target.value)}
-                                    className="w-14 px-1.5 py-1 bg-[var(--color-surface-2)] border border-amber-500 rounded-lg text-white text-xs font-bold text-center outline-none"
+                                    onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                                    className="w-16 px-1.5 py-1 bg-[var(--color-surface-2)] border border-amber-500 rounded-lg text-white text-xs font-bold text-center outline-none"
                                     autoFocus
                                   />
                                   <button
@@ -723,6 +768,96 @@ function AdminContent() {
                             <button onClick={prevMonth} className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] rounded-xl cursor-pointer">◀</button>
                             <span className="font-black text-xs px-2 text-amber-300">{getMonthName(selectedMonth)}</span>
                             <button onClick={nextMonth} className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] rounded-xl cursor-pointer">▶</button>
+                          </div>
+                        </div>
+
+                        {/* KHỐI LỊCH SỬ MỨC LƯƠNG THEO MỐC NGÀY */}
+                        <div className="bg-[var(--color-surface-1)] p-4 rounded-2xl border border-[rgba(255,255,255,0.08)] space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                              <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
+                                <span>📜 Lịch Sử Mức Lương & Đợt Tăng Lương</span>
+                              </h4>
+                              <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                                Lương áp dụng linh hoạt theo mốc ngày (VD: 1/7-18/7 20k/h, từ 19/7 tăng lên 24k/h)
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowAddRateModal(!showAddRateModal)}
+                              className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                            >
+                              <span>➕ Thêm Mốc Lương</span>
+                            </button>
+                          </div>
+
+                          {/* Form Thêm Mốc Lương Mới */}
+                          {showAddRateModal && (
+                            <form onSubmit={handleAddRate} className="p-3 bg-[var(--color-surface-2)] rounded-xl border border-amber-500/40 space-y-3 animate-fade-in">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[11px] font-bold text-amber-300 mb-1">Mức lương mới (đ/giờ):</label>
+                                  <input
+                                    type="number"
+                                    value={inputRateValue}
+                                    onChange={(e) => setInputRateValue(e.target.value)}
+                                    placeholder="24000"
+                                    required
+                                    className="w-full px-3 py-1.5 bg-[var(--color-surface-1)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-xs font-bold outline-none focus:border-amber-400"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[11px] font-bold text-amber-300 mb-1">Ngày bắt đầu áp dụng:</label>
+                                  <input
+                                    type="date"
+                                    value={inputRateDate}
+                                    onChange={(e) => setInputRateDate(e.target.value)}
+                                    required
+                                    className="w-full px-3 py-1.5 bg-[var(--color-surface-1)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-xs font-bold outline-none focus:border-amber-400"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAddRateModal(false)}
+                                  className="px-3 py-1 rounded-lg bg-[var(--color-surface-1)] text-xs text-[var(--color-text-secondary)] font-bold border-0 cursor-pointer"
+                                >
+                                  Hủy
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="px-4 py-1 rounded-lg bg-amber-500 text-black text-xs font-black border-0 cursor-pointer shadow-md hover:bg-amber-400"
+                                >
+                                  💾 Lưu Mốc Lương
+                                </button>
+                              </div>
+                            </form>
+                          )}
+
+                          {/* Danh Sách Các Mốc Lương Đã Thêm */}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white flex items-center gap-2">
+                              <span className="text-amber-400 font-extrabold">Mặc định:</span>
+                              <span>{formatCurrency(selectedEmployee.hourly_rate || 20000)}/h</span>
+                            </div>
+                            {empRates.map((r) => (
+                              <div
+                                key={r.id}
+                                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/40 text-xs font-extrabold text-amber-300 flex items-center gap-2 shadow-sm"
+                              >
+                                <span>📅 Từ {r.effective_date.split('-').reverse().join('/')}:</span>
+                                <span className="text-white text-sm font-black">{formatCurrency(r.hourly_rate)}/h</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRate(r.id)}
+                                  className="text-rose-400 hover:text-white ml-1 bg-transparent border-0 cursor-pointer text-xs font-bold"
+                                  title="Xóa mốc lương này"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         </div>
 

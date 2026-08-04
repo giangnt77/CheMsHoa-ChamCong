@@ -41,9 +41,19 @@ function getMondayOfCurrentWeek() {
   return formatDateISO(monday);
 }
 
+function getBranchColor(name = '', fallbackColor = '#f59e0b') {
+  const n = String(name).toLowerCase().trim();
+  if (n.includes('thạch lam') || n.includes('thach lam') || n === 'tl') return '#f97316'; // Cam - Thạch Lam
+  if (n.includes('hbd')) return '#ffffff'; // Trắng - HBD
+  if (n.includes('a4') || n.includes('aa4')) return '#a855f7'; // Tím - A4
+  if (n.includes('30') || n.includes('30r')) return '#22c55e'; // Green - 30
+  if (n.includes('38') || n.includes('38v')) return '#3b82f6'; // Blue - 38
+  return fallbackColor;
+}
+
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeId }) {
+export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeId, readOnly = false }) {
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
   const [branches, setBranches] = useState([]);
   const [schedule, setSchedule] = useState([]);
@@ -157,6 +167,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   }
 
   function openCellModal(emp, dateStr, existingShift = null) {
+    if (readOnly) return; // Nếu là nhân viên xem -> KHÔNG CHO MỞ MODAL XẾP LỊCH!
     const defaultBranch = branches[0] || { id: '', name: 'Chi nhánh' };
     setModalState({
       isOpen: true,
@@ -169,16 +180,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
   return (
     <div className="space-y-4">
-      {/* Banner Slogan Chuẩn Tiệm Chè Ms Hoa (Như ảnh mẫu) */}
-      <div className="glass rounded-2xl p-3.5 border border-amber-500/40 bg-gradient-to-r from-purple-900/60 via-amber-900/60 to-rose-900/60 text-center shadow-lg">
-        <p className="text-amber-300 font-black text-xs md:text-sm uppercase tracking-wide">
-          TIẾT KIỆM NGUYÊN VẬT LIỆU & DỌN DẸP GỌN GÀNG SẠCH SẼ KHU VỰC BÁN HÀNG
-        </p>
-        <p className="text-white/90 font-bold text-[11px] md:text-xs mt-0.5">
-          GIỮ KHÁCH ĐỂ HỌ GIỚI THIỆU KHÁCH KHÁC NỮA • NÓI NĂNG, GIAO TIẾP LỊCH SỰ VỚI KHÁCH HÀNG
-        </p>
-      </div>
-
       {/* Thanh điều hướng Tuần & Legend màu Chi Nhánh */}
       <div className="glass rounded-3xl p-4 border border-[var(--color-glass-border)] flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
@@ -211,16 +212,28 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
         {/* Legend Chi Nhánh */}
         <div className="flex flex-wrap gap-1.5">
-          {branches.map((b) => (
-            <span
-              key={b.id}
-              className="text-[10px] font-black px-2 py-0.5 rounded-md text-white border"
-              style={{ backgroundColor: `${b.color}35`, borderColor: b.color }}
-            >
-              <span className="w-2 h-2 rounded-full inline-block mr-1" style={{ backgroundColor: b.color }} />
-              {b.name}
-            </span>
-          ))}
+          {branches.map((b) => {
+            const bColor = getBranchColor(b.name, b.color);
+            const isWhite = bColor.toLowerCase() === '#ffffff';
+
+            return (
+              <span
+                key={b.id}
+                className="text-[10px] font-black px-2 py-0.5 rounded-md border shadow-sm"
+                style={{
+                  backgroundColor: isWhite ? '#ffffff' : `${bColor}35`,
+                  borderColor: isWhite ? '#cbd5e1' : bColor,
+                  color: isWhite ? '#0f172a' : '#ffffff',
+                }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full inline-block mr-1 border border-black/20"
+                  style={{ backgroundColor: bColor }}
+                />
+                {b.name}
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -302,13 +315,16 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                         <td
                           key={dStr}
                           onClick={() => openCellModal(emp, dStr, empShifts[0] || null)}
-                          className="py-1.5 px-1.5 border-r border-[rgba(255,255,255,0.06)] text-center align-middle cursor-pointer hover:opacity-90 transition-all min-w-[108px]"
+                          className={`py-1.5 px-1.5 border-r border-[rgba(255,255,255,0.06)] text-center align-middle transition-all min-w-[108px] ${
+                            readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:opacity-90'
+                          }`}
                         >
                           {empShifts.length > 0 ? (
                             /* Có Ca Phân Công -> Render màu sắc chuẩn Excel (Giờ làm & Mã CN) */
                             <div className="space-y-1">
                               {empShifts.map((shift) => {
-                                const bColor = shift.branches?.color || '#f59e0b';
+                                const bColor = getBranchColor(shift.branches?.name, shift.branches?.color);
+                                const isWhiteBg = bColor.toLowerCase() === '#ffffff' || bColor.toLowerCase() === '#f8fafc';
                                 const startTimeStr = shift.start_time ? shift.start_time.slice(0, 5) : '09:00';
                                 const endTimeStr = shift.end_time ? shift.end_time.slice(0, 5) : '14:00';
                                 const timeRange = `${startTimeStr}-${endTimeStr}`;
@@ -316,14 +332,17 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 return (
                                   <div
                                     key={shift.id}
-                                    className="p-1.5 rounded-xl text-white font-black text-[11px] leading-tight shadow-md border"
+                                    className={`p-1.5 rounded-xl font-black text-[11px] leading-tight shadow-md border ${
+                                      isWhiteBg ? 'text-slate-950 font-extrabold' : 'text-white'
+                                    }`}
                                     style={{
-                                      backgroundColor: `${bColor}dd`,
-                                      borderColor: bColor,
-                                      boxShadow: `0 2px 8px ${bColor}40`,
+                                      backgroundColor: isWhiteBg ? '#ffffff' : `${bColor}dd`,
+                                      borderColor: isWhiteBg ? '#cbd5e1' : bColor,
+                                      color: isWhiteBg ? '#020617' : '#ffffff',
+                                      boxShadow: isWhiteBg ? '0 2px 10px rgba(255,255,255,0.4)' : `0 2px 8px ${bColor}40`,
                                     }}
                                   >
-                                    <div className="text-[11px] font-black text-white">{timeRange}</div>
+                                    <div className="text-[11px] font-black">{timeRange}</div>
                                     <div className="text-[10px] opacity-90 mt-0.5 flex items-center justify-center gap-1 font-bold">
                                       <span>CN {shift.branches?.name}</span>
                                       <span className="opacity-75">({shift.hours || 5}h)</span>
@@ -337,8 +356,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 );
                               })}
                             </div>
-                          ) : empAvail?.type === 'off' ? (
-                            /* Xin nghỉ */
+                          ) : !readOnly && empAvail?.type === 'off' ? (
+                            /* ADMIN XEM: Xin nghỉ */
                             <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 font-extrabold text-[11px]">
                               OFF
                               {empAvail.note && (
@@ -347,19 +366,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 </span>
                               )}
                             </div>
-                          ) : empAvail?.type === 'full' ? (
-                            /* Đăng ký rảnh cả ngày */
+                          ) : !readOnly && empAvail?.type === 'full' ? (
+                            /* ADMIN XEM: Đăng ký rảnh cả ngày */
                             <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
                               💪 Cả ngày
                             </div>
-                          ) : empAvail?.type === 'option' ? (
-                            /* Đăng ký rảnh tùy chọn */
+                          ) : !readOnly && empAvail?.type === 'option' ? (
+                            /* ADMIN XEM: Đăng ký rảnh tùy chọn */
                             <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold text-[11px]">
                               📝 {empAvail.note || 'Tùy chọn'}
                             </div>
                           ) : (
-                            /* Mặc định chưa có lịch */
-                            <div className="p-2 rounded-xl bg-[var(--color-surface-2)]/40 text-rose-400/60 font-bold text-[11px] hover:bg-amber-500/20 hover:text-amber-300 transition-all">
+                            /* NHÂN VIÊN XEM HOẶC CHƯA XẾP: Hiện chữ OFF gọn gàng bình thường */
+                            <div className="p-2 rounded-xl bg-[var(--color-surface-2)]/40 text-rose-400/60 font-bold text-[11px]">
                               OFF
                             </div>
                           )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   getAvailabilityByEmployee,
   upsertAvailability,
@@ -129,7 +129,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
         }
       }
 
-      toast.success('ĐÃ CHỐT ĐĂNG KÝ!', 'Lịch rảnh tuần sau đã được lưu thành công');
+      toast.success('ĐÃ CHỐT ĐĂNG KÝ!', `Lịch rảnh ${weekType === 'next' ? 'tuần sau' : 'tuần này'} đã được lưu thành công`);
       setInitialAvailability({ ...availability });
       setHasChanges(false);
       if (onUpdate) onUpdate();
