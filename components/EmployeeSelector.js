@@ -17,18 +17,12 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
   const [loading, setLoading] = useState(true);
 
   // Flow State
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPin, setNewPin] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Selected Employee for PIN Auth
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [pinInput, setPinInput] = useState('');
-  const [pinConfirmInput, setPinConfirmInput] = useState('');
-  const [isCreatingPin, setIsCreatingPin] = useState(false);
   const [pinError, setPinError] = useState(false);
-  const [submittingPin, setSubmittingPin] = useState(false);
 
   useEffect(() => {
     loadEmployees();
@@ -45,19 +39,10 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     setLoading(false);
   }
 
-  function handleNewEmployee(e) {
-    e.preventDefault();
-    if (newName.trim()) {
-      const pinToSave = newPin.trim() || '1234';
-      onSelect(newName.trim(), true, pinToSave);
-    }
-  }
-
   // Khi bấm chọn 1 Nhân viên từ danh sách
   function handleSelectEmployeeCard(emp) {
-    // Kiểm tra xem thiết bị này đã lưu mã PIN chính chủ cho emp.id này chưa
     const savedPin = localStorage.getItem(`chemshoa_saved_pin_${emp.id}`);
-    const actualPin = emp.pin || '1234';
+    const actualPin = emp.pin || '123456';
 
     if (savedPin === actualPin) {
       // Đúng máy chính chủ -> Vào thẳng không cần nhập PIN!
@@ -65,66 +50,33 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
       return;
     }
 
-    // Nếu chưa tạo PIN cá nhân
-    if (!emp.pin) {
-      setSelectedEmp(emp);
-      setIsCreatingPin(true);
-      setPinInput('');
-      setPinConfirmInput('');
-      setPinError(false);
-      return;
-    }
-
-    // Ngược lại -> Yêu cầu nhập PIN
+    // Yêu cầu nhập PIN 6 số do Admin cấp
     setSelectedEmp(emp);
-    setIsCreatingPin(false);
     setPinInput('');
     setPinError(false);
   }
 
-  // Bàn phím bấm số PIN 4 số
+  // Bàn phím bấm số PIN 6 số
   function handleKeypadPress(num) {
     setPinError(false);
-    if (!isCreatingPin) {
-      if (pinInput.length < 4) {
-        const nextPin = pinInput + num;
-        setPinInput(nextPin);
-        if (nextPin.length === 4) {
-          verifyPin(nextPin);
-        }
-      }
-    } else {
-      // Flow tạo PIN mới
-      if (pinInput.length < 4) {
-        setPinInput(pinInput + num);
-      } else if (pinConfirmInput.length < 4) {
-        const nextConfirm = pinConfirmInput + num;
-        setPinConfirmInput(nextConfirm);
-        if (nextConfirm.length === 4) {
-          saveNewPin(pinInput, nextConfirm);
-        }
+    if (pinInput.length < 6) {
+      const nextPin = pinInput + num;
+      setPinInput(nextPin);
+      if (nextPin.length === 6) {
+        verifyPin(nextPin);
       }
     }
   }
 
   function handleKeypadDelete() {
     setPinError(false);
-    if (!isCreatingPin) {
-      setPinInput((prev) => prev.slice(0, -1));
-    } else {
-      if (pinConfirmInput.length > 0) {
-        setPinConfirmInput((prev) => prev.slice(0, -1));
-      } else {
-        setPinInput((prev) => prev.slice(0, -1));
-      }
-    }
+    setPinInput((prev) => prev.slice(0, -1));
   }
 
-  // Xác thực mã PIN
+  // Xác thực mã PIN 6 số
   function verifyPin(inputPin) {
-    const correctPin = selectedEmp.pin || '1234';
+    const correctPin = selectedEmp.pin || '123456';
     if (inputPin === correctPin) {
-      // Đúng PIN -> Lưu thiết bị chính chủ
       localStorage.setItem(`chemshoa_saved_pin_${selectedEmp.id}`, correctPin);
       toast.success('Thành công', `Xin chào ${selectedEmp.name}!`);
       onSelect(selectedEmp.name, false);
@@ -185,7 +137,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
         </div>
 
         {/* =========================================================================
-           POPUP / POP-OVER NHẬP MÃ PIN 4 SỐ (BÀN PHÍM SỐ CẢM ỨNG SIÊU LỚN DỄ BẤM)
+           POPUP / POP-OVER NHẬP MÃ PIN 6 SỐ
            ========================================================================= */}
         {selectedEmp ? (
           <div className="glass rounded-3xl p-6 md:p-8 animate-scale-in shadow-2xl border border-[rgba(245,158,11,0.3)]">
@@ -197,11 +149,12 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                 <div>
                   <h3 className="font-black text-white text-lg">{selectedEmp.name}</h3>
                   <p className="text-xs text-amber-400 font-extrabold">
-                    {isCreatingPin ? '🔒 Tạo mã PIN 4 số cá nhân' : '🔐 Nhập mã PIN 4 số'}
+                    🔐 Nhập mã PIN 6 số do Admin cấp
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedEmp(null)}
                 className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white flex items-center justify-center border-0 cursor-pointer text-sm"
               >
@@ -209,301 +162,175 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
               </button>
             </div>
 
-            {/* Chế độ 1: Đã có PIN -> Hiển thị 4 Ô Tròn */}
-            {!isCreatingPin ? (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <p className="text-xs text-[var(--color-text-muted)] mb-3 font-semibold">
-                    Nhập 4 số PIN bảo mật của bạn:
+            {/* Hiển thị 6 Ô Tròn PIN */}
+            <div className="space-y-6">
+              <div className="text-center">
+                <p className="text-xs text-[var(--color-text-muted)] mb-3 font-semibold">
+                  Nhập 6 số PIN bảo mật của bạn:
+                </p>
+                <div className="flex justify-center gap-2.5 sm:gap-3">
+                  {[0, 1, 2, 3, 4, 5].map((idx) => {
+                    const filled = pinInput.length > idx;
+                    return (
+                      <div
+                        key={idx}
+                        className={`w-10 h-11 sm:w-11 sm:h-12 rounded-2xl border-2 flex items-center justify-center text-xl font-black transition-all ${
+                          filled
+                            ? 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                            : pinError
+                            ? 'border-rose-500 bg-rose-500/20 text-white animate-shake'
+                            : 'border-[rgba(255,255,255,0.15)] bg-[var(--color-surface-1)] text-white'
+                        }`}
+                      >
+                        {filled ? '●' : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+                {pinError && (
+                  <p className="text-xs text-rose-400 font-extrabold mt-2 animate-bounce">
+                    ❌ Mã PIN không đúng! Vui lòng thử lại.
                   </p>
-                  <div className="flex justify-center gap-4">
-                    {[0, 1, 2, 3].map((idx) => {
-                      const filled = pinInput.length > idx;
-                      return (
-                        <div
-                          key={idx}
-                          className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center text-2xl font-black transition-all ${
-                            filled
-                              ? 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                              : pinError
-                              ? 'border-rose-500 bg-rose-500/20 text-white animate-shake'
-                              : 'border-[rgba(255,255,255,0.15)] bg-[var(--color-surface-1)] text-white'
-                          }`}
-                        >
-                          {filled ? '●' : ''}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {pinError && (
-                    <p className="text-xs text-rose-400 font-extrabold mt-2 animate-bounce">
-                      ❌ Mã PIN không đúng! Vui lòng thử lại.
-                    </p>
-                  )}
-                </div>
-
-                {/* Bàn Phím Số 0-9 Siêu To Rõ Dễ Bấm Ngón Tay Cho Người Già */}
-                <div className="grid grid-cols-3 gap-3 pt-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => handleKeypadPress(String(num))}
-                      className="py-4 bg-[var(--color-surface-2)] hover:bg-amber-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
-                    >
-                      {num}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast.info('Quên PIN?', 'Mã PIN mặc định là 1234. Nếu quên hãy nhờ Chủ Quán đặt lại!');
-                    }}
-                    className="py-4 bg-transparent text-[var(--color-text-muted)] hover:text-amber-400 rounded-2xl text-xs font-bold border-0 cursor-pointer flex items-center justify-center"
-                  >
-                    Quên PIN?
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleKeypadPress('0')}
-                    className="py-4 bg-[var(--color-surface-2)] hover:bg-amber-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
-                  >
-                    0
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleKeypadDelete}
-                    className="py-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 active:scale-95 rounded-2xl font-black text-xl border border-rose-500/20 cursor-pointer transition-all flex items-center justify-center"
-                  >
-                    ⌫
-                  </button>
-                </div>
+                )}
               </div>
-            ) : (
-              /* Chế độ 2: Tạo PIN mới lần đầu */
-              <div className="space-y-5">
-                <div className="text-center">
-                  <p className="text-xs text-[var(--color-text-muted)] mb-2 font-semibold">
-                    {pinInput.length < 4
-                      ? '1️⃣ Bấm chọn 4 số làm mã PIN của bạn:'
-                      : '2️⃣ Bấm lại 4 số PIN trên để xác nhận:'}
-                  </p>
 
-                  <div className="flex justify-center gap-3">
-                    {[0, 1, 2, 3].map((idx) => {
-                      const currentVal = pinInput.length < 4 ? pinInput : pinConfirmInput;
-                      const filled = currentVal.length > idx;
-                      return (
-                        <div
-                          key={idx}
-                          className={`w-11 h-11 rounded-2xl border-2 flex items-center justify-center text-xl font-black transition-all ${
-                            filled
-                              ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300'
-                              : 'border-[rgba(255,255,255,0.15)] bg-[var(--color-surface-1)] text-white'
-                          }`}
-                        >
-                          {filled ? '●' : ''}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => handleKeypadPress(String(num))}
-                      className="py-4 bg-[var(--color-surface-2)] hover:bg-emerald-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
-                    >
-                      {num}
-                    </button>
-                  ))}
-                  <div />
+              {/* Bàn Phím Số 0-9 */}
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                   <button
+                    key={num}
                     type="button"
-                    onClick={() => handleKeypadPress('0')}
-                    className="py-4 bg-[var(--color-surface-2)] hover:bg-emerald-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
+                    onClick={() => handleKeypadPress(String(num))}
+                    className="py-3.5 bg-[var(--color-surface-2)] hover:bg-amber-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
                   >
-                    0
+                    {num}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleKeypadDelete}
-                    className="py-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 active:scale-95 rounded-2xl font-black text-xl border border-rose-500/20 cursor-pointer transition-all flex items-center justify-center"
-                  >
-                    ⌫
-                  </button>
-                </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info('Quên PIN 6 số?', 'Hãy nhờ Admin / Chủ Quán đặt lại mã PIN 6 số mới cho bạn!');
+                  }}
+                  className="py-3.5 bg-transparent text-[var(--color-text-muted)] hover:text-amber-400 rounded-2xl text-[11px] font-bold border-0 cursor-pointer flex items-center justify-center text-center"
+                >
+                  Quên PIN?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleKeypadPress('0')}
+                  className="py-3.5 bg-[var(--color-surface-2)] hover:bg-amber-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  onClick={handleKeypadDelete}
+                  className="py-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 active:scale-95 rounded-2xl font-black text-xl border border-rose-500/20 cursor-pointer transition-all flex items-center justify-center"
+                >
+                  ⌫
+                </button>
               </div>
-            )}
+            </div>
           </div>
         ) : (
           /* =========================================================================
-             DANH SÁCH THẺ NHÂN VIÊN (TOUCH CARDS)
+             DANH SÁCH THẺ NHÂN VIÊN (TOUCH CARDS - CHỈ ADMIN MỚI ĐƯỢC TẠO TÀI KHOẢN)
              ========================================================================= */
-          <>
-            {!showNewForm ? (
-              <div className="space-y-3 animate-fade-in-up-delay-1">
-                {/* Ô TÌM KIẾM NHANH TÊN NHÂN VIÊN */}
-                {employees.length > 3 && (
-                  <div className="relative mb-3">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="🔍 Gõ tên của bạn để tìm nhanh..."
-                      className="w-full px-5 py-3.5 bg-[var(--color-surface-1)] border border-[rgba(245,158,11,0.3)] focus:border-amber-400 rounded-2xl text-white text-sm font-bold outline-none transition-all placeholder:text-[var(--color-text-muted)] shadow-md"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-3)] w-6 h-6 rounded-full flex items-center justify-center border-0 cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+          <div className="space-y-3 animate-fade-in-up-delay-1">
+            {/* Ô TÌM KIẾM NHANH TÊN NHÂN VIÊN */}
+            {employees.length > 3 && (
+              <div className="relative mb-3">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="🔍 Gõ tên của bạn để tìm nhanh..."
+                  className="w-full px-5 py-3.5 bg-[var(--color-surface-1)] border border-[rgba(245,158,11,0.3)] focus:border-amber-400 rounded-2xl text-white text-sm font-bold outline-none transition-all placeholder:text-[var(--color-text-muted)] shadow-md"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-3)] w-6 h-6 rounded-full flex items-center justify-center border-0 cursor-pointer"
+                  >
+                    ✕
+                  </button>
                 )}
-
-                {(() => {
-                  const filtered = employees.filter((e) =>
-                    e.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-                  );
-
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="text-center py-8 glass rounded-3xl text-[var(--color-text-muted)]">
-                        <div className="text-3xl mb-2">🔍</div>
-                        <p className="text-sm font-bold">Không tìm thấy &quot;{searchQuery}&quot;</p>
-                        <button
-                          onClick={() => setSearchQuery('')}
-                          className="mt-2 text-xs text-amber-400 font-bold border-0 bg-transparent cursor-pointer underline"
-                        >
-                          Xóa tìm kiếm
-                        </button>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
-                      {filtered.map((emp, idx) => {
-                        const gradients = [
-                          'from-amber-400 to-orange-500',
-                          'from-emerald-400 to-teal-500',
-                          'from-purple-400 to-indigo-500',
-                          'from-rose-400 to-pink-500',
-                          'from-sky-400 to-blue-500',
-                        ];
-                        const grad = gradients[idx % gradients.length];
-
-                        return (
-                          <button
-                            key={emp.id}
-                            onClick={() => handleSelectEmployeeCard(emp)}
-                            disabled={parentLoading}
-                            className="emp-select-btn w-full flex items-center gap-4 p-3.5 glass rounded-2xl cursor-pointer border border-[rgba(255,255,255,0.08)] hover:border-amber-500/60 active:scale-95 transition-all text-left group shadow-lg"
-                          >
-                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${grad} flex items-center justify-center font-black text-black text-base flex-shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
-                              {getInitials(emp.name)}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <span className="text-base font-black text-white block truncate">
-                                {emp.name}
-                              </span>
-                              <span className="text-xs text-amber-400 font-bold block">
-                                🔒 Bấm để chọn & đăng ký lịch →
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-
-                {employees.length === 0 && (
-                  <div className="text-center py-10 glass rounded-3xl text-[var(--color-text-muted)]">
-                    <div className="text-4xl mb-2 opacity-60">👥</div>
-                    <p className="text-sm font-bold">Chưa có nhân viên nào trong danh sách</p>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setShowNewForm(true)}
-                  className="w-full flex items-center justify-center gap-3 p-4 rounded-3xl border-2 border-dashed border-[rgba(245,158,11,0.3)] hover:border-amber-400 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 transition-all cursor-pointer text-sm font-bold active:scale-95 shadow-md mt-4"
-                >
-                  <span className="text-xl">➕</span>
-                  <span>Tôi là nhân viên mới</span>
-                </button>
-              </div>
-            ) : (
-              /* Form tạo nhân viên mới */
-              <div className="animate-fade-in-up">
-                <div className="glass rounded-3xl p-6 md:p-8">
-                  <h3 className="font-extrabold text-lg mb-4 flex items-center gap-2 text-white">
-                    <span>✨</span> Đăng Ký Tài Khoản Mới
-                  </h3>
-                  <form onSubmit={handleNewEmployee} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-1.5 text-left">
-                        1. Tên đầy đủ của bạn:
-                      </label>
-                      <input
-                        type="text"
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        placeholder="VD: Thành, Hương..."
-                        required
-                        autoFocus
-                        className="w-full px-5 py-3.5 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-2xl text-white text-base font-bold focus:border-amber-500 outline-none transition-all placeholder:text-[var(--color-text-muted)]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-amber-400 uppercase mb-1.5 text-left flex items-center justify-between">
-                        <span>2. Mã PIN 4 số bảo mật:</span>
-                        <span className="text-[10px] text-[var(--color-text-muted)] font-normal">(Có thể nhập 4 số đuôi SĐT)</span>
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        value={newPin}
-                        onChange={(e) => setNewPin(e.target.value)}
-                        placeholder="VD: 1234, 8888..."
-                        required
-                        className="w-full px-5 py-3.5 bg-[var(--color-surface-1)] border border-amber-500/50 rounded-2xl text-amber-300 text-lg font-black text-center focus:border-amber-400 outline-none transition-all placeholder:text-[var(--color-text-muted)] tracking-widest"
-                      />
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowNewForm(false);
-                          setNewName('');
-                          setNewPin('');
-                        }}
-                        className="flex-1 py-4 rounded-2xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-bold text-sm cursor-pointer border-0 transition-all active:scale-95"
-                      >
-                        ← Quay lại
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={parentLoading || !newName.trim() || !newPin.trim()}
-                        className="flex-1 py-4 rounded-2xl btn-gradient text-white font-extrabold text-sm cursor-pointer disabled:opacity-50 border-0 active:scale-95 shadow-lg"
-                      >
-                        {parentLoading ? '⏳ Đang tạo...' : '🚀 Tạo Nick & PIN'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
               </div>
             )}
-          </>
+
+            {(() => {
+              const filtered = employees.filter((e) =>
+                e.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+              );
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-center py-8 glass rounded-3xl text-[var(--color-text-muted)]">
+                    <div className="text-3xl mb-2">🔍</div>
+                    <p className="text-sm font-bold">Không tìm thấy &quot;{searchQuery}&quot;</p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="mt-2 text-xs text-amber-400 font-bold border-0 bg-transparent cursor-pointer underline"
+                    >
+                      Xóa tìm kiếm
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
+                  {filtered.map((emp, idx) => {
+                    const gradients = [
+                      'from-amber-400 to-orange-500',
+                      'from-emerald-400 to-teal-500',
+                      'from-purple-400 to-indigo-500',
+                      'from-rose-400 to-pink-500',
+                      'from-sky-400 to-blue-500',
+                    ];
+                    const grad = gradients[idx % gradients.length];
+
+                    return (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => handleSelectEmployeeCard(emp)}
+                        disabled={parentLoading}
+                        className="emp-select-btn w-full flex items-center gap-4 p-3.5 glass rounded-2xl cursor-pointer border border-[rgba(255,255,255,0.08)] hover:border-amber-500/60 active:scale-95 transition-all text-left group shadow-lg"
+                      >
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${grad} flex items-center justify-center font-black text-black text-base flex-shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
+                          {getInitials(emp.name)}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <span className="text-base font-black text-white block truncate">
+                            {emp.name}
+                          </span>
+                          <span className="text-xs text-amber-400 font-bold block">
+                            🔒 Bấm để chọn & đăng ký lịch →
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {employees.length === 0 && (
+              <div className="text-center py-10 glass rounded-3xl text-[var(--color-text-muted)]">
+                <div className="text-4xl mb-2 opacity-60">👥</div>
+                <p className="text-sm font-bold">Chưa có nhân viên nào trong danh sách</p>
+              </div>
+            )}
+
+            {/* Ghi chú bảo mật Admin */}
+            <div className="pt-2 text-center text-xs text-[var(--color-text-muted)] font-semibold border-t border-[rgba(255,255,255,0.06)]">
+              💡 <span className="text-amber-400/90">Lưu ý:</span> Tài khoản & mã PIN 6 số do Admin tạo & cấp. Nếu chưa có tên, vui lòng báo Admin tạo tài khoản.
+            </div>
+          </div>
         )}
       </div>
     </div>

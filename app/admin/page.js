@@ -69,6 +69,35 @@ function AdminContent() {
   const [editingPinEmpId, setEditingPinEmpId] = useState(null);
   const [newPinInput, setNewPinInput] = useState('');
 
+  // Create New Employee State
+  const [showAddEmpModal, setShowAddEmpModal] = useState(false);
+  const [addEmpName, setAddEmpName] = useState('');
+  const [addEmpRate, setAddEmpRate] = useState('20000');
+  const [addEmpPin, setAddEmpPin] = useState('');
+
+  function generateRandom6Pin() {
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    setAddEmpPin(pin);
+  }
+
+  async function handleCreateNewEmployee(e) {
+    e.preventDefault();
+    if (!addEmpName.trim()) return;
+    const finalPin = addEmpPin.trim() || Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      const newEmp = await createEmployee(addEmpName.trim(), finalPin, Number(addEmpRate) || 20000);
+      toast.success('Đã tạo nhân viên!', `Tên: ${newEmp.name} • PIN 6 số: ${finalPin}`);
+      setAddEmpName('');
+      setAddEmpPin('');
+      setAddEmpRate('20000');
+      setShowAddEmpModal(false);
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể tạo nhân viên mới!');
+    }
+  }
+
   // Check PIN on mount
   useEffect(() => {
     const saved = sessionStorage.getItem('chemshoa_admin_unlocked');
@@ -433,25 +462,32 @@ function AdminContent() {
             <div className="animate-fade-in">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 
-                {/* CỘT TRÁI (4/12): DANH SÁCH NHÂN VIÊN & TÌM KIẾM NHANH */}
-                <div className="lg:col-span-4 glass rounded-3xl p-4 md:p-5 border border-[var(--color-glass-border)] space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                {/* CỘT TRÁI (4/12): DANH SÁCH NHÂN VIÊN (MASTER) + NÚT THÊM NHÂN VIÊN MỚI */}
+                <div className="lg:col-span-4 glass rounded-3xl p-5 border border-[var(--color-glass-border)] space-y-4">
+                  <div className="flex items-center justify-between gap-2 border-b border-[rgba(255,255,255,0.08)] pb-3">
+                    <h3 className="font-black text-base text-white flex items-center gap-2">
                       <span>👥</span> Nhân Viên ({employees.length})
                     </h3>
-                    <span className="text-[11px] text-[var(--color-text-muted)] font-semibold">
-                      Chấm chọn để xem lương
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddEmpModal(true);
+                        generateRandom6Pin();
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs cursor-pointer shadow-md border-0 transition-all flex items-center gap-1 active:scale-95"
+                    >
+                      ➕ Thêm Mới
+                    </button>
                   </div>
 
-                  {/* Thanh tìm kiếm live */}
+                  {/* Search box */}
                   <div className="relative">
                     <input
                       type="text"
                       value={empSearchQuery}
                       onChange={(e) => setEmpSearchQuery(e.target.value)}
-                      placeholder="🔍 Tim tên nhân viên nhanh..."
-                      className="w-full pl-9 pr-3 py-2 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs font-semibold outline-none focus:border-amber-500 transition-all"
+                      placeholder="🔍 Tìm nhân viên..."
+                      className="w-full px-4 py-2.5 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs font-semibold outline-none focus:border-amber-500 transition-all"
                     />
                     {empSearchQuery && (
                       <button
@@ -462,6 +498,93 @@ function AdminContent() {
                       </button>
                     )}
                   </div>
+
+                  {/* MODAL / FORM TẠO NHÂN VIÊN MỚI DO ADMIN THỰC HIỆN */}
+                  {showAddEmpModal && (
+                    <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-amber-500/40 space-y-3 animate-fade-in shadow-xl">
+                      <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] pb-2">
+                        <h4 className="font-extrabold text-xs text-amber-300 flex items-center gap-1">
+                          ✨ Thêm Nhân Viên & Cấp PIN 6 Số
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddEmpModal(false)}
+                          className="text-xs text-[var(--color-text-muted)] hover:text-white bg-transparent border-0 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <form onSubmit={handleCreateNewEmployee} className="space-y-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] uppercase mb-1">
+                            Tên nhân viên:
+                          </label>
+                          <input
+                            type="text"
+                            value={addEmpName}
+                            onChange={(e) => setAddEmpName(e.target.value)}
+                            placeholder="VD: Nguyễn Văn A..."
+                            required
+                            autoFocus
+                            className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs font-bold outline-none focus:border-amber-400"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] uppercase mb-1">
+                              Lương đ/giờ:
+                            </label>
+                            <input
+                              type="number"
+                              value={addEmpRate}
+                              onChange={(e) => setAddEmpRate(e.target.value)}
+                              placeholder="20000"
+                              required
+                              className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs font-bold outline-none focus:border-amber-400"
+                            />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[11px] font-bold text-amber-400 uppercase">
+                                PIN 6 số:
+                              </label>
+                              <button
+                                type="button"
+                                onClick={generateRandom6Pin}
+                                className="text-[10px] text-amber-300 underline cursor-pointer bg-transparent border-0"
+                              >
+                                🎲 Đổi
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              maxLength={6}
+                              value={addEmpPin}
+                              onChange={(e) => setAddEmpPin(e.target.value.replace(/\D/g, ''))}
+                              placeholder="123456"
+                              required
+                              className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-amber-500/50 rounded-xl text-amber-300 text-xs font-black text-center outline-none focus:border-amber-400 tracking-wider"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddEmpModal(false)}
+                            className="px-3 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-xs text-[var(--color-text-secondary)] font-bold border-0 cursor-pointer"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-4 py-1.5 rounded-xl bg-emerald-500 text-black text-xs font-black border-0 cursor-pointer shadow-md hover:bg-emerald-400 transition-all"
+                          >
+                            🚀 Tạo & Cấp PIN
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
 
                   {/* Danh sách nhân viên cuộn mượt */}
                   {loading ? (

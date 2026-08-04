@@ -99,31 +99,21 @@ function EmployeeContent() {
     }
   }
 
-  async function handleLogin(name, showToast = true, pin = '1234', isNew = false) {
+  async function handleLogin(name, showToast = true) {
     setAuthLoading(true);
     try {
-      let emp = await getEmployeeByName(name);
+      const emp = await getEmployeeByName(name);
       if (!emp) {
-        if (isNew) {
-          emp = await createEmployee(name, pin);
-          if (showToast) toast.success('Chào mừng!', `Đã tạo tài khoản cho ${emp.name}`);
-        } else {
-          // Nhân viên cũ đã bị Admin xóa -> Clear localStorage
-          localStorage.removeItem('chemshoa_employee_name');
-          setEmployee(null);
-          setAuthLoading(false);
-          setInitialLoading(false);
-          return;
-        }
+        toast.error('Lỗi', 'Không tìm thấy thông tin tài khoản! Vui lòng báo Admin tạo tài khoản.');
+        localStorage.removeItem('chemshoa_employee_name');
       } else {
-        if (showToast) toast.success('Xin chào!', `Chào mừng ${emp.name} quay lại`);
+        setEmployee(emp);
+        localStorage.setItem('chemshoa_employee_name', emp.name);
+        if (showToast) toast.success('Đăng nhập', `Xin chào ${emp.name}!`);
       }
-      setEmployee(emp);
-      localStorage.setItem('chemshoa_employee_name', emp.name);
-      localStorage.setItem(`chemshoa_saved_pin_${emp.id}`, emp.pin || '1234');
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi', 'Không thể kết nối. Kiểm tra lại Supabase config.');
+      toast.error('Lỗi', 'Không thể đăng nhập');
     }
     setAuthLoading(false);
     setInitialLoading(false);
