@@ -39,7 +39,6 @@ function AdminContent() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'employees' | 'salary' | 'penalty'
-  const [scheduleView, setScheduleView] = useState('month'); // 'month' | 'week'
 
   // Data
   const [employees, setEmployees] = useState([]);
@@ -417,43 +416,9 @@ function AdminContent() {
 
           {/* ============ TAB: SCHEDULE (MA TRẬN XẾP LỊCH TUẦN 5 CHI NHÁNH) ============ */}
           {activeTab === 'schedule' && (
-            <div className="animate-fade-in space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <h3 className="font-extrabold text-base text-white">Tổng quan lịch làm</h3>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">Xem theo tháng hoặc chuyển sang ma trận tuần để xếp lịch nhanh.</p>
-                </div>
-                <div className="flex bg-[var(--color-surface-1)] rounded-xl p-1 border border-[var(--color-glass-border)]">
-                  <button
-                    type="button"
-                    onClick={() => setScheduleView('month')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border-0 cursor-pointer transition-all ${
-                      scheduleView === 'month'
-                        ? 'bg-amber-500 text-black shadow-md'
-                        : 'text-[var(--color-text-muted)] hover:text-white'
-                    }`}
-                  >
-                    📅 Theo tháng
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScheduleView('week')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border-0 cursor-pointer transition-all ${
-                      scheduleView === 'week'
-                        ? 'bg-amber-500 text-black shadow-md'
-                        : 'text-[var(--color-text-muted)] hover:text-white'
-                    }`}
-                  >
-                    🗓️ Theo tuần
-                  </button>
-                </div>
-              </div>
-
-              {scheduleView === 'month' ? (
-                <ScheduleCalendar />
-              ) : (
-                <WeeklyMatrixBoard employees={employees} toast={toast} />
-              )}
+            <div className="animate-fade-in">
+              {/* Bảng Ma Trận Xếp Lịch Theo Tuần Cho 5 Chi Nhánh Tinh Gọn */}
+              <WeeklyMatrixBoard employees={employees} toast={toast} />
             </div>
           )}
 
