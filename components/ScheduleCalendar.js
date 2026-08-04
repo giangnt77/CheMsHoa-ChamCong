@@ -27,6 +27,11 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
   const today = getToday();
   const [selectedDate, setSelectedDate] = useState(today);
 
+  // View Mode: 'list' (Mobile Card List - Extremely Easy to Read) | 'calendar' (30 Day Grid)
+  const [viewMode, setViewMode] = useState('list');
+  // Filter: 'my_shifts' | 'all'
+  const [filterMode, setFilterMode] = useState(highlightEmployeeId ? 'my_shifts' : 'all');
+
   useEffect(() => {
     loadData();
   }, [year, month]);
@@ -65,6 +70,28 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
     [year, month]
   );
 
+  // Agenda Dates List for Mobile View
+  const agendaDatesList = useMemo(() => {
+    const dates = Object.keys(scheduleByDate).sort();
+    return dates
+      .map((dStr) => {
+        const items = scheduleByDate[dStr] || [];
+        const myItems = highlightEmployeeId
+          ? items.filter((s) => s.employee_id === highlightEmployeeId)
+          : [];
+        return {
+          date: dStr,
+          items,
+          myItems,
+          hasMyShift: myItems.length > 0,
+        };
+      })
+      .filter((group) => {
+        if (filterMode === 'my_shifts') return group.hasMyShift;
+        return group.items.length > 0;
+      });
+  }, [scheduleByDate, highlightEmployeeId, filterMode]);
+
   function prevMonth() {
     let newYear = year;
     let newMonth = month;
@@ -99,201 +126,286 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
   const selectedDaySchedule = selectedDate ? (scheduleByDate[selectedDate] || []) : [];
 
   return (
-    <div className="glass rounded-2xl overflow-hidden">
-      {/* Month Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-glass-border)]">
-        <button
-          onClick={prevMonth}
-          className="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-white transition-all text-sm cursor-pointer border-0"
-        >
-          ◀
-        </button>
-        <h3 className="font-bold text-base md:text-lg">
-          📅 {MONTH_NAMES[month]} {year}
-        </h3>
-        <button
-          onClick={nextMonth}
-          className="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-white transition-all text-sm cursor-pointer border-0"
-        >
-          ▶
-        </button>
+    <div className="glass rounded-3xl overflow-hidden border border-[var(--color-glass-border)] shadow-xl">
+      {/* Month Header & Controls */}
+      <div className="p-4 border-b border-[var(--color-glass-border)] space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={prevMonth}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
+            >
+              ◀
+            </button>
+            <h3 className="font-extrabold text-base md:text-lg text-white">
+              📅 {MONTH_NAMES[month]} {year}
+            </h3>
+            <button
+              onClick={nextMonth}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
+            >
+              ▶
+            </button>
+          </div>
+
+          {/* Toggle View Mode: List vs Calendar Grid */}
+          <div className="flex bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.08)]">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                viewMode === 'list'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-[var(--color-text-muted)] hover:text-white'
+              }`}
+            >
+              📱 Danh Sách
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('calendar')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
+                viewMode === 'calendar'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-[var(--color-text-muted)] hover:text-white'
+              }`}
+            >
+              📅 Ô Lịch
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Toolbar (Lọc ca cá nhân vs Tất cả ca) */}
+        {highlightEmployeeId && (
+          <div className="flex items-center gap-2 pt-1 border-t border-[rgba(255,255,255,0.06)]">
+            <button
+              type="button"
+              onClick={() => setFilterMode('my_shifts')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer border transition-all ${
+                filterMode === 'my_shifts'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                  : 'bg-transparent text-[var(--color-text-muted)] border-transparent hover:text-white'
+              }`}
+            >
+              ⭐ Chỉ ca của tôi
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer border transition-all ${
+                filterMode === 'all'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                  : 'bg-transparent text-[var(--color-text-muted)] border-transparent hover:text-white'
+              }`}
+            >
+              🏢 Tất cả ca chi nhánh
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Branch Legend */}
-      {branches.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-5 py-3 border-b border-[var(--color-glass-border)]">
-          {branches.map((b) => (
-            <span
-              key={b.id}
-              className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg"
-              style={{ backgroundColor: `${b.color}25`, color: '#fff', border: `1px solid ${b.color}` }}
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full inline-block"
-                style={{ backgroundColor: b.color }}
-              />
-              CN {b.name}
-            </span>
-          ))}
-        </div>
-      )}
-
       {loading ? (
-        <div className="text-center py-12">
+        <div className="text-center py-16">
           <div className="inline-block w-8 h-8 border-3 border-[var(--color-surface-3)] border-t-amber-500 rounded-full animate-spin" />
         </div>
       ) : (
         <>
-          {/* Calendar Grid */}
-          <div className="px-2 py-3">
-            {/* Day Headers */}
-            <div className="grid grid-cols-7 mb-1">
-              {DAY_HEADERS.map((d) => (
-                <div
-                  key={d}
-                  className="text-center text-xs font-bold text-[var(--color-text-muted)] py-1"
-                >
-                  {d}
+          {/* =========================================================================
+             MODE 1: AGENDA LIST VIEW (MOBILE-FIRST CARD VIEW - RÕ RÀNG 100%)
+             ========================================================================= */}
+          {viewMode === 'list' && (
+            <div className="p-4 space-y-4 max-h-[550px] overflow-y-auto scrollbar-thin animate-fade-in">
+              {agendaDatesList.length === 0 ? (
+                <div className="text-center py-12 text-[var(--color-text-muted)]">
+                  <p className="text-sm font-bold">Chưa có ca phân công nào trong tháng này ✨</p>
                 </div>
-              ))}
-            </div>
+              ) : (
+                agendaDatesList.map(({ date, items, myItems, hasMyShift }) => {
+                  const [y, m, d] = date.split('-').map(Number);
+                  const dateObj = new Date(y, m - 1, d);
+                  const dayOfWeekStr = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dateObj.getDay()];
+                  const displayDateStr = `${dayOfWeekStr}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+                  const isTodayDate = date === today;
 
-            {/* Day Cells */}
-            <div className="grid grid-cols-7 gap-1 md:gap-1.5">
-              {calendarDays.map((day, idx) => {
-                const daySchedule = day.date ? (scheduleByDate[day.date] || []) : [];
-                const isToday = day.date === today;
-                const isSelected = day.date === selectedDate;
-                const hasMyShift = highlightEmployeeId && daySchedule.some(
-                  (s) => s.employee_id === highlightEmployeeId
-                );
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => day.date && setSelectedDate(day.date === selectedDate ? null : day.date)}
-                    disabled={!day.isCurrentMonth}
-                    className={`schedule-cal-day relative min-h-[70px] md:min-h-[95px] p-1.5 rounded-xl text-left align-top cursor-pointer border transition-all ${
-                      !day.isCurrentMonth
-                        ? 'opacity-30 cursor-default border-transparent'
-                        : isSelected
-                        ? 'border-amber-500 bg-[rgba(245,158,11,0.15)] shadow-lg'
-                        : isToday
-                        ? 'border-amber-500/60 bg-[var(--color-surface-1)]'
-                        : 'border-transparent bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)]'
-                    } ${hasMyShift ? 'ring-2 ring-emerald-400' : ''}`}
-                  >
-                    {/* Day Number */}
-                    <span
-                      className={`text-xs md:text-sm font-extrabold block mb-1 ${
-                        isToday
-                          ? 'text-amber-400'
-                          : day.isCurrentMonth
-                          ? 'text-white'
-                          : 'text-[var(--color-text-muted)]'
+                  return (
+                    <div
+                      key={date}
+                      className={`p-4 rounded-3xl border transition-all shadow-md ${
+                        hasMyShift
+                          ? 'bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
+                          : 'bg-[var(--color-surface-1)] border-[var(--color-glass-border)]'
                       }`}
                     >
-                      {day.day}
-                    </span>
+                      {/* Thẻ Tiêu Đề Ngày */}
+                      <div className="flex items-center justify-between mb-3 border-b border-[rgba(255,255,255,0.06)] pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-white">{displayDateStr}</span>
+                          {isTodayDate && (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-500 text-black">HÔM NAY</span>
+                          )}
+                        </div>
+                        {hasMyShift && (
+                          <span className="text-[11px] font-black text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1">
+                            ⭐ Có Ca Phân Công
+                          </span>
+                        )}
+                      </div>
 
-                    {/* Schedule Summary Badges (Gom theo Chi Nhánh để không bị tràn với 25+ nhân viên) */}
-                    <div className="space-y-1">
-                      {branches.map((b) => {
-                        const count = daySchedule.filter(s => s.branch_id === b.id).length;
-                        if (count === 0) return null;
-                        const hasMe = highlightEmployeeId && daySchedule.some(s => s.branch_id === b.id && s.employee_id === highlightEmployeeId);
+                      {/* Danh Sách Các Ca Làm Trong Ngày */}
+                      <div className="space-y-2.5">
+                        {items.map((shift) => {
+                          const isMe = shift.employee_id === highlightEmployeeId;
+                          const branchColor = shift.branches?.color || '#f59e0b';
+
+                          return (
+                            <div
+                              key={shift.id}
+                              className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                                isMe
+                                  ? 'bg-amber-500/20 border-amber-400 text-white shadow-lg'
+                                  : 'bg-[var(--color-surface-2)] border-[var(--color-glass-border)] text-white/90'
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: branchColor }}
+                                  />
+                                  <span
+                                    className="font-extrabold text-xs px-2 py-0.5 rounded-md text-white"
+                                    style={{ backgroundColor: `${branchColor}35` }}
+                                  >
+                                    CN {shift.branches?.name}
+                                  </span>
+                                  <span className="font-extrabold text-sm text-white truncate">
+                                    {isMe ? `⭐ ${shift.employees?.name} (TÔI)` : shift.employees?.name}
+                                  </span>
+                                </div>
+                                <div className="text-xs font-black text-amber-300 mt-1.5 flex items-center gap-1">
+                                  <span>⏰ {shift.start_time ? `${shift.start_time.slice(0, 5)} — ${shift.end_time?.slice(0, 5)}` : `${shift.hours || 5}h`}</span>
+                                  <span className="text-[10px] text-[var(--color-text-muted)] font-bold">({shift.hours || 5} tiếng)</span>
+                                </div>
+                                {shift.note && (
+                                  <div className="text-xs text-[var(--color-text-muted)] italic truncate mt-1">
+                                    💬 {shift.note}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* =========================================================================
+             MODE 2: TRADITIONAL MONTHLY CALENDAR GRID
+             ========================================================================= */}
+          {viewMode === 'calendar' && (
+            <div className="animate-fade-in">
+              <div className="px-2 py-3">
+                <div className="grid grid-cols-7 mb-1">
+                  {DAY_HEADERS.map((d) => (
+                    <div key={d} className="text-center text-xs font-bold text-[var(--color-text-muted)] py-1">
+                      {d}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1 md:gap-1.5">
+                  {calendarDays.map((day, idx) => {
+                    const daySchedule = day.date ? (scheduleByDate[day.date] || []) : [];
+                    const isToday = day.date === today;
+                    const isSelected = day.date === selectedDate;
+                    const hasMyShift = highlightEmployeeId && daySchedule.some((s) => s.employee_id === highlightEmployeeId);
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => day.date && setSelectedDate(day.date === selectedDate ? null : day.date)}
+                        disabled={!day.isCurrentMonth}
+                        className={`schedule-cal-day relative min-h-[70px] md:min-h-[95px] p-1.5 rounded-xl text-left align-top cursor-pointer border transition-all ${
+                          !day.isCurrentMonth
+                            ? 'opacity-30 cursor-default border-transparent'
+                            : isSelected
+                            ? 'border-amber-500 bg-[rgba(245,158,11,0.15)] shadow-lg'
+                            : isToday
+                            ? 'border-amber-500/60 bg-[var(--color-surface-1)]'
+                            : 'border-transparent bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)]'
+                        } ${hasMyShift ? 'ring-2 ring-amber-400' : ''}`}
+                      >
+                        <span className={`text-xs md:text-sm font-extrabold block mb-1 ${isToday ? 'text-amber-400' : day.isCurrentMonth ? 'text-white' : 'text-[var(--color-text-muted)]'}`}>
+                          {day.day}
+                        </span>
+                        <div className="space-y-1">
+                          {branches.map((b) => {
+                            const count = daySchedule.filter(s => s.branch_id === b.id).length;
+                            if (count === 0) return null;
+                            const hasMe = highlightEmployeeId && daySchedule.some(s => s.branch_id === b.id && s.employee_id === highlightEmployeeId);
+                            return (
+                              <div
+                                key={b.id}
+                                className={`text-[10px] md:text-[11px] leading-tight rounded-md px-1.5 py-0.5 font-bold flex items-center justify-between gap-1 ${hasMe ? 'ring-1 ring-amber-400 shadow-md' : ''}`}
+                                style={{
+                                  backgroundColor: `${b.color}25`,
+                                  color: '#ffffff',
+                                  borderLeft: `3px solid ${b.color}`,
+                                }}
+                              >
+                                <span className="truncate" style={{ color: b.color }}>
+                                  {hasMe && '⭐ '}{b.name}
+                                </span>
+                                <span className="text-[10px] text-white font-extrabold bg-white/20 px-1 rounded-full">
+                                  {count}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedDate && (
+                <div className="px-5 py-4 border-t border-[var(--color-glass-border)] animate-fade-in">
+                  <h4 className="font-bold text-base mb-3 flex items-center gap-2">
+                    <span>📋</span> Chi tiết ca làm ngày {selectedDate.split('-').reverse().join('/')}
+                  </h4>
+                  {selectedDaySchedule.length === 0 ? (
+                    <p className="text-sm text-[var(--color-text-muted)] italic">Chưa có lịch xếp cho ngày này</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {branches.map((branch) => {
+                        const branchItems = selectedDaySchedule.filter((s) => s.branch_id === branch.id);
+                        if (branchItems.length === 0) return null;
                         return (
-                          <div
-                            key={b.id}
-                            className={`text-[10px] md:text-[11px] leading-tight rounded-md px-1.5 py-0.5 font-bold flex items-center justify-between gap-1 ${
-                              hasMe ? 'ring-1 ring-white shadow-md' : ''
-                            }`}
-                            style={{
-                              backgroundColor: `${b.color}25`,
-                              color: '#ffffff',
-                              borderLeft: `3px solid ${b.color}`,
-                            }}
-                          >
-                            <span className="truncate" style={{ color: b.color }}>
-                              {hasMe && '⭐ '}{b.name}
-                            </span>
-                            <span className="text-[10px] text-white font-extrabold bg-white/20 px-1 rounded-full">
-                              {count}
-                            </span>
+                          <div key={branch.id} className="p-3 bg-[var(--color-surface-1)] rounded-2xl border border-[var(--color-glass-border)]">
+                            <div className="font-extrabold text-xs mb-2 flex items-center gap-2 text-white">
+                              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: branch.color }} />
+                              Chi nhánh {branch.name} ({branchItems.length} người)
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {branchItems.map((s) => {
+                                const isMe = s.employee_id === highlightEmployeeId;
+                                return (
+                                  <div key={s.id} className={`p-2 rounded-xl border text-xs flex items-center justify-between ${isMe ? 'bg-amber-500/20 border-amber-400 font-black text-amber-300' : 'bg-[var(--color-surface-2)] border-white/5 text-white'}`}>
+                                    <span>{isMe ? `⭐ ${s.employees?.name}` : s.employees?.name}</span>
+                                    <span className="text-[11px] text-amber-400 font-bold">⏱️ {s.start_time ? `${s.start_time.slice(0, 5)} - ${s.end_time?.slice(0, 5)}` : `${s.hours || 5}h`}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Selected Day Detail */}
-          {selectedDate && (
-            <div className="px-5 py-4 border-t border-[var(--color-glass-border)] animate-fade-in">
-              <h4 className="font-bold text-base mb-3 flex items-center gap-2">
-                <span>📋</span>
-                Chi tiết ca làm ngày {selectedDate.split('-').reverse().join('/')}
-              </h4>
-              {selectedDaySchedule.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-muted)] italic">
-                  Chưa có lịch xếp cho ngày này
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {branches.map((branch) => {
-                    const branchItems = selectedDaySchedule.filter(
-                      (s) => s.branch_id === branch.id
-                    );
-                    if (branchItems.length === 0) return null;
-                    return (
-                      <div
-                        key={branch.id}
-                        className="rounded-xl p-3"
-                        style={{
-                          backgroundColor: `${branch.color}15`,
-                          border: `1px solid ${branch.color}40`,
-                        }}
-                      >
-                        <div
-                          className="text-sm font-bold mb-2 flex items-center gap-1.5"
-                          style={{ color: branch.color }}
-                        >
-                          <span
-                            className="w-3 h-3 rounded-full inline-block"
-                            style={{ backgroundColor: branch.color }}
-                          />
-                          Chi nhánh {branch.name} ({branchItems.length} người)
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {branchItems.map((s) => {
-                            const isMe = highlightEmployeeId && s.employee_id === highlightEmployeeId;
-                            const hours = s.hours || 5;
-                            const timeStr = (s.start_time && s.end_time) 
-                              ? `${s.start_time.slice(0, 5)} - ${s.end_time.slice(0, 5)}`
-                              : `${hours}h`;
-                            return (
-                              <span
-                                key={s.id}
-                                className={`text-sm px-3 py-1.5 rounded-lg font-semibold flex items-center gap-2 border ${
-                                  isMe
-                                    ? 'bg-amber-500 text-black border-amber-400 font-extrabold shadow-md'
-                                    : 'bg-[var(--color-surface-2)] text-white border-[var(--color-glass-border)]'
-                                }`}
-                              >
-                                <span>{isMe && '⭐ '}{s.employees?.name}</span>
-                                <span className={isMe ? 'text-black font-extrabold text-xs bg-black/10 px-2 py-0.5 rounded' : 'text-amber-400 font-bold text-xs bg-amber-500/10 px-2 py-0.5 rounded'}>
-                                  ⏱️ {timeStr} ({hours}h)
-                                </span>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  )}
                 </div>
               )}
             </div>
