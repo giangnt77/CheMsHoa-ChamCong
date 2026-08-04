@@ -76,27 +76,35 @@ export default function ModalXepLichQuick({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="glass rounded-3xl p-6 max-w-md w-full border border-[var(--color-glass-border)] shadow-2xl relative">
-        {/* Title */}
-        <div className="flex items-center justify-between mb-4 border-b border-[var(--color-glass-border)] pb-3">
-          <div>
-            <h3 className="font-bold text-lg text-white flex items-center gap-2">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+    >
+      <div className="glass rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col border border-[var(--color-glass-border)] shadow-2xl overflow-hidden relative">
+        {/* Header Cố Định Nổi Bật Nút X */}
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-glass-border)] bg-[var(--color-surface-1)] flex-shrink-0 z-20">
+          <div className="min-w-0 flex-1 pr-2">
+            <h3 className="font-extrabold text-base text-white truncate flex items-center gap-1.5">
               <span>{isEditing ? '✏️ Sửa Lịch Làm' : '➕ Xếp Lịch Nhân Viên'}</span>
             </h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">
               CN <span className="font-bold text-amber-400">{branch?.name}</span> • Ngày <span className="font-bold text-white">{date.split('-').reverse().join('/')}</span>
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white flex items-center justify-center border-0 cursor-pointer text-sm"
+            className="w-9 h-9 rounded-full bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white border border-rose-500/40 flex items-center justify-center cursor-pointer text-base font-black transition-all flex-shrink-0 active:scale-90"
+            title="Tắt hộp thoại"
           >
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Nội dung cuộn mượt không bao giờ tràn màn hình */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-4 sm:p-5 flex-1 space-y-4">
           {/* Chọn nhân viên */}
           <div>
             <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-1.5">
@@ -106,7 +114,7 @@ export default function ModalXepLichQuick({
               value={selectedEmpId}
               onChange={(e) => setSelectedEmpId(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-[var(--color-surface-2)] border border-[var(--color-glass-border)] rounded-xl text-white text-base font-bold outline-none focus:border-amber-500 cursor-pointer"
+              className="w-full px-3.5 py-2.5 bg-[var(--color-surface-2)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-bold outline-none focus:border-amber-500 cursor-pointer"
             >
               <option value="" disabled className="text-amber-400 font-bold">-- Bấm để chọn nhân viên --</option>
 
