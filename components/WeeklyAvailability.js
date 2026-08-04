@@ -154,23 +154,28 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
           <h3 className="font-black text-lg md:text-2xl flex items-center gap-2 text-white">
             <span className="text-2xl">✋</span> Đăng Ký Lịch Làm
           </h3>
-          <div className="flex items-center gap-1.5 bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.1)]">
+          <div className="flex items-center gap-1 bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.1)]">
             <button
-              onClick={() => setWeekOffset(prev => prev - 1)}
-              className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] hover:bg-amber-500/20 rounded-xl border border-[rgba(255,255,255,0.05)] cursor-pointer"
-              title="Tuần trước"
+              type="button"
+              onClick={() => setWeekOffset(0)}
+              className={`px-3 py-1.5 text-xs font-black rounded-xl cursor-pointer border transition-all ${
+                weekOffset === 0
+                  ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)] scale-105'
+                  : 'bg-transparent text-[var(--color-text-secondary)] border-transparent hover:text-white'
+              }`}
             >
-              ◀
+              ⚡ Tuần Sau
             </button>
-            <span className="text-xs font-black text-amber-400 px-1">
-              {weekOffset === 0 ? '⚡ Tuần sau' : weekOffset === 1 ? '⏭️ Tuần sau nữa' : weekOffset === -1 ? '📍 Tuần này' : `Tuần ${weekOffset > 0 ? '+' + weekOffset : weekOffset}`}
-            </span>
             <button
-              onClick={() => setWeekOffset(prev => prev + 1)}
-              className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] hover:bg-amber-500/20 rounded-xl border border-[rgba(255,255,255,0.05)] cursor-pointer"
-              title="Tuần sau"
+              type="button"
+              onClick={() => setWeekOffset(1)}
+              className={`px-3 py-1.5 text-xs font-black rounded-xl cursor-pointer border transition-all ${
+                weekOffset === 1
+                  ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)] scale-105'
+                  : 'bg-transparent text-[var(--color-text-secondary)] border-transparent hover:text-white'
+              }`}
             >
-              ▶
+              ⏭️ Tuần Sau Nữa
             </button>
           </div>
         </div>
