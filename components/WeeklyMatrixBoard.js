@@ -220,7 +220,7 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
                   : 'text-[var(--color-text-muted)] hover:text-white'
               }`}
             >
-              🖥️ Ma Trận
+              🗓️ Tổng Quan Lịch Làm
             </button>
           </div>
 
@@ -335,7 +335,7 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
                                 className="p-3.5 bg-[var(--color-surface-2)] rounded-2xl border border-[var(--color-glass-border)] flex items-center justify-between gap-3 shadow-md"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-black text-sm text-white truncate flex items-center gap-1.5">
+                                  <div className="font-black text-sm text-white flex items-center gap-1.5">
                                     <span>👤 {shift.employees?.name}</span>
                                   </div>
                                   <div className="text-xs font-black text-amber-300 mt-1 flex items-center gap-1">
@@ -399,10 +399,14 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
           )}
 
           {/* =========================================================================
-             MODE 2: VIEW MA TRẬN TOÀN BỘ TUẦN (DESKTOP / TABLET OPTIMIZED)
+             MODE 2: VIEW TỔNG QUAN LỊCH LÀM TOÀN BỘ TUẦN (RỘNG RÃI RÕ TÊN)
              ========================================================================= */}
           {viewMode === 'matrix' && (
             <div className="space-y-6 animate-fade-in">
+              <div className="text-xs text-[var(--color-text-muted)] font-semibold flex items-center gap-1.5 bg-amber-500/10 p-2.5 rounded-2xl border border-amber-500/20">
+                <span>💡</span> Trượt ngang màn hình để xem đầy đủ tên nhân viên và ca làm của cả 7 ngày trong tuần.
+              </div>
+
               {branches.map((branch) => (
                 <div
                   key={branch.id}
@@ -426,8 +430,9 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
                     </div>
                   </div>
 
+                  {/* Cho cuộn ngang mượt với độ rộng tối thiểu 900px (mỗi ngày 125px) */}
                   <div className="overflow-x-auto scrollbar-thin">
-                    <div className="grid grid-cols-7 min-w-[700px] divide-x divide-[rgba(255,255,255,0.06)]">
+                    <div className="grid grid-cols-7 min-w-[900px] divide-x divide-[rgba(255,255,255,0.06)]">
                       {weekDays.map((dateStr, idx) => {
                         const key = `${branch.id}_${dateStr}`;
                         const assignedShifts = scheduleMap[key] || [];
@@ -435,7 +440,7 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
                         return (
                           <div
                             key={dateStr}
-                            className="p-3 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)]/60 transition-colors flex flex-col justify-between min-h-[160px]"
+                            className="p-2.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)]/60 transition-colors flex flex-col justify-between min-h-[170px]"
                           >
                             <div>
                               <div className="flex items-center justify-between mb-2 pb-1 border-b border-[rgba(255,255,255,0.06)]">
@@ -448,11 +453,13 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
                                 {assignedShifts.map((shift) => (
                                   <div
                                     key={shift.id}
-                                    className="p-2 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-glass-border)] text-xs"
+                                    className="p-2 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-glass-border)] text-xs shadow-sm"
                                   >
-                                    <div className="flex items-center justify-between font-black text-white">
-                                      <span className="truncate">{shift.employees?.name}</span>
-                                      <div className="flex items-center gap-1">
+                                    <div className="flex items-center justify-between font-black text-white gap-1">
+                                      <span className="font-extrabold text-white text-xs leading-tight whitespace-normal break-words">
+                                        {shift.employees?.name}
+                                      </span>
+                                      <div className="flex items-center gap-1 flex-shrink-0">
                                         <button
                                           onClick={() =>
                                             setModalState({
@@ -462,19 +469,21 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
                                               editItem: shift,
                                             })
                                           }
-                                          className="text-amber-400 border-0 bg-transparent cursor-pointer p-0.5"
+                                          className="text-amber-400 border-0 bg-transparent cursor-pointer p-0.5 hover:scale-110"
+                                          title="Sửa ca làm"
                                         >
                                           ✏️
                                         </button>
                                         <button
                                           onClick={() => handleRemoveShift(shift.id)}
-                                          className="text-rose-400 border-0 bg-transparent cursor-pointer p-0.5"
+                                          className="text-rose-400 border-0 bg-transparent cursor-pointer p-0.5 hover:scale-110"
+                                          title="Xóa ca làm"
                                         >
                                           ✕
                                         </button>
                                       </div>
                                     </div>
-                                    <div className="text-[10px] text-amber-300 font-extrabold mt-0.5">
+                                    <div className="text-[11px] text-amber-300 font-black mt-1">
                                       ⏱️ {shift.start_time ? `${shift.start_time.slice(0, 5)}-${shift.end_time?.slice(0, 5)}` : `${shift.hours || 5}h`}
                                     </div>
                                   </div>
