@@ -17,32 +17,72 @@ const MONTH_NAMES = [
 
 const DAY_HEADERS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
+function formatDateISO(dateObj) {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getMondayOfCurrentWeek() {
+  const today = new Date();
+  const day = today.getDay(); // 0=CN, 1=T2...
+  const daysToSub = day === 0 ? 6 : day - 1;
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysToSub);
+  return formatDateISO(monday);
+}
+
+function getWeekDaysFromMonday(mondayStr) {
+  const [y, m, d] = mondayStr.split('-').map(Number);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const dayObj = new Date(y, m - 1, d + i);
+    days.push(formatDateISO(dayObj));
+  }
+  return days;
+}
+
 export default function ScheduleCalendar({ highlightEmployeeId }) {
+  const today = getToday();
+  const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
+  const [showPastDays, setShowPastDays] = useState(false); // Mặc định ẨN ngày đã qua trong tuần
+
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
+
   const [schedule, setSchedule] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const today = getToday();
   const [selectedDate, setSelectedDate] = useState(today);
 
-  // View Mode: 'list' (Mobile Card List - Extremely Easy to Read) | 'calendar' (30 Day Grid)
+  // View Mode: 'list' (Mobile Weekly Focus Card List) | 'calendar' (30 Day Grid)
   const [viewMode, setViewMode] = useState('list');
   // Filter: 'my_shifts' | 'all'
   const [filterMode, setFilterMode] = useState(highlightEmployeeId ? 'my_shifts' : 'all');
 
+  const weekDays = useMemo(() => getWeekDaysFromMonday(currentMonday), [currentMonday]);
+  const startWeekLabel = weekDays[0].split('-').reverse().slice(0, 2).join('/');
+  const endWeekLabel = weekDays[6].split('-').reverse().join('/');
+
   useEffect(() => {
     loadData();
-  }, [year, month]);
+  }, [viewMode, currentMonday, year, month]);
 
   async function loadData() {
     setLoading(true);
     try {
-      const mStr = String(month + 1).padStart(2, '0');
-      const lastDay = new Date(year, month + 1, 0).getDate();
-      const startDate = `${year}-${mStr}-01`;
-      const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
+      let startDate, endDate;
+      if (viewMode === 'list') {
+        startDate = weekDays[0];
+        endDate = weekDays[6];
+      } else {
+        const mStr = String(month + 1).padStart(2, '0');
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        startDate = `${year}-${mStr}-01`;
+        endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
+      }
+
       const [schedData, branchData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getBranches(),
@@ -71,9 +111,10 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
     [year, month]
   );
 
-  // Agenda Dates List for Mobile View
+  // Agenda Dates List for Mobile Weekly View (Auto hide past days, focus Today)
   const agendaDatesList = useMemo(() => {
-    const dates = Object.keys(scheduleByDate).sort();
+    const dates = viewMode === 'list' ? weekDays : Object.keys(scheduleByDate).sort();
+
     return dates
       .map((dStr) => {
         const items = scheduleByDate[dStr] || [];
@@ -85,13 +126,35 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
           items,
           myItems,
           hasMyShift: myItems.length > 0,
+          isPast: dStr < today,
+          isToday: dStr === today,
         };
       })
       .filter((group) => {
+        // Nếu ở chế độ Ẩn ngày quá khứ -> Lọc bỏ các ngày trước hôm nay
+        if (viewMode === 'list' && !showPastDays && group.isPast) {
+          return false;
+        }
         if (filterMode === 'my_shifts') return group.hasMyShift;
         return group.items.length > 0;
       });
-  }, [scheduleByDate, highlightEmployeeId, filterMode]);
+  }, [scheduleByDate, highlightEmployeeId, filterMode, viewMode, weekDays, showPastDays, today]);
+
+  function prevWeek() {
+    const [y, m, d] = currentMonday.split('-').map(Number);
+    const prevMon = new Date(y, m - 1, d - 7);
+    setCurrentMonday(formatDateISO(prevMon));
+  }
+
+  function nextWeek() {
+    const [y, m, d] = currentMonday.split('-').map(Number);
+    const nextMon = new Date(y, m - 1, d + 7);
+    setCurrentMonday(formatDateISO(nextMon));
+  }
+
+  function resetToThisWeek() {
+    setCurrentMonday(getMondayOfCurrentWeek());
+  }
 
   function prevMonth() {
     let newYear = year;
@@ -128,26 +191,56 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
 
   return (
     <div className="glass rounded-3xl overflow-hidden border border-[var(--color-glass-border)] shadow-xl">
-      {/* Month Header & Controls */}
+      {/* Month/Week Header & Controls */}
       <div className="p-4 border-b border-[var(--color-glass-border)] space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={prevMonth}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
-            >
-              ◀
-            </button>
-            <h3 className="font-extrabold text-base md:text-lg text-white">
-              📅 {MONTH_NAMES[month]} {year}
-            </h3>
-            <button
-              onClick={nextMonth}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
-            >
-              ▶
-            </button>
-          </div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {viewMode === 'list' ? (
+            /* Điều hướng Tuần cho Chế độ Danh Sách */
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={prevWeek}
+                className="px-2.5 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
+                title="Tuần trước"
+              >
+                ◀ Tuần trước
+              </button>
+              <button
+                type="button"
+                onClick={resetToThisWeek}
+                className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-all text-xs font-black border border-amber-500/30 cursor-pointer"
+              >
+                Tuần này
+              </button>
+              <button
+                type="button"
+                onClick={nextWeek}
+                className="px-2.5 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
+                title="Tuần sau"
+              >
+                Tuần sau ▶
+              </button>
+            </div>
+          ) : (
+            /* Điều hướng Tháng cho Chế độ Ô Lịch */
+            <div className="flex items-center gap-2">
+              <button
+                onClick={prevMonth}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
+              >
+                ◀
+              </button>
+              <h3 className="font-extrabold text-base text-white">
+                📅 {MONTH_NAMES[month]} {year}
+              </h3>
+              <button
+                onClick={nextMonth}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white transition-all text-xs font-bold cursor-pointer border-0"
+              >
+                ▶
+              </button>
+            </div>
+          )}
 
           {/* Toggle View Mode: List vs Calendar Grid */}
           <div className="flex bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.08)]">
@@ -175,6 +268,22 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
             </button>
           </div>
         </div>
+
+        {/* Thông tin Tuần đang xem */}
+        {viewMode === 'list' && (
+          <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)] font-semibold pt-1 border-t border-[rgba(255,255,255,0.06)] flex-wrap gap-2">
+            <div>
+              📅 Lịch làm tuần: <span className="text-amber-400 font-extrabold">{startWeekLabel} — {endWeekLabel}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPastDays(!showPastDays)}
+              className="text-[11px] font-bold text-amber-300/90 hover:text-amber-300 underline cursor-pointer bg-transparent border-0"
+            >
+              {showPastDays ? '🙈 Ẩn các ngày đã qua' : '📜 Xem các ngày đã qua trong tuần'}
+            </button>
+          </div>
+        )}
 
         {/* Filter Toolbar (Lọc ca cá nhân vs Tất cả ca) */}
         {highlightEmployeeId && (
