@@ -31,22 +31,7 @@ function EmployeeContent() {
   const [monthlyShiftsCount, setMonthlyShiftsCount] = useState(0);
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState('');
-  const [hideSalary, setHideSalary] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('hideEmployeeSalary') === 'true';
-    }
-    return false;
-  });
-
-  function toggleHideSalary() {
-    setHideSalary((prev) => {
-      const next = !prev;
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('hideEmployeeSalary', String(next));
-      }
-      return next;
-    });
-  }
+  const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
 
   // Check localStorage for remembered name
   useEffect(() => {
@@ -203,111 +188,133 @@ function EmployeeContent() {
           </div>
 
           {/* =========================================================================
-             BẢNG THỐNG KÊ GIỜ LÀM & TÍNH LƯƠNG TỰ ĐỘNG CÁ NHÂN
+             BẢNG THỐNG KÊ GIỜ LÀM & TÍNH LƯƠNG TỰ ĐỘNG CÁ NHÂN (MẶC ĐỊNH THU NHỎ)
              ========================================================================= */}
-          <div className="glass rounded-3xl p-5 mb-5 space-y-4 shadow-xl border border-[rgba(245,158,11,0.25)] animate-fade-in-up">
-            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] pb-3">
-              <div className="flex items-center gap-2">
-                <h3 className="font-black text-base text-white flex items-center gap-1.5">
-                  <span>💰</span> Thu Nhập
-                </h3>
-                <button
-                  type="button"
-                  onClick={toggleHideSalary}
-                  className="px-2.5 py-1 rounded-xl bg-[var(--color-surface-2)] text-amber-300 hover:bg-amber-500/20 text-xs font-bold border border-[rgba(255,255,255,0.1)] cursor-pointer flex items-center gap-1 transition-all active:scale-95"
-                  title={hideSalary ? 'Bấm để hiện mức lương' : 'Bấm để ẩn mức lương bảo mật'}
-                >
-                  <span>{hideSalary ? '🙈 Hiện Lương' : '👁️ Ẩn Lương'}</span>
-                </button>
-                {/* Bộ chọn tháng */}
-                <div className="flex items-center gap-1 bg-[var(--color-surface-2)] px-2 py-1 rounded-xl border border-[rgba(255,255,255,0.1)]">
-                  <button
-                    onClick={handlePrevMonth}
-                    className="text-xs text-[var(--color-text-secondary)] hover:text-white border-0 bg-transparent cursor-pointer px-1 font-bold"
-                    title="Tháng trước"
-                  >
-                    ◀
-                  </button>
-                  <span className="text-xs font-black text-amber-400">
-                    Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
-                  </span>
-                  <button
-                    onClick={handleNextMonth}
-                    className="text-xs text-[var(--color-text-secondary)] hover:text-white border-0 bg-transparent cursor-pointer px-1 font-bold"
-                    title="Tháng sau"
-                  >
-                    ▶
-                  </button>
+          <div className="glass rounded-3xl p-4 md:p-5 mb-5 shadow-xl border border-[rgba(245,158,11,0.25)] animate-fade-in-up transition-all">
+            {/* Thanh Tiêu Đề Thu Nhập (Thu Nhỏ) */}
+            <div
+              onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
+              className="flex items-center justify-between cursor-pointer select-none gap-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-xl flex-shrink-0">
+                  💰
                 </div>
-              </div>
-
-              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/30">
-                {monthlyShiftsCount} ca làm
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Tổng số giờ làm */}
-              <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center">
-                <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1">⏱️ Tổng số giờ làm</div>
-                <div className="text-2xl font-black text-amber-400">{monthlyHours} <span className="text-xs font-normal">tiếng</span></div>
-              </div>
-
-              {/* Lương thỏa thuận đ/giờ */}
-              <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center flex flex-col justify-between">
-                <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1">
-                  💵 Lương thỏa thuận
-                </div>
-
-                {editingRate ? (
-                  <div className="flex items-center justify-center gap-1.5 my-1">
-                    <input
-                      type="number"
-                      value={rateInput}
-                      onChange={(e) => setRateInput(e.target.value)}
-                      className="w-24 px-2 py-1.5 bg-[#12121e] border border-amber-400 rounded-xl text-white text-sm font-bold text-center outline-none"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSaveRate}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black border-0 cursor-pointer active:scale-95"
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-base text-white">Thu Nhập</h3>
+                    {/* Bộ chọn tháng */}
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 bg-[var(--color-surface-2)] px-2 py-0.5 rounded-xl border border-[rgba(255,255,255,0.1)]"
                     >
-                      Lưu
-                    </button>
-                    <button
-                      onClick={() => setEditingRate(false)}
-                      className="px-2 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] text-xs font-bold border-0 cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-xl font-black text-white">
-                      {hideSalary ? '••••••' : formatCurrency(hourlyRate)}
-                      <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
+                      <button
+                        onClick={handlePrevMonth}
+                        className="text-xs text-[var(--color-text-secondary)] hover:text-white border-0 bg-transparent cursor-pointer px-1 font-bold"
+                        title="Tháng trước"
+                      >
+                        ◀
+                      </button>
+                      <span className="text-[11px] font-black text-amber-400">
+                        Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
+                      </span>
+                      <button
+                        onClick={handleNextMonth}
+                        className="text-xs text-[var(--color-text-secondary)] hover:text-white border-0 bg-transparent cursor-pointer px-1 font-bold"
+                        title="Tháng sau"
+                      >
+                        ▶
+                      </button>
                     </div>
-                    <button
-                      onClick={() => {
-                        setEditingRate(true);
-                        setRateInput(String(hourlyRate));
-                      }}
-                      className="mt-1.5 px-3 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all active:scale-95 inline-flex items-center gap-1"
-                    >
-                      <span>✏️</span> Sửa lương/h
-                    </button>
                   </div>
-                )}
-              </div>
-
-              {/* Lương ước tính */}
-              <div className="p-4 bg-gradient-to-tr from-amber-500/20 to-orange-500/20 rounded-2xl border border-amber-500/40 text-center shadow-md">
-                <div className="text-xs text-amber-300 font-black mb-1">💰 Lương ước tính</div>
-                <div className="text-xl md:text-2xl font-black text-emerald-400">
-                  {hideSalary ? '•••••••• đ' : formatCurrency(estimatedSalary)}
+                  <p className="text-xs text-[var(--color-text-muted)] font-semibold mt-0.5 truncate">
+                    ⏱️ Đã làm: <span className="text-amber-300 font-extrabold">{monthlyHours} tiếng</span> ({monthlyShiftsCount} ca)
+                  </p>
                 </div>
               </div>
+
+              {/* Nút bấm Mở Rộng / Thu Nhỏ */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsIncomeExpanded(!isIncomeExpanded);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all active:scale-95 flex-shrink-0 ${
+                  isIncomeExpanded
+                    ? 'bg-amber-500 text-black border-amber-400 shadow-md'
+                    : 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25'
+                }`}
+              >
+                {isIncomeExpanded ? '▲ Thu nhỏ' : '👁️ Xem Lương'}
+              </button>
             </div>
+
+            {/* Chi Tiết Lương (Chỉ mở rộng khi bấm nút) */}
+            {isIncomeExpanded && (
+              <div className="pt-4 mt-4 border-t border-[rgba(255,255,255,0.08)] space-y-4 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Tổng số giờ làm */}
+                  <div className="p-3.5 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center">
+                    <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1">⏱️ Tổng số giờ làm</div>
+                    <div className="text-2xl font-black text-amber-400">{monthlyHours} <span className="text-xs font-normal">tiếng</span></div>
+                  </div>
+
+                  {/* Lương thỏa thuận đ/giờ */}
+                  <div className="p-3.5 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center flex flex-col justify-between">
+                    <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1">
+                      💵 Lương thỏa thuận
+                    </div>
+
+                    {editingRate ? (
+                      <div className="flex items-center justify-center gap-1.5 my-1">
+                        <input
+                          type="number"
+                          value={rateInput}
+                          onChange={(e) => setRateInput(e.target.value)}
+                          className="w-24 px-2 py-1.5 bg-[#12121e] border border-amber-400 rounded-xl text-white text-sm font-bold text-center outline-none"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleSaveRate}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black border-0 cursor-pointer active:scale-95"
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          onClick={() => setEditingRate(false)}
+                          className="px-2 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] text-xs font-bold border-0 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-xl font-black text-white">
+                          {formatCurrency(hourlyRate)}
+                          <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingRate(true);
+                            setRateInput(String(hourlyRate));
+                          }}
+                          className="mt-1 px-2.5 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all active:scale-95 inline-flex items-center gap-1"
+                        >
+                          <span>✏️</span> Sửa lương/h
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Lương ước tính */}
+                  <div className="p-3.5 bg-gradient-to-tr from-amber-500/20 to-orange-500/20 rounded-2xl border border-amber-500/40 text-center shadow-md">
+                    <div className="text-xs text-amber-300 font-black mb-1">💰 Lương ước tính</div>
+                    <div className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(estimatedSalary)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Tab Toggle - Lịch Làm lên trước */}
