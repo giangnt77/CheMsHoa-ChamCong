@@ -29,8 +29,6 @@ function EmployeeContent() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [monthlyHours, setMonthlyHours] = useState(0);
   const [monthlyShiftsCount, setMonthlyShiftsCount] = useState(0);
-  const [editingRate, setEditingRate] = useState(false);
-  const [rateInput, setRateInput] = useState('');
   const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
 
   // Check localStorage for remembered name
@@ -59,14 +57,15 @@ function EmployeeContent() {
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
       const schedData = await getScheduleByDateRange(startDate, endDate);
       
-      // Filter for this employee
       const myShifts = schedData.filter((s) => s.employee_id === employee.id);
-      const totalH = myShifts.reduce((sum, s) => sum + (Number(s.hours) || 5), 0);
-      
-      setMonthlyHours(Math.round(totalH * 100) / 100);
+      let totalH = 0;
+      myShifts.forEach((s) => {
+        totalH += Number(s.hours) || 0;
+      });
+      setMonthlyHours(totalH);
       setMonthlyShiftsCount(myShifts.length);
     } catch (err) {
-      console.error(err);
+      console.error('Error loading employee hours:', err);
     }
   }
 
@@ -260,51 +259,20 @@ function EmployeeContent() {
                     <div className="text-2xl font-black text-amber-400">{monthlyHours} <span className="text-xs font-normal">tiếng</span></div>
                   </div>
 
-                  {/* Lương thỏa thuận đ/giờ */}
+                  {/* Lương thỏa thuận đ/giờ (Chỉ Xem - Do Admin Cài Đặt) */}
                   <div className="p-3.5 bg-[var(--color-surface-1)] rounded-2xl border border-[rgba(255,255,255,0.06)] text-center flex flex-col justify-between">
                     <div className="text-xs text-[var(--color-text-secondary)] font-bold mb-1">
                       💵 Lương thỏa thuận
                     </div>
-
-                    {editingRate ? (
-                      <div className="flex items-center justify-center gap-1.5 my-1">
-                        <input
-                          type="number"
-                          value={rateInput}
-                          onChange={(e) => setRateInput(e.target.value)}
-                          className="w-24 px-2 py-1.5 bg-[#12121e] border border-amber-400 rounded-xl text-white text-sm font-bold text-center outline-none"
-                          autoFocus
-                        />
-                        <button
-                          onClick={handleSaveRate}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black border-0 cursor-pointer active:scale-95"
-                        >
-                          Lưu
-                        </button>
-                        <button
-                          onClick={() => setEditingRate(false)}
-                          className="px-2 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] text-xs font-bold border-0 cursor-pointer"
-                        >
-                          ✕
-                        </button>
+                    <div>
+                      <div className="text-xl font-black text-white">
+                        {formatCurrency(hourlyRate)}
+                        <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
                       </div>
-                    ) : (
-                      <div>
-                        <div className="text-xl font-black text-white">
-                          {formatCurrency(hourlyRate)}
-                          <span className="text-xs font-normal text-[var(--color-text-muted)]">/h</span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setEditingRate(true);
-                            setRateInput(String(hourlyRate));
-                          }}
-                          className="mt-1 px-2.5 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer transition-all active:scale-95 inline-flex items-center gap-1"
-                        >
-                          <span>✏️</span> Sửa lương/h
-                        </button>
-                      </div>
-                    )}
+                      <span className="text-[10px] text-amber-400/80 font-bold block mt-1">
+                        🔒 Do Admin cài đặt
+                      </span>
+                    </div>
                   </div>
 
                   {/* Lương ước tính */}
