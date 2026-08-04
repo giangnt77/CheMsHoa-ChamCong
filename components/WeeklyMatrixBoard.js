@@ -293,16 +293,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     } hover:bg-amber-500/15`}
                   >
                     {/* STT */}
-                    <td className="py-3 px-2 border-r border-[rgba(255,255,255,0.06)] text-center font-black text-[var(--color-text-muted)]">
+                    <td className="py-3 px-2 border-r border-[rgba(255,255,255,0.08)] text-center font-black text-slate-300 text-sm">
                       {idx + 1}
                     </td>
 
-                    {/* Tên Nhân Viên */}
-                    <td className="py-3 px-3 border-r border-[rgba(255,255,255,0.06)] font-black text-white text-sm">
+                    {/* Tên Nhân Viên - To Rõ Cho Người Già & Người Dùng Nhanh */}
+                    <td className="py-3 px-3 border-r border-[rgba(255,255,255,0.08)] font-black text-white text-base">
                       <div className="flex items-center gap-1.5 truncate">
-                        {isMe && <span className="text-amber-400">⭐</span>}
-                        <span className={isMe ? 'text-amber-300' : 'text-white'}>{emp.name}</span>
-                        {isMe && <span className="text-[10px] text-amber-400 font-bold">(TÔI)</span>}
+                        {isMe && <span className="text-amber-400 text-lg">⭐</span>}
+                        <span className={isMe ? 'text-amber-300 font-extrabold text-base md:text-lg' : 'text-white font-bold text-sm md:text-base'}>
+                          {emp.name}
+                        </span>
+                        {isMe && <span className="text-xs text-amber-400 font-black bg-amber-500/20 px-1.5 py-0.5 rounded">(TÔI)</span>}
                       </div>
                     </td>
 
@@ -315,12 +317,12 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                         <td
                           key={dStr}
                           onClick={() => openCellModal(emp, dStr, empShifts[0] || null)}
-                          className={`py-1.5 px-1.5 border-r border-[rgba(255,255,255,0.06)] text-center align-middle transition-all min-w-[108px] ${
+                          className={`py-2 px-2 border-r border-[rgba(255,255,255,0.08)] text-center align-middle transition-all min-w-[120px] ${
                             readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:opacity-90'
                           }`}
                         >
                           {empShifts.length > 0 ? (
-                            /* Có Ca Phân Công -> Render màu sắc chuẩn Excel (Giờ làm & Mã CN) */
+                            /* Có Ca Phân Công -> Render màu sắc chuẩn Excel (Giờ làm & Mã CN) - Chữ To Rõ */
                             <div className="space-y-1">
                               {empShifts.map((shift) => {
                                 const bColor = getBranchColor(shift.branches?.name, shift.branches?.color);
@@ -332,53 +334,39 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 return (
                                   <div
                                     key={shift.id}
-                                    className={`p-1.5 rounded-xl font-extrabold text-[11px] leading-tight border transition-all ${
-                                      isWhiteBg ? 'bg-white text-slate-900 border-slate-300 shadow-sm' : 'text-white'
+                                    className={`p-2 rounded-xl font-black text-xs md:text-sm leading-tight border shadow-sm transition-all ${
+                                      isWhiteBg ? 'bg-white text-slate-900 border-slate-300' : 'text-white'
                                     }`}
                                     style={{
                                       backgroundColor: isWhiteBg ? '#ffffff' : bColor,
-                                      borderColor: isWhiteBg ? '#e2e8f0' : `${bColor}cc`,
+                                      borderColor: isWhiteBg ? '#cbd5e1' : `${bColor}dd`,
                                       color: isWhiteBg ? '#0f172a' : '#ffffff',
                                     }}
                                   >
-                                    <div className="text-[11px] font-black tracking-tight">{timeRange}</div>
-                                    <div className="text-[10px] opacity-90 mt-0.5 flex items-center justify-center gap-1 font-bold">
+                                    <div className="text-xs md:text-sm font-black tracking-tight">{timeRange}</div>
+                                    <div className="text-[11px] md:text-xs opacity-95 mt-0.5 flex items-center justify-center gap-1 font-extrabold">
                                       <span>CN {shift.branches?.name}</span>
                                       <span className="opacity-80">({shift.hours || 5}h)</span>
                                     </div>
                                     {shift.note && (
-                                      <div className="text-[9px] font-semibold italic opacity-90 truncate mt-0.5">
-                                        💬 {shift.note}
+                                      <div className="text-[10px] font-bold italic opacity-90 truncate mt-0.5">
+                                        📝 {shift.note}
                                       </div>
                                     )}
                                   </div>
                                 );
                               })}
                             </div>
-                          ) : !readOnly && empAvail?.type === 'off' ? (
-                            /* ADMIN XEM: Xin nghỉ */
-                            <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 font-extrabold text-[11px]">
-                              OFF
-                              {empAvail.note && (
-                                <span className="block text-[9px] font-normal italic truncate">
-                                  {empAvail.note}
-                                </span>
-                              )}
-                            </div>
-                          ) : !readOnly && empAvail?.type === 'full' ? (
-                            /* ADMIN XEM: Đăng ký rảnh cả ngày */
-                            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
-                              💪 Cả ngày
-                            </div>
-                          ) : !readOnly && empAvail?.type === 'option' ? (
-                            /* ADMIN XEM: Đăng ký rảnh tùy chọn */
-                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold text-[11px]">
-                              📝 {empAvail.note || 'Tùy chọn'}
-                            </div>
                           ) : (
-                            /* NHÂN VIÊN XEM HOẶC CHƯA XẾP: Hiện chữ OFF gọn gàng bình thường */
-                            <div className="p-2 rounded-xl bg-[var(--color-surface-2)]/40 text-rose-400/60 font-bold text-[11px]">
-                              OFF
+                            /* Ô Ngày Trống / Không có ca */
+                            <div className="py-2 text-center">
+                              {!readOnly && empAvail ? (
+                                <div className="text-[11px] font-bold text-amber-300/90 truncate">
+                                  {empAvail.type === 'full' ? '💪 Cả ngày' : empAvail.type === 'off' ? '🛑 Xin nghỉ' : `📝 ${empAvail.note || 'Tùy ca'}`}
+                                </div>
+                              ) : (
+                                <span className="text-slate-500 font-extrabold text-xs">OFF</span>
+                              )}
                             </div>
                           )}
                         </td>
