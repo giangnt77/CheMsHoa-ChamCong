@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import EmployeeSelector from '@/components/EmployeeSelector';
 import WeeklyAvailability from '@/components/WeeklyAvailability';
-import ScheduleCalendar from '@/components/ScheduleCalendar';
+import WeeklyMatrixBoard from '@/components/WeeklyMatrixBoard';
 import { ToastProvider, useToast } from '@/components/Toast';
 import {
   getEmployeeByName,
+  getEmployees,
   createEmployee,
   getScheduleByDateRange,
   updateEmployeeRate,
@@ -19,8 +20,13 @@ function EmployeeContent() {
 
   // Auth state
   const [employee, setEmployee] = useState(null);
+  const [employees, setEmployees] = useState([]);
   const [authLoading, setAuthLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+
+  useEffect(() => {
+    getEmployees().then(setEmployees).catch(console.error);
+  }, []);
 
   // View state
   const [view, setView] = useState('schedule');
@@ -296,10 +302,10 @@ function EmployeeContent() {
             </button>
           </div>
 
-          {/* SCHEDULE VIEW (Bảng lịch làm tháng phân công bởi chủ) */}
+          {/* SCHEDULE VIEW (Bảng lịch làm tuần chuẩn Excel phân công bởi chủ) */}
           {view === 'schedule' && (
             <div className="animate-fade-in">
-              <ScheduleCalendar highlightEmployeeId={employee.id} />
+              <WeeklyMatrixBoard employees={employees} highlightEmployeeId={employee.id} />
             </div>
           )}
 

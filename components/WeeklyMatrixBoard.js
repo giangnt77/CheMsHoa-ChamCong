@@ -11,10 +11,9 @@ import {
 import ModalXepLichQuick from './ModalXepLichQuick';
 
 /**
- * WeeklyMatrixBoard — Giao diện Xếp Lịch Mobile-First Đỉnh Cao.
- * Hỗ trợ 2 chế độ View:
- * 1. 📱 View Theo Ngày (Mobile-First): Chọn 1 ngày trong tuần -> Hiện 5 Chi nhánh dạng Card to rộng, dễ bấm 1 tay.
- * 2. 🖥️ View Ma Trận Tuần (Desktop): Nhìn toàn bộ 7 ngày x 5 chi nhánh.
+ * WeeklyMatrixBoard — Bảng Ma Trận Phân Công Ca Làm Tuần Chuẩn ExcelCao Cấp.
+ * Hiển thị chính xác như ảnh mẫu: STT | Tên Nhân Viên | T2 -> CN.
+ * Bấm vào bất kỳ ô ngày của Nhân viên để mở Modal Xếp Lịch / Chỉnh Sửa / Xóa Ca.
  */
 
 function formatDateISO(dateObj) {
@@ -36,7 +35,7 @@ function getWeekDaysFromMonday(mondayStr) {
 
 function getMondayOfCurrentWeek() {
   const today = new Date();
-  const day = today.getDay(); // 0=CN, 1=T2, 2=T3...
+  const day = today.getDay(); // 0=CN, 1=T2...
   const daysToSub = day === 0 ? 6 : day - 1;
   const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysToSub);
   return formatDateISO(monday);
@@ -44,44 +43,25 @@ function getMondayOfCurrentWeek() {
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-export default function WeeklyMatrixBoard({ employees, toast }) {
+export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeId }) {
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
   const [branches, setBranches] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Today
-  const todayStr = formatDateISO(new Date());
-
-  // Mobile selected day
-  const [activeDate, setActiveDate] = useState(todayStr);
-
-  // View mode: 'day' (Mobile optimized) | 'matrix' (Full table)
-  const [viewMode, setViewMode] = useState('day');
-
   // Modal State
   const [modalState, setModalState] = useState({
     isOpen: false,
     date: null,
     branch: null,
+    employee: null,
     editItem: null,
   });
 
-  const weekDays = useMemo(
-    () => getWeekDaysFromMonday(currentMonday),
-    [currentMonday]
-  );
-
+  const weekDays = useMemo(() => getWeekDaysFromMonday(currentMonday), [currentMonday]);
   const startDate = weekDays[0];
   const endDate = weekDays[6];
-
-  // If activeDate not in current week, default to Monday or Today
-  useEffect(() => {
-    if (!weekDays.includes(activeDate)) {
-      setActiveDate(weekDays.includes(todayStr) ? todayStr : weekDays[0]);
-    }
-  }, [currentMonday]);
 
   useEffect(() => {
     loadWeekData();
@@ -119,24 +99,37 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
 
   function goTodayWeek() {
     setCurrentMonday(getMondayOfCurrentWeek());
-    setActiveDate(todayStr);
   }
 
-  const scheduleMap = useMemo(() => {
+  // Sắp xếp danh sách nhân viên: Ưu tiên tên cá nhân lên vị trí #1
+  const sortedEmployees = useMemo(() => {
+    if (!employees) return [];
+    return [...employees].sort((a, b) => {
+      if (highlightEmployeeId) {
+        if (a.id === highlightEmployeeId) return -1;
+        if (b.id === highlightEmployeeId) return 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [employees, highlightEmployeeId]);
+
+  // Index map dữ liệu ca làm theo employeeId_date
+  const scheduleByEmpAndDate = useMemo(() => {
     const map = {};
     schedule.forEach((item) => {
-      const key = `${item.branch_id}_${item.date}`;
+      const key = `${item.employee_id}_${item.date}`;
       if (!map[key]) map[key] = [];
       map[key].push(item);
     });
     return map;
   }, [schedule]);
 
-  const availMap = useMemo(() => {
+  // Index map lịch rảnh theo employeeId_date
+  const availByEmpAndDate = useMemo(() => {
     const map = {};
     availability.forEach((item) => {
-      if (!map[item.date]) map[item.date] = [];
-      map[item.date].push(item);
+      const key = `${item.employee_id}_${item.date}`;
+      map[key] = item;
     });
     return map;
   }, [availability]);
@@ -144,7 +137,7 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
   async function handleSaveModal(data) {
     try {
       await upsertSchedule(data);
-      if (toast) toast.success('Thành công', 'Đã lưu lịch phân công');
+      if (toast) toast.success('Thành công', 'Đã lưu phân công ca làm!');
       loadWeekData();
     } catch (err) {
       console.error(err);
@@ -152,382 +145,250 @@ export default function WeeklyMatrixBoard({ employees, toast }) {
     }
   }
 
-  async function handleRemoveShift(shiftId) {
+  async function handleDeleteScheduleItem(itemId) {
     try {
-      await deleteSchedule(shiftId);
-      if (toast) toast.info('Đã xóa', 'Đã gỡ nhân viên khỏi ca');
+      await deleteSchedule(itemId);
+      if (toast) toast.info('Đã xóa', 'Đã chuyển ca về trạng thái OFF');
       loadWeekData();
     } catch (err) {
       console.error(err);
-      if (toast) toast.error('Lỗi', 'Không thể xóa');
+      if (toast) toast.error('Lỗi', 'Không thể xóa ca làm');
     }
   }
 
-  function formatDateShort(dStr) {
-    const [y, m, d] = dStr.split('-').map(Number);
-    return `${d}/${m}`;
+  function openCellModal(emp, dateStr, existingShift = null) {
+    const defaultBranch = branches[0] || { id: '', name: 'Chi nhánh' };
+    setModalState({
+      isOpen: true,
+      date: dateStr,
+      branch: existingShift?.branches || defaultBranch,
+      employee: emp,
+      editItem: existingShift,
+    });
   }
 
-  const startWeekLabel = formatDateShort(startDate);
-  const endWeekLabel = formatDateShort(endDate);
-
-  // Get availabilities for active date
-  const activeDayAvails = availMap[activeDate] || [];
-
   return (
-    <div className="space-y-5">
-      {/* Header Điều Khiển Tuần */}
-      <div className="glass rounded-3xl p-4 md:p-5 flex items-center justify-between flex-wrap gap-3 shadow-xl">
+    <div className="space-y-4">
+      {/* Banner Slogan Chuẩn Tiệm Chè Ms Hoa (Như ảnh mẫu) */}
+      <div className="glass rounded-2xl p-3.5 border border-amber-500/40 bg-gradient-to-r from-purple-900/60 via-amber-900/60 to-rose-900/60 text-center shadow-lg">
+        <p className="text-amber-300 font-black text-xs md:text-sm uppercase tracking-wide">
+          TIẾT KIỆM NGUYÊN VẬT LIỆU & DỌN DẸP GỌN GÀNG SẠCH SẼ KHU VỰC BÁN HÀNG
+        </p>
+        <p className="text-white/90 font-bold text-[11px] md:text-xs mt-0.5">
+          GIỮ KHÁCH ĐỂ HỌ GIỚI THIỆU KHÁCH KHÁC NỮA • NÓI NĂNG, GIAO TIẾP LỊCH SỰ VỚI KHÁCH HÀNG
+        </p>
+      </div>
+
+      {/* Thanh điều hướng Tuần & Legend màu Chi Nhánh */}
+      <div className="glass rounded-3xl p-4 border border-[var(--color-glass-border)] flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={prevWeek}
-            className="px-3 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-white text-xs md:text-sm font-extrabold rounded-2xl border-0 cursor-pointer active:scale-95 transition-all"
+            className="px-3 py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-white text-xs font-bold border-0 cursor-pointer transition-all active:scale-95"
           >
             ◀ Tuần trước
           </button>
           <button
+            type="button"
             onClick={goTodayWeek}
-            className="px-3 py-2 bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 text-xs md:text-sm font-extrabold rounded-2xl cursor-pointer active:scale-95 transition-all"
+            className="px-3 py-2 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95"
           >
-            Hôm nay
+            Tuần này
           </button>
           <button
+            type="button"
             onClick={nextWeek}
-            className="px-3 py-2 bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-white text-xs md:text-sm font-extrabold rounded-2xl border-0 cursor-pointer active:scale-95 transition-all"
+            className="px-3 py-2 rounded-xl bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-white text-xs font-bold border-0 cursor-pointer transition-all active:scale-95"
           >
             Tuần sau ▶
           </button>
         </div>
 
-        {/* View Mode Toggle: Day vs Matrix */}
-        <div className="flex items-center gap-2">
-          <div className="flex bg-[var(--color-surface-1)] rounded-xl p-1 border border-[var(--color-glass-border)]">
-            <button
-              onClick={() => setViewMode('day')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border-0 cursor-pointer transition-all ${
-                viewMode === 'day'
-                  ? 'bg-amber-500 text-black shadow-md'
-                  : 'text-[var(--color-text-muted)] hover:text-white'
-              }`}
-            >
-              📱 Theo Ngày
-            </button>
-            <button
-              onClick={() => setViewMode('matrix')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold border-0 cursor-pointer transition-all ${
-                viewMode === 'matrix'
-                  ? 'bg-amber-500 text-black shadow-md'
-                  : 'text-[var(--color-text-muted)] hover:text-white'
-              }`}
-            >
-              🗓️ Tổng Quan Lịch Làm
-            </button>
-          </div>
+        <div className="text-xs font-extrabold text-white">
+          📅 Lịch tuần: <span className="text-amber-400">{startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}</span>
+        </div>
 
-          <div className="text-xs md:text-sm font-black text-white hidden sm:block">
-            📅 Tuần: <span className="text-amber-400">{startWeekLabel} — {endWeekLabel}</span>
-          </div>
+        {/* Legend Chi Nhánh */}
+        <div className="flex flex-wrap gap-1.5">
+          {branches.map((b) => (
+            <span
+              key={b.id}
+              className="text-[10px] font-black px-2 py-0.5 rounded-md text-white border"
+              style={{ backgroundColor: `${b.color}35`, borderColor: b.color }}
+            >
+              <span className="w-2 h-2 rounded-full inline-block mr-1" style={{ backgroundColor: b.color }} />
+              {b.name}
+            </span>
+          ))}
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-16">
-          <div className="inline-block w-10 h-10 border-3 border-[var(--color-surface-3)] border-t-amber-400 rounded-full animate-spin" />
-          <p className="mt-3 text-xs font-bold text-amber-400 uppercase tracking-widest">Đang tải lịch phân công...</p>
-        </div>
-      ) : (
-        <>
-          {/* =========================================================================
-             MODE 1: VIEW THEO NGÀY (MOBILE OPTIMIZED - SIÊU RÕ RÀNG & DỄ BẤM 1 TAY)
-             ========================================================================= */}
-          {viewMode === 'day' && (
-            <div className="space-y-5 animate-fade-in">
-              {/* Thanh Tab 7 Ngày Ngang Siêu Nét */}
-              <div className="glass rounded-2xl p-2 overflow-x-auto scrollbar-thin shadow-lg">
-                <div className="flex gap-2 min-w-max">
-                  {weekDays.map((dStr, idx) => {
-                    const isSelected = dStr === activeDate;
-                    const isToday = dStr === todayStr;
-                    const dayAvails = availMap[dStr] || [];
-                    const availCount = dayAvails.filter(a => a.type !== 'off').length;
+      {/* =========================================================================
+         BẢNG EXCEL MA TRẬN PHÂN CÔNG CHUẨN ĐÚNG THEO ẢNH MẪU
+         ========================================================================= */}
+      <div className="glass rounded-3xl p-3 border border-[var(--color-glass-border)] shadow-2xl overflow-x-auto custom-scrollbar">
+        <table className="w-full min-w-[980px] border-collapse text-xs">
+          <thead>
+            {/* Hàng 1: Tên Thứ (T2 -> CN) */}
+            <tr className="bg-[var(--color-surface-2)] text-white border-b border-[rgba(255,255,255,0.12)]">
+              <th className="py-2.5 px-2 border-r border-[rgba(255,255,255,0.1)] w-12 text-center font-black">STT</th>
+              <th className="py-2.5 px-3 border-r border-[rgba(255,255,255,0.1)] w-48 text-left font-black">THỨ</th>
+              {weekDays.map((dStr, idx) => (
+                <th key={dStr} className="py-2.5 px-2 border-r border-[rgba(255,255,255,0.1)] text-center font-black uppercase text-amber-400 text-sm">
+                  {DAY_LABELS[idx]}
+                </th>
+              ))}
+            </tr>
+            {/* Hàng 2: Ngày Tây (VD: 03/08, 04/08...) */}
+            <tr className="bg-[var(--color-surface-1)] text-amber-300/80 border-b border-[rgba(255,255,255,0.12)] text-[11px]">
+              <th className="py-1 px-2 border-r border-[rgba(255,255,255,0.06)]" />
+              <th className="py-1 px-3 border-r border-[rgba(255,255,255,0.06)] text-left font-bold">NGÀY TÂY</th>
+              {weekDays.map((dStr) => (
+                <th key={dStr} className="py-1 px-2 border-r border-[rgba(255,255,255,0.06)] text-center font-bold">
+                  {dStr.split('-').reverse().slice(0, 2).join('/')}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={9} className="text-center py-12">
+                  <div className="inline-block w-8 h-8 border-3 border-[var(--color-surface-3)] border-t-amber-500 rounded-full animate-spin" />
+                </td>
+              </tr>
+            ) : sortedEmployees.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="text-center py-10 text-[var(--color-text-muted)] italic font-bold">
+                  Chưa có nhân viên nào trong hệ thống.
+                </td>
+              </tr>
+            ) : (
+              sortedEmployees.map((emp, idx) => {
+                const isMe = emp.id === highlightEmployeeId;
 
-                    return (
-                      <button
-                        key={dStr}
-                        onClick={() => setActiveDate(dStr)}
-                        className={`flex-1 min-w-[70px] md:min-w-[90px] py-2.5 px-3 rounded-2xl border text-center cursor-pointer transition-all active:scale-95 ${
-                          isSelected
-                            ? 'bg-gradient-to-tr from-amber-400 to-orange-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] font-black'
-                            : isToday
-                            ? 'bg-[var(--color-surface-2)] text-amber-400 border-amber-500/50 font-bold'
-                            : 'bg-[var(--color-surface-1)] text-[var(--color-text-secondary)] border-[var(--color-glass-border)] hover:border-white/20'
-                        }`}
-                      >
-                        <div className="text-xs font-black">
-                          {DAY_LABELS[idx]} {isToday && '⭐'}
-                        </div>
-                        <div className="text-sm font-extrabold mt-0.5">
-                          {formatDateShort(dStr)}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Danh sách 5 Chi Nhánh của Ngày Đang Chọn */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between px-2">
-                  <h3 className="font-black text-base text-white flex items-center gap-2">
-                    <span>📅</span> Lịch phân công ngày <span className="text-amber-400">{activeDate.split('-').reverse().join('/')}</span>
-                  </h3>
-                  {activeDayAvails.length > 0 && (
-                    <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
-                      ✋ {activeDayAvails.length} nhân viên báo rảnh
-                    </span>
-                  )}
-                </div>
-
-                {/* 5 Card Chi Nhánh */}
-                {branches.map((branch) => {
-                  const key = `${branch.id}_${activeDate}`;
-                  const assignedShifts = scheduleMap[key] || [];
-
-                  return (
-                    <div
-                      key={branch.id}
-                      className="glass rounded-3xl overflow-hidden border shadow-xl transition-all"
-                      style={{ borderColor: `${branch.color}50` }}
-                    >
-                      {/* Header Chi Nhánh */}
-                      <div
-                        className="px-5 py-3.5 flex items-center justify-between"
-                        style={{
-                          backgroundColor: `${branch.color}25`,
-                          borderBottom: `1px solid ${branch.color}35`,
-                        }}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span
-                            className="w-3.5 h-3.5 rounded-full inline-block shadow-[0_0_10px_currentColor]"
-                            style={{ backgroundColor: branch.color }}
-                          />
-                          <span className="font-black text-base text-white tracking-wide">
-                            CHI NHÁNH {branch.name}
-                          </span>
-                        </div>
-                        <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-black/30 text-white border border-white/10">
-                          {assignedShifts.length} nhân viên
-                        </span>
-                      </div>
-
-                      {/* Content: Danh sách Nhân viên đã xếp ca */}
-                      <div className="p-4 space-y-3">
-                        {assignedShifts.length === 0 ? (
-                          <p className="text-xs text-[var(--color-text-muted)] italic text-center py-2">
-                            Chưa có nhân viên nào được phân công vào chi nhánh này
-                          </p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            {assignedShifts.map((shift) => (
-                              <div
-                                key={shift.id}
-                                className="p-3.5 bg-[var(--color-surface-2)] rounded-2xl border border-[var(--color-glass-border)] flex items-center justify-between gap-3 shadow-md"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="font-black text-sm text-white flex items-center gap-1.5">
-                                    <span>👤 {shift.employees?.name}</span>
-                                  </div>
-                                  <div className="text-xs font-black text-amber-300 mt-1 flex items-center gap-1">
-                                    <span>⏱️ {shift.start_time ? `${shift.start_time.slice(0, 5)} - ${shift.end_time?.slice(0, 5)}` : `${shift.hours || 5}h`}</span>
-                                    <span className="text-[10px] text-[var(--color-text-muted)] font-bold">({shift.hours || 5} tiếng)</span>
-                                  </div>
-                                  {shift.note && (
-                                    <div className="text-xs text-[var(--color-text-muted)] italic truncate mt-0.5">
-                                      💬 {shift.note}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Nút Sửa & Xóa Lớn Dễ BấmNgón Tay */}
-                                <div className="flex items-center gap-1.5 flex-shrink-0">
-                                  <button
-                                    onClick={() =>
-                                      setModalState({
-                                        isOpen: true,
-                                        date: activeDate,
-                                        branch,
-                                        editItem: shift,
-                                      })
-                                    }
-                                    className="px-3 py-2 rounded-xl bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-xs font-bold border border-amber-500/30 cursor-pointer transition-all active:scale-95"
-                                  >
-                                    ✏️ Sửa
-                                  </button>
-                                  <button
-                                    onClick={() => handleRemoveShift(shift.id)}
-                                    className="px-3 py-2 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 text-xs font-bold border border-rose-500/30 cursor-pointer transition-all active:scale-95"
-                                  >
-                                    🗑️ Xóa
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Nút "+ Thêm Nhân Viên Vào Chi Nhánh" Lớn Dễ Bấm */}
-                        <button
-                          onClick={() =>
-                            setModalState({
-                              isOpen: true,
-                              date: activeDate,
-                              branch,
-                              editItem: null,
-                            })
-                          }
-                          className="w-full py-3 px-4 rounded-2xl bg-[var(--color-surface-2)] hover:bg-amber-500/20 text-amber-400 hover:text-white font-extrabold text-sm border border-dashed border-amber-500/40 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-2 shadow-md mt-2"
-                        >
-                          <span>➕ Thêm Nhân Viên Vào CN {branch.name}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* =========================================================================
-             MODE 2: VIEW TỔNG QUAN LỊCH LÀM TOÀN BỘ TUẦN (RỘNG RÃI RÕ TÊN)
-             ========================================================================= */}
-          {viewMode === 'matrix' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="text-xs text-[var(--color-text-muted)] font-semibold flex items-center gap-1.5 bg-amber-500/10 p-2.5 rounded-2xl border border-amber-500/20">
-                <span>💡</span> Trượt ngang màn hình để xem đầy đủ tên nhân viên và ca làm của cả 7 ngày trong tuần.
-              </div>
-
-              {branches.map((branch) => (
-                <div
-                  key={branch.id}
-                  className="glass rounded-3xl overflow-hidden border shadow-xl"
-                  style={{ borderColor: `${branch.color}40` }}
-                >
-                  <div
-                    className="px-5 py-3.5 font-black text-base flex items-center justify-between"
-                    style={{
-                      backgroundColor: `${branch.color}25`,
-                      color: '#ffffff',
-                      borderBottom: `1px solid ${branch.color}35`,
-                    }}
+                return (
+                  <tr
+                    key={emp.id}
+                    className={`border-b border-[rgba(255,255,255,0.06)] transition-all ${
+                      isMe
+                        ? 'bg-amber-500/15 font-bold'
+                        : idx % 2 === 0
+                        ? 'bg-[var(--color-surface-1)]/50'
+                        : 'bg-[var(--color-surface-2)]/30'
+                    } hover:bg-amber-500/15`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="w-3.5 h-3.5 rounded-full inline-block"
-                        style={{ backgroundColor: branch.color }}
-                      />
-                      <span className="tracking-wide">🏢 CHI NHÁNH {branch.name}</span>
-                    </div>
-                  </div>
+                    {/* STT */}
+                    <td className="py-3 px-2 border-r border-[rgba(255,255,255,0.06)] text-center font-black text-[var(--color-text-muted)]">
+                      {idx + 1}
+                    </td>
 
-                  {/* Cho cuộn ngang mượt với độ rộng tối thiểu 900px (mỗi ngày 125px) */}
-                  <div className="overflow-x-auto scrollbar-thin">
-                    <div className="grid grid-cols-7 min-w-[900px] divide-x divide-[rgba(255,255,255,0.06)]">
-                      {weekDays.map((dateStr, idx) => {
-                        const key = `${branch.id}_${dateStr}`;
-                        const assignedShifts = scheduleMap[key] || [];
+                    {/* Tên Nhân Viên */}
+                    <td className="py-3 px-3 border-r border-[rgba(255,255,255,0.06)] font-black text-white text-sm">
+                      <div className="flex items-center gap-1.5 truncate">
+                        {isMe && <span className="text-amber-400">⭐</span>}
+                        <span className={isMe ? 'text-amber-300' : 'text-white'}>{emp.name}</span>
+                        {isMe && <span className="text-[10px] text-amber-400 font-bold">(TÔI)</span>}
+                      </div>
+                    </td>
 
-                        return (
-                          <div
-                            key={dateStr}
-                            className="p-2.5 bg-[var(--color-surface-1)] hover:bg-[var(--color-surface-2)]/60 transition-colors flex flex-col justify-between min-h-[170px]"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between mb-2 pb-1 border-b border-[rgba(255,255,255,0.06)]">
-                                <span className="font-black text-xs text-white">
-                                  {DAY_LABELS[idx]} <span className="text-[11px] text-[var(--color-text-secondary)] font-semibold">({formatDateShort(dateStr)})</span>
-                                </span>
-                              </div>
+                    {/* 7 Ô Ngày (T2 -> CN) */}
+                    {weekDays.map((dStr) => {
+                      const empShifts = scheduleByEmpAndDate[`${emp.id}_${dStr}`] || [];
+                      const empAvail = availByEmpAndDate[`${emp.id}_${dStr}`];
 
-                              <div className="space-y-1.5 mb-3">
-                                {assignedShifts.map((shift) => (
+                      return (
+                        <td
+                          key={dStr}
+                          onClick={() => openCellModal(emp, dStr, empShifts[0] || null)}
+                          className="py-1.5 px-1.5 border-r border-[rgba(255,255,255,0.06)] text-center align-middle cursor-pointer hover:opacity-90 transition-all min-w-[108px]"
+                        >
+                          {empShifts.length > 0 ? (
+                            /* Có Ca Phân Công -> Render màu sắc chuẩn Excel (Giờ làm & Mã CN) */
+                            <div className="space-y-1">
+                              {empShifts.map((shift) => {
+                                const bColor = shift.branches?.color || '#f59e0b';
+                                const startTimeStr = shift.start_time ? shift.start_time.slice(0, 5) : '09:00';
+                                const endTimeStr = shift.end_time ? shift.end_time.slice(0, 5) : '14:00';
+                                const timeRange = `${startTimeStr}-${endTimeStr}`;
+
+                                return (
                                   <div
                                     key={shift.id}
-                                    className="p-2 bg-[var(--color-surface-2)] rounded-xl border border-[var(--color-glass-border)] text-xs shadow-sm"
+                                    className="p-1.5 rounded-xl text-white font-black text-[11px] leading-tight shadow-md border"
+                                    style={{
+                                      backgroundColor: `${bColor}dd`,
+                                      borderColor: bColor,
+                                      boxShadow: `0 2px 8px ${bColor}40`,
+                                    }}
                                   >
-                                    <div className="flex items-center justify-between font-black text-white gap-1">
-                                      <span className="font-extrabold text-white text-xs leading-tight whitespace-normal break-words">
-                                        {shift.employees?.name}
-                                      </span>
-                                      <div className="flex items-center gap-1 flex-shrink-0">
-                                        <button
-                                          onClick={() =>
-                                            setModalState({
-                                              isOpen: true,
-                                              date: dateStr,
-                                              branch,
-                                              editItem: shift,
-                                            })
-                                          }
-                                          className="text-amber-400 border-0 bg-transparent cursor-pointer p-0.5 hover:scale-110"
-                                          title="Sửa ca làm"
-                                        >
-                                          ✏️
-                                        </button>
-                                        <button
-                                          onClick={() => handleRemoveShift(shift.id)}
-                                          className="text-rose-400 border-0 bg-transparent cursor-pointer p-0.5 hover:scale-110"
-                                          title="Xóa ca làm"
-                                        >
-                                          ✕
-                                        </button>
+                                    <div className="text-[11px] font-black text-white">{timeRange}</div>
+                                    <div className="text-[10px] opacity-90 mt-0.5 flex items-center justify-center gap-1 font-bold">
+                                      <span>CN {shift.branches?.name}</span>
+                                      <span className="opacity-75">({shift.hours || 5}h)</span>
+                                    </div>
+                                    {shift.note && (
+                                      <div className="text-[9px] font-semibold italic opacity-90 truncate mt-0.5">
+                                        💬 {shift.note}
                                       </div>
-                                    </div>
-                                    <div className="text-[11px] text-amber-300 font-black mt-1">
-                                      ⏱️ {shift.start_time ? `${shift.start_time.slice(0, 5)}-${shift.end_time?.slice(0, 5)}` : `${shift.hours || 5}h`}
-                                    </div>
+                                    )}
                                   </div>
-                                ))}
-                              </div>
+                                );
+                              })}
                             </div>
+                          ) : empAvail?.type === 'off' ? (
+                            /* Xin nghỉ */
+                            <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 font-extrabold text-[11px]">
+                              OFF
+                              {empAvail.note && (
+                                <span className="block text-[9px] font-normal italic truncate">
+                                  {empAvail.note}
+                                </span>
+                              )}
+                            </div>
+                          ) : empAvail?.type === 'full' ? (
+                            /* Đăng ký rảnh cả ngày */
+                            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
+                              💪 Cả ngày
+                            </div>
+                          ) : empAvail?.type === 'option' ? (
+                            /* Đăng ký rảnh tùy chọn */
+                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold text-[11px]">
+                              📝 {empAvail.note || 'Tùy chọn'}
+                            </div>
+                          ) : (
+                            /* Mặc định chưa có lịch */
+                            <div className="p-2 rounded-xl bg-[var(--color-surface-2)]/40 text-rose-400/60 font-bold text-[11px] hover:bg-amber-500/20 hover:text-amber-300 transition-all">
+                              OFF
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
-                            <button
-                              onClick={() =>
-                                setModalState({
-                                  isOpen: true,
-                                  date: dateStr,
-                                  branch,
-                                  editItem: null,
-                                })
-                              }
-                              className="w-full py-2 rounded-xl bg-[var(--color-surface-2)] text-amber-400 font-extrabold text-xs border border-dashed border-amber-500/40 cursor-pointer"
-                            >
-                              ➕ Xếp NV
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Modal Quick Add/Edit Shift */}
+      {/* MODAL XẾP LỊCH QUICK KHI BẤM VÀO Ô BẤT KỲ */}
       {modalState.isOpen && (
         <ModalXepLichQuick
           isOpen={modalState.isOpen}
-          onClose={() => setModalState({ isOpen: false, date: null, branch: null, editItem: null })}
+          onClose={() => setModalState({ isOpen: false, date: null, branch: null, employee: null, editItem: null })}
           date={modalState.date}
           branch={modalState.branch}
+          branches={branches}
           employees={employees}
-          availabilities={availMap[modalState.date] || []}
-          daySchedule={scheduleMap[`${modalState.branch?.id}_${modalState.date}`] || []}
+          availabilities={availability.filter((a) => a.date === modalState.date)}
+          daySchedule={schedule.filter((s) => s.date === modalState.date)}
           onSave={handleSaveModal}
+          onDelete={handleDeleteScheduleItem}
           editItem={modalState.editItem}
+          initialEmployee={modalState.employee}
         />
       )}
     </div>

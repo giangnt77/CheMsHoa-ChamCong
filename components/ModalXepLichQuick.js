@@ -11,17 +11,23 @@ export default function ModalXepLichQuick({
   onClose,
   date,
   branch,
+  branches = [],
   employees,
   availabilities,
   daySchedule,
   onSave,
+  onDelete,
   editItem = null, // Nếu editItem != null -> Chế độ chỉnh sửa ca làm đã có
+  initialEmployee = null,
 }) {
   const isEditing = !!editItem;
 
   // Selected values
   const [selectedEmpId, setSelectedEmpId] = useState(
-    editItem ? editItem.employee_id : ''
+    editItem ? editItem.employee_id : (initialEmployee ? initialEmployee.id : '')
+  );
+  const [selectedBranchId, setSelectedBranchId] = useState(
+    editItem ? editItem.branch_id : (branch?.id || (branches[0]?.id || ''))
   );
   const [startTime, setStartTime] = useState(
     editItem?.start_time ? editItem.start_time.slice(0, 5) : '09:00'
@@ -57,7 +63,7 @@ export default function ModalXepLichQuick({
 
     await onSave({
       employeeId: selectedEmpId,
-      branchId: branch.id,
+      branchId: selectedBranchId,
       date,
       startTime,
       endTime,
@@ -105,6 +111,27 @@ export default function ModalXepLichQuick({
 
         {/* Nội dung cuộn mượt không bao giờ tràn màn hình */}
         <form onSubmit={handleSubmit} className="overflow-y-auto p-4 sm:p-5 flex-1 space-y-4">
+          {/* Chọn chi nhánh */}
+          {branches.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-1.5">
+                🏢 Chi Nhánh Phân Công
+              </label>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                required
+                className="w-full px-3.5 py-2.5 bg-[var(--color-surface-2)] border border-[var(--color-glass-border)] rounded-xl text-amber-300 text-sm font-black outline-none focus:border-amber-500 cursor-pointer"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id} className="text-white font-bold bg-[#1a1a2e]">
+                    🏢 CHI NHÁNH {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Chọn nhân viên */}
           <div>
             <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-1.5">
@@ -328,22 +355,39 @@ export default function ModalXepLichQuick({
             />
           </div>
 
-          {/* Submit */}
-          <div className="pt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-bold text-sm cursor-pointer border-0"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || !selectedEmpId}
-              className="flex-1 py-3 rounded-xl btn-gradient text-white font-extrabold text-sm cursor-pointer border-0 shadow-lg"
-            >
-              {submitting ? '⏳ Đang lưu...' : isEditing ? '✅ Cập Nhật Giờ' : '✅ Phân Công Ca'}
-            </button>
+          {/* Submit & Delete */}
+          <div className="pt-2 space-y-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3 rounded-xl bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] font-bold text-sm cursor-pointer border-0"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !selectedEmpId}
+                className="flex-1 py-3 rounded-xl btn-gradient text-white font-extrabold text-sm cursor-pointer border-0 shadow-lg"
+              >
+                {submitting ? '⏳ Đang lưu...' : isEditing ? '✅ Cập Nhật Giờ' : '✅ Phân Công Ca'}
+              </button>
+            </div>
+
+            {isEditing && onDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Bạn có chắc muốn xóa ca làm này không? (Trở về OFF)')) {
+                    onDelete(editItem.id);
+                    onClose();
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-extrabold text-xs border border-rose-500/40 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <span>🗑️ XÓA CA NÀY (BÁO OFF)</span>
+              </button>
+            )}
           </div>
         </form>
       </div>
