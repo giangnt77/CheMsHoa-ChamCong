@@ -1381,8 +1381,9 @@ function AdminContent() {
                         🗑️ Xóa
                       </button>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
               </div>
 
               {/* MODAL THÊM / SỬA CHI NHÁNH */}
