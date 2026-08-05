@@ -4,12 +4,14 @@ import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import ScheduleCalendar from '@/components/ScheduleCalendar';
 import WeeklyMatrixBoard from '@/components/WeeklyMatrixBoard';
+import VnDatePicker from '@/components/VnDatePicker';
 import { ToastProvider, useToast } from '@/components/Toast';
 import {
   getEmployees,
   createEmployee,
   updateEmployeeRate,
   updateEmployeePin,
+  updateEmployeeCreatedAt,
   deleteEmployee,
   getBranches,
   getAvailabilityByDateRange,
@@ -29,6 +31,7 @@ import {
   getMonthName,
   formatCurrency,
   formatDateShort,
+  formatDateFull,
   getInitials,
   getToday,
 } from '@/lib/utils';
@@ -66,17 +69,20 @@ function AdminContent() {
   const [penaltyReason, setPenaltyReason] = useState('');
   const [recordType, setRecordType] = useState('bonus'); // 'bonus' | 'penalty'
 
-  // Rate & PIN edit
+  // Rate, PIN & Start Date edit
   const [editingRate, setEditingRate] = useState(false);
   const [newRate, setNewRate] = useState('');
   const [editingPinEmpId, setEditingPinEmpId] = useState(null);
   const [newPinInput, setNewPinInput] = useState('');
+  const [editingStartDate, setEditingStartDate] = useState(false);
+  const [newStartDate, setNewStartDate] = useState(getToday());
 
   // Create New Employee State
   const [showAddEmpModal, setShowAddEmpModal] = useState(false);
   const [addEmpName, setAddEmpName] = useState('');
   const [addEmpRate, setAddEmpRate] = useState('20000');
   const [addEmpPin, setAddEmpPin] = useState('');
+  const [addEmpStartDate, setAddEmpStartDate] = useState(getToday());
 
   function generateRandom6Pin() {
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
@@ -88,16 +94,36 @@ function AdminContent() {
     if (!addEmpName.trim()) return;
     const finalPin = addEmpPin.trim() || Math.floor(100000 + Math.random() * 900000).toString();
     try {
-      const newEmp = await createEmployee(addEmpName.trim(), finalPin, Number(addEmpRate) || 20000);
-      toast.success('Đã tạo nhân viên!', `Tên: ${newEmp.name} • PIN 6 số: ${finalPin}`);
+      const newEmp = await createEmployee(
+        addEmpName.trim(),
+        finalPin,
+        Number(addEmpRate) || 20000,
+        addEmpStartDate || getToday()
+      );
+      toast.success('Đã tạo nhân viên!', `Tên: ${newEmp.name} • PIN: ${finalPin} • Ngày làm: ${formatDateFull(newEmp.created_at)}`);
       setAddEmpName('');
       setAddEmpPin('');
       setAddEmpRate('20000');
+      setAddEmpStartDate(getToday());
       setShowAddEmpModal(false);
       loadInitialData();
     } catch (err) {
       console.error(err);
       toast.error('Lỗi', 'Không thể tạo nhân viên mới!');
+    }
+  }
+
+  async function handleUpdateStartDate() {
+    if (!newStartDate || !selectedEmployee) return;
+    try {
+      const updated = await updateEmployeeCreatedAt(selectedEmployee.id, newStartDate);
+      setSelectedEmployee(updated);
+      setEditingStartDate(false);
+      toast.success('Cập nhật ngày làm', `Ngày bắt đầu làm của ${updated.name}: ${formatDateFull(updated.created_at)}`);
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể cập nhật ngày bắt đầu làm');
     }
   }
 
@@ -375,13 +401,15 @@ function AdminContent() {
   if (!isUnlocked) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
-        <div className="glass rounded-3xl p-8 md:p-10 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">👑</div>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl font-bold mb-2">
-            <span className="text-gradient">Chủ Quán</span>
+        <div className="bg-white rounded-3xl p-8 md:p-10 max-w-sm w-full text-center border border-purple-200 shadow-xs">
+          <div className="w-24 h-24 mx-auto mb-3">
+            <img src="/logo.png" alt="Chè Ms Hoa Logo" className="w-full h-full object-contain" />
+          </div>
+          <h2 className="text-2xl font-black mb-1 text-purple-950">
+            Chủ Quán Admin
           </h2>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-8">
-            Nhập mã PIN để truy cập
+          <p className="text-xs text-purple-700 font-black mb-6">
+            Nhập mã PIN Admin để truy cập
           </p>
 
           <form onSubmit={handlePinSubmit}>
@@ -398,23 +426,22 @@ function AdminContent() {
               placeholder="••••"
               required
               autoFocus
-              className={`pin-input w-full px-5 py-5 bg-[var(--color-surface-1)] border rounded-xl text-white text-2xl text-center focus:ring-2 outline-none transition-all mb-4 placeholder:text-[var(--color-text-muted)] ${
-                pinError
-                  ? 'border-[var(--color-coral-400)] focus:border-[var(--color-coral-400)] focus:ring-[rgba(244,63,94,0.2)] animate-shake'
-                  : 'border-[var(--color-glass-border)] focus:border-amber-500 focus:ring-amber-500/20'
-              }`}
+              className={`w-full px-5 py-4 bg-purple-50 border rounded-2xl text-purple-950 text-2xl text-center focus:ring-2 outline-none transition-all mb-4 placeholder:text-purple-300 font-black ${pinError
+                ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-200 animate-shake'
+                : 'border-purple-200 focus:border-purple-600 focus:ring-purple-200'
+                }`}
             />
             {pinError && (
-              <p className="text-[var(--color-coral-400)] text-sm mb-4 animate-fade-in">
-                ❌ Mã PIN không đúng
+              <p className="text-rose-600 text-xs font-black mb-4 animate-fade-in">
+                ❌ Mã PIN không đúng!
               </p>
             )}
             <button
               type="submit"
               disabled={!pinInput}
-              className="w-full py-4 rounded-xl btn-gradient btn-shine text-white font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-0 text-base"
+              className="w-full py-3.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-0 text-base shadow-xs"
             >
-              🔓 Mở Khóa
+              🔓 Mở Khóa Admin
             </button>
           </form>
         </div>
@@ -424,35 +451,40 @@ function AdminContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar title="Chè Ms Hoa" icon="👑" />
+      <Navbar
+        title="Chè Ms Hoa Chủ"
+        icon="👑"
+        backHref="/admin"
+        homeTitle="Quản lý Admin"
+        onBackClick={() => setActiveTab('schedule')}
+      />
 
-      <main className="flex-1 relative z-10 px-4 md:px-6 py-6">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-xl md:text-2xl font-bold">
-              <span className="text-gradient">Quản Lý</span> Xếp Lịch & Chấm Công 👑
+      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-4 sm:py-6">
+        <div className="max-w-6xl mx-auto space-y-4">
+          {/* Header Bar */}
+          <div className="mb-2">
+            <h1 className="text-xl md:text-2xl font-black text-purple-950 tracking-tight">
+              <span className="text-purple-700 font-black">Quản Lý</span> Xếp Lịch & Chấm Công 👑
             </h1>
-            <p className="text-sm text-[var(--color-text-muted)] mt-1">
-              Phân công 5 chi nhánh, xem đăng ký rảnh và tính lương
+            <p className="text-xs md:text-sm text-purple-800 font-black mt-0.5">
+              Phân công 5 chi nhánh, xem đăng ký ngày và tính lương
             </p>
           </div>
 
-          {/* Segmented Control Navigation Tabs - Góc Vuông Phẳng */}
-          <div className="flex gap-2 bg-slate-900 rounded-lg p-1.5 border border-slate-700 mb-6 max-w-2xl mx-auto animate-fade-in">
+          {/* Segmented Control Navigation Tabs - Purple Brand Bar */}
+          <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 max-w-2xl mx-auto animate-fade-in shadow-2xs">
             {[
               { id: 'schedule', label: '📅 Xếp Lịch' },
               { id: 'employees', label: '👥 Nhân viên & Lương' },
-              { id: 'penalty', label: '⚠️ Phạt' },
+              { id: 'penalty', label: '⚠️ Thưởng & Phạt' },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-2.5 px-3 rounded-md text-xs sm:text-sm font-black cursor-pointer border transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
-                    : 'bg-transparent text-slate-400 border-transparent hover:text-white'
-                }`}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black cursor-pointer border transition-all ${activeTab === tab.id
+                  ? 'bg-purple-700 text-white border-purple-700 shadow-xs font-black'
+                  : 'bg-transparent text-purple-900 border-transparent hover:text-purple-700 font-bold'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -470,12 +502,12 @@ function AdminContent() {
           {/* ============ TAB: EMPLOYEES & SALARY (MASTER-DETAIL 2 CỘT TẬP TRUNG) ============ */}
           {activeTab === 'employees' && (
             <div className="animate-fade-in">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
                 {/* CỘT TRÁI (4/12): DANH SÁCH NHÂN VIÊN (MASTER) + NÚT THÊM NHÂN VIÊN MỚI */}
-                <div className="lg:col-span-4 glass rounded-3xl p-5 border border-[var(--color-glass-border)] space-y-4">
-                  <div className="flex items-center justify-between gap-2 border-b border-[rgba(255,255,255,0.08)] pb-3">
-                    <h3 className="font-black text-base text-white flex items-center gap-2">
+                <div className="lg:col-span-4 bg-white rounded-3xl p-5 border border-purple-200/90 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between gap-2 border-b border-purple-100 pb-3">
+                    <h3 className="font-black text-base text-purple-950 flex items-center gap-2">
                       <span>👥</span> Nhân Viên ({employees.length})
                     </h3>
                     <button
@@ -484,7 +516,7 @@ function AdminContent() {
                         setShowAddEmpModal(true);
                         generateRandom6Pin();
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs cursor-pointer shadow-md border-0 transition-all flex items-center gap-1 active:scale-95"
+                      className="px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs cursor-pointer shadow-2xs border-0 transition-all flex items-center gap-1 active:scale-95"
                     >
                       ➕ Thêm Mới
                     </button>
@@ -497,12 +529,12 @@ function AdminContent() {
                       value={empSearchQuery}
                       onChange={(e) => setEmpSearchQuery(e.target.value)}
                       placeholder="🔍 Tìm nhân viên..."
-                      className="w-full px-4 py-2.5 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs font-semibold outline-none focus:border-amber-500 transition-all"
+                      className="w-full px-4 py-2.5 bg-purple-50/50 border border-purple-200 focus:border-purple-600 rounded-xl text-purple-950 text-xs font-bold outline-none transition-all placeholder:text-purple-400"
                     />
                     {empSearchQuery && (
                       <button
                         onClick={() => setEmpSearchQuery('')}
-                        className="absolute right-2.5 top-2 text-xs text-[var(--color-text-muted)] hover:text-white"
+                        className="absolute right-2.5 top-2.5 text-xs text-purple-500 hover:text-purple-950 border-0 bg-transparent cursor-pointer font-black"
                       >
                         ✕
                       </button>
@@ -511,22 +543,22 @@ function AdminContent() {
 
                   {/* MODAL / FORM TẠO NHÂN VIÊN MỚI DO ADMIN THỰC HIỆN */}
                   {showAddEmpModal && (
-                    <div className="p-4 bg-[var(--color-surface-1)] rounded-2xl border border-amber-500/40 space-y-3 animate-fade-in shadow-xl">
-                      <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.06)] pb-2">
-                        <h4 className="font-extrabold text-xs text-amber-300 flex items-center gap-1">
+                    <div className="p-4 bg-purple-50 rounded-2xl border border-purple-300 space-y-3 animate-fade-in shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-purple-200 pb-2">
+                        <h4 className="font-black text-xs text-purple-950 flex items-center gap-1">
                           ✨ Thêm Nhân Viên & Cấp PIN 6 Số
                         </h4>
                         <button
                           type="button"
                           onClick={() => setShowAddEmpModal(false)}
-                          className="text-xs text-[var(--color-text-muted)] hover:text-white bg-transparent border-0 cursor-pointer"
+                          className="text-xs text-purple-600 hover:text-purple-950 bg-transparent border-0 cursor-pointer font-black"
                         >
                           ✕
                         </button>
                       </div>
                       <form onSubmit={handleCreateNewEmployee} className="space-y-3">
                         <div>
-                          <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] uppercase mb-1">
+                          <label className="block text-[11px] font-black text-purple-900 uppercase mb-1">
                             Tên nhân viên:
                           </label>
                           <input
@@ -536,12 +568,13 @@ function AdminContent() {
                             placeholder="VD: Nguyễn Văn A..."
                             required
                             autoFocus
-                            className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs font-bold outline-none focus:border-amber-400"
+                            className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
                           />
                         </div>
+
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] uppercase mb-1">
+                            <label className="block text-[11px] font-black text-purple-900 uppercase mb-1">
                               Lương đ/giờ:
                             </label>
                             <input
@@ -550,18 +583,18 @@ function AdminContent() {
                               onChange={(e) => setAddEmpRate(e.target.value)}
                               placeholder="20000"
                               required
-                              className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs font-bold outline-none focus:border-amber-400"
+                              className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
                             />
                           </div>
                           <div>
                             <div className="flex items-center justify-between mb-1">
-                              <label className="block text-[11px] font-bold text-amber-400 uppercase">
+                              <label className="block text-[11px] font-black text-purple-900 uppercase">
                                 PIN 6 số:
                               </label>
                               <button
                                 type="button"
                                 onClick={generateRandom6Pin}
-                                className="text-[10px] text-amber-300 underline cursor-pointer bg-transparent border-0"
+                                className="text-[10px] text-purple-700 font-bold underline cursor-pointer bg-transparent border-0"
                               >
                                 🎲 Đổi
                               </button>
@@ -573,21 +606,30 @@ function AdminContent() {
                               onChange={(e) => setAddEmpPin(e.target.value.replace(/\D/g, ''))}
                               placeholder="123456"
                               required
-                              className="w-full px-3 py-2 bg-[var(--color-surface-2)] border border-amber-500/50 rounded-xl text-amber-300 text-xs font-black text-center outline-none focus:border-amber-400 tracking-wider"
+                              className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl text-purple-950 text-xs font-black text-center outline-none focus:border-purple-600 tracking-wider"
                             />
                           </div>
                         </div>
+
+                        {/* Ô chọn Ngày Bắt Đầu Làm */}
+                        <div>
+                          <label className="block text-[11px] font-black text-purple-900 uppercase mb-1">
+                            📅 Ngày bắt đầu làm:
+                          </label>
+                          <VnDatePicker value={addEmpStartDate} onChange={setAddEmpStartDate} />
+                        </div>
+
                         <div className="flex justify-end gap-2 pt-1">
                           <button
                             type="button"
                             onClick={() => setShowAddEmpModal(false)}
-                            className="px-3 py-1.5 rounded-xl bg-[var(--color-surface-2)] text-xs text-[var(--color-text-secondary)] font-bold border-0 cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-purple-100 text-xs text-purple-900 font-bold border-0 cursor-pointer"
                           >
                             Hủy
                           </button>
                           <button
                             type="submit"
-                            className="px-4 py-1.5 rounded-xl bg-emerald-500 text-black text-xs font-black border-0 cursor-pointer shadow-md hover:bg-emerald-400 transition-all"
+                            className="px-4 py-1.5 rounded-xl bg-purple-700 text-white text-xs font-black border-0 cursor-pointer shadow-2xs hover:bg-purple-800 transition-all"
                           >
                             🚀 Tạo & Cấp PIN
                           </button>
@@ -599,12 +641,12 @@ function AdminContent() {
                   {/* Danh sách nhân viên cuộn mượt */}
                   {loading ? (
                     <div className="text-center py-8">
-                      <div className="inline-block w-6 h-6 border-2 border-[var(--color-surface-3)] border-t-amber-500 rounded-full animate-spin" />
+                      <div className="inline-block w-6 h-6 border-2 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                     </div>
                   ) : employees.length === 0 ? (
-                    <p className="text-xs text-[var(--color-text-muted)] text-center py-6">Chưa có nhân viên</p>
+                    <p className="text-xs text-purple-600 font-bold text-center py-6">Chưa có nhân viên</p>
                   ) : (
-                    <div className="space-y-2 max-h-[550px] overflow-y-auto pr-1">
+                    <div className="space-y-1.5 max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
                       {employees
                         .filter((e) => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()))
                         .map((emp) => {
@@ -612,31 +654,31 @@ function AdminContent() {
                           return (
                             <div
                               key={emp.id}
-                              className={`rounded-2xl p-3 flex items-center justify-between gap-3 border cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'bg-amber-500/20 border-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                                  : 'bg-[var(--color-surface-1)] border-[rgba(255,255,255,0.06)] hover:bg-[var(--color-surface-2)] hover:border-amber-500/30'
-                              }`}
+                              className={`rounded-2xl px-3 py-2 flex items-center justify-between gap-2.5 border cursor-pointer transition-all ${isSelected
+                                  ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
+                                  : 'bg-white text-purple-950 border-purple-200/90 hover:bg-purple-50'
+                                }`}
                               onClick={() => setSelectedEmployee(emp)}
                             >
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-red-500 flex items-center justify-center font-extrabold text-white text-xs flex-shrink-0 shadow">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${isSelected ? 'bg-white text-purple-950' : 'bg-purple-700 text-white'
+                                  }`}>
                                   {getInitials(emp.name)}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="font-extrabold text-white text-sm truncate flex items-center gap-1.5">
+                                  <div className="font-black text-xs sm:text-sm truncate flex items-center gap-1">
                                     <span>{emp.name}</span>
-                                    {isSelected && <span className="text-amber-400 text-xs">✓</span>}
+                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${isSelected ? 'bg-purple-800 text-white' : 'bg-purple-100 text-purple-950'}`}>
+                                      PIN: {emp.pin || '1234'}
+                                    </span>
                                   </div>
-                                  <div className="text-[11px] text-[var(--color-text-muted)] truncate">
-                                    <span className="text-amber-300 font-bold">{formatCurrency(emp.hourly_rate || 20000)}/h</span>
-                                    <span className="mx-1">•</span>
-                                    <span>PIN: {emp.pin || '1234'}</span>
+                                  <div className={`text-[10px] font-bold truncate ${isSelected ? 'text-purple-100' : 'text-purple-700'}`}>
+                                    {formatCurrency(emp.hourly_rate || 20000)}/h • Làm từ {formatDateFull(emp.created_at)}
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Quản lý PIN/Xóa gọn gàng */}
+                              {/* Action buttons */}
                               {editingPinEmpId === emp.id ? (
                                 <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                   <input
@@ -644,7 +686,7 @@ function AdminContent() {
                                     maxLength={6}
                                     value={newPinInput}
                                     onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
-                                    className="w-16 px-1.5 py-1 bg-[var(--color-surface-2)] border border-amber-500 rounded-lg text-white text-xs font-bold text-center outline-none"
+                                    className="w-14 px-1 py-0.5 bg-white border border-purple-500 rounded text-purple-950 text-xs font-black text-center outline-none"
                                     autoFocus
                                   />
                                   <button
@@ -661,7 +703,7 @@ function AdminContent() {
                                         toast.error('Lỗi', 'Không thể đổi PIN');
                                       }
                                     }}
-                                    className="px-2 py-1 rounded-lg bg-emerald-500 text-black text-xs font-black"
+                                    className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black border-0 cursor-pointer"
                                   >
                                     Lưu
                                   </button>
@@ -673,7 +715,7 @@ function AdminContent() {
                                       setEditingPinEmpId(emp.id);
                                       setNewPinInput(emp.pin || '1234');
                                     }}
-                                    className="p-1.5 rounded-lg bg-[var(--color-surface-2)] text-amber-300 hover:bg-amber-500/20 text-xs border border-[rgba(255,255,255,0.08)] cursor-pointer"
+                                    className={`p-1 rounded-lg text-xs border cursor-pointer font-bold ${isSelected ? 'bg-purple-800 text-white border-purple-600' : 'bg-purple-50 text-purple-800 border-purple-200'}`}
                                     title="Đổi PIN"
                                   >
                                     🔑
@@ -692,7 +734,7 @@ function AdminContent() {
                                         }
                                       }
                                     }}
-                                    className="p-1.5 rounded-lg bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 text-xs border border-rose-500/30 cursor-pointer"
+                                    className={`p-1 rounded-lg text-xs border cursor-pointer font-bold ${isSelected ? 'bg-rose-900 text-rose-200 border-rose-700' : 'bg-rose-50 text-rose-700 border-rose-200'}`}
                                     title="Xóa nhân viên"
                                   >
                                     🗑️
@@ -706,213 +748,220 @@ function AdminContent() {
                   )}
                 </div>
 
-                {/* CỘT PHẢI (8/12): BẢNG TÍNH LƯƠNG & CHI TIẾT CÔNG PHÂN SONG SONG */}
-                <div className="lg:col-span-8 space-y-5">
+                {/* CỘT PHẢI (8/12): GỘP TẤT CẢ VÀO 1 CARD DUY NHẤT GỌN GÀNG */}
+                <div className="lg:col-span-8 space-y-4">
                   {!selectedEmployee ? (
-                    <div className="glass rounded-3xl p-12 text-center text-[var(--color-text-muted)] border border-[var(--color-glass-border)]">
-                      <div className="text-4xl mb-3 opacity-40">👈</div>
-                      <p className="font-bold text-base text-white mb-1">Vui lòng bấm chọn 1 nhân viên ở danh sách bên trái</p>
-                      <p className="text-xs">Bảng tính lương chi tiết, tổng số ca làm và số tiền thực nhận sẽ hiển thị ngay tại đây.</p>
+                    <div className="bg-white rounded-3xl p-12 text-center text-purple-700 border border-purple-200/90 shadow-2xs">
+                      <div className="text-4xl mb-3 opacity-60">👈</div>
+                      <p className="font-black text-base text-purple-950 mb-1">Vui lòng bấm chọn 1 nhân viên ở danh sách bên trái</p>
+                      <p className="text-xs font-bold text-purple-700">Bảng tính lương chi tiết, tổng số ca làm và số tiền thực nhận sẽ hiển thị ngay tại đây.</p>
                     </div>
                   ) : (
-                    <div className="space-y-5 animate-fade-in">
-                      {/* Employee Info Header & Month Switcher */}
-                      <div className="glass rounded-3xl p-5 border border-[var(--color-glass-border)] space-y-4">
-                        <div className="flex items-center justify-between flex-wrap gap-3 border-b border-[rgba(255,255,255,0.08)] pb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-red-500 flex items-center justify-center font-extrabold text-white text-base shadow-md">
-                              {getInitials(selectedEmployee.name)}
-                            </div>
-                            <div>
-                              <h3 className="font-extrabold text-lg text-white flex items-center gap-2">
-                                <span>{selectedEmployee.name}</span>
-                                <span className="text-xs bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full font-bold border border-amber-500/30">
-                                  PIN: {selectedEmployee.pin || '1234'}
-                                </span>
-                              </h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                {editingRate ? (
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="number"
-                                      value={newRate}
-                                      onChange={(e) => setNewRate(e.target.value)}
-                                      placeholder="VD: 25000"
-                                      className="w-28 px-2.5 py-1 bg-[var(--color-surface-1)] border border-amber-500 rounded-lg text-white text-xs font-bold outline-none"
-                                    />
-                                    <button onClick={handleUpdateRate} className="px-2.5 py-1 rounded-lg bg-emerald-500 text-black text-xs font-black cursor-pointer">Lưu</button>
-                                    <button onClick={() => setEditingRate(false)} className="px-2 py-1 rounded-lg bg-[var(--color-surface-2)] text-xs border-0 cursor-pointer">Hủy</button>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <span className="text-xs text-amber-400 font-extrabold">
-                                      Lương thỏa thuận: {formatCurrency(selectedEmployee.hourly_rate || 20000)}/giờ
-                                    </span>
-                                    <button
-                                      onClick={() => {
-                                        setEditingRate(true);
-                                        setNewRate(String(selectedEmployee.hourly_rate || 20000));
-                                      }}
-                                      className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30 cursor-pointer hover:bg-amber-500/30"
-                                    >
-                                      ✏️ Sửa lương/h
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
+                    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-200/90 shadow-2xs space-y-4 animate-fade-in">
+                      {/* Top Header: Info + Month Switcher */}
+                      <div className="flex items-center justify-between flex-wrap gap-3 border-b border-purple-100 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-700 flex items-center justify-center font-black text-white text-base shadow-2xs flex-shrink-0">
+                            {getInitials(selectedEmployee.name)}
                           </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-black text-base text-purple-950">
+                                {selectedEmployee.name}
+                              </h3>
+                              <span className="text-[10px] bg-purple-100 text-purple-950 px-2 py-0.5 rounded-full font-black border border-purple-200">
+                                PIN: {selectedEmployee.pin || '1234'}
+                              </span>
+                            </div>
 
-                          {/* Bộ chuyển tháng */}
-                          <div className="flex items-center gap-2 bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.1)]">
-                            <button onClick={prevMonth} className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] rounded-xl cursor-pointer">◀</button>
-                            <span className="font-black text-xs px-2 text-amber-300">{getMonthName(selectedMonth)}</span>
-                            <button onClick={nextMonth} className="px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-1)] rounded-xl cursor-pointer">▶</button>
+                            <div className="flex items-center gap-2 mt-0.5 text-xs font-bold text-purple-800 flex-wrap">
+                              {/* Lương/h */}
+                              {editingRate ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={newRate}
+                                    onChange={(e) => setNewRate(e.target.value)}
+                                    placeholder="25000"
+                                    className="w-20 px-2 py-0.5 bg-white border border-purple-400 rounded text-purple-950 text-xs font-black outline-none"
+                                  />
+                                  <button onClick={handleUpdateRate} className="px-2 py-0.5 rounded bg-emerald-600 text-white text-xs font-black cursor-pointer border-0">Lưu</button>
+                                  <button onClick={() => setEditingRate(false)} className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 text-xs border-0 cursor-pointer font-bold">Hủy</button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span>💵 <strong className="text-purple-950 font-black">{formatCurrency(selectedEmployee.hourly_rate || 20000)}/h</strong></span>
+                                  <button
+                                    onClick={() => {
+                                      setEditingRate(true);
+                                      setNewRate(String(selectedEmployee.hourly_rate || 20000));
+                                    }}
+                                    className="px-1 py-0.2 rounded bg-purple-100 text-purple-950 text-[10px] font-black border border-purple-200 hover:bg-purple-200 cursor-pointer"
+                                  >
+                                    ✏️
+                                  </button>
+                                </div>
+                              )}
+
+                              <span className="text-purple-300">•</span>
+
+                              {/* Ngày vào làm */}
+                              {editingStartDate ? (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <VnDatePicker value={newStartDate} onChange={setNewStartDate} />
+                                  <button onClick={handleUpdateStartDate} className="px-2 py-1 rounded bg-emerald-600 text-white text-xs font-black cursor-pointer border-0">Lưu</button>
+                                  <button onClick={() => setEditingStartDate(false)} className="px-2 py-1 rounded bg-purple-100 text-purple-900 text-xs border-0 cursor-pointer font-bold">Hủy</button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span>📅 Vào làm: <strong className="text-purple-950 font-black">{formatDateFull(selectedEmployee.created_at)}</strong></span>
+                                  <button
+                                    onClick={() => {
+                                      setEditingStartDate(true);
+                                      const dStr = selectedEmployee.created_at ? selectedEmployee.created_at.slice(0, 10) : getToday();
+                                      setNewStartDate(dStr);
+                                    }}
+                                    className="px-1 py-0.2 rounded bg-purple-100 text-purple-950 text-[10px] font-black border border-purple-200 hover:bg-purple-200 cursor-pointer"
+                                  >
+                                    ✏️
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* KHỐI LỊCH SỬ MỨC LƯƠNG THEO MỐC NGÀY */}
-                        <div className="bg-[var(--color-surface-1)] p-4 rounded-2xl border border-[rgba(255,255,255,0.08)] space-y-3">
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <div>
-                              <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
-                                <span>📜 Lịch Sử Mức Lương & Đợt Tăng Lương</span>
-                              </h4>
-                              <p className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                                Lương áp dụng linh hoạt theo mốc ngày (VD: 1/7-18/7 20k/h, từ 19/7 tăng lên 24k/h)
-                              </p>
+                        {/* Bộ chuyển tháng */}
+                        <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200 shadow-2xs">
+                          <button onClick={prevMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs bg-transparent border-0 cursor-pointer px-1">◀</button>
+                          <span className="font-black text-xs text-purple-950 min-w-[80px] text-center">{getMonthName(selectedMonth)}</span>
+                          <button onClick={nextMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs bg-transparent border-0 cursor-pointer px-1">▶</button>
+                        </div>
+                      </div>
+
+                      {/* 5 Thẻ Thống Kê Lương Nổi Bật Nằm Hàng Ngang */}
+                      {salaryData && (
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                          <div className="bg-purple-50 rounded-xl p-2.5 border border-purple-200 text-center">
+                            <div className="text-[10px] text-purple-800 font-black uppercase">🗓️ Ca đã làm</div>
+                            <div className="text-xs sm:text-sm font-black text-purple-950 mt-0.5">{salaryData.totalShifts} ca ({salaryData.totalHours}h)</div>
+                          </div>
+                          <div className="bg-purple-50 rounded-xl p-2.5 border border-purple-200 text-center">
+                            <div className="text-[10px] text-purple-800 font-black uppercase">💵 Lương Ca</div>
+                            <div className="text-xs sm:text-sm font-black text-purple-950 mt-0.5">{formatCurrency(salaryData.grossSalary)}</div>
+                          </div>
+                          <div className="bg-emerald-50 rounded-xl p-2.5 border border-emerald-200 text-center">
+                            <div className="text-[10px] text-emerald-800 font-black uppercase">🎁 Thưởng</div>
+                            <div className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">+{formatCurrency(salaryData.totalBonus)}</div>
+                          </div>
+                          <div className="bg-rose-50 rounded-xl p-2.5 border border-rose-200 text-center">
+                            <div className="text-[10px] text-rose-800 font-black uppercase">⚠️ Phạt</div>
+                            <div className="text-xs sm:text-sm font-black text-rose-700 mt-0.5">-{formatCurrency(salaryData.totalPenalty)}</div>
+                          </div>
+                          <div className="col-span-2 sm:col-span-1 bg-purple-700 rounded-xl p-2.5 text-white text-center shadow-2xs">
+                            <div className="text-[10px] text-purple-200 font-black uppercase">🎉 THỰC NHẬN</div>
+                            <div className="text-xs sm:text-sm font-black mt-0.5">{formatCurrency(salaryData.netSalary)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* LƯỚI SONG SONG 2 CỘT GỌN GÀNG: CA ĐÃ PHÂN CÔNG (TRÁI) & MỐC TĂNG LƯƠNG (PHẢI) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        {/* Cột Trái Sub-Grid: Chi tiết ca đã gán */}
+                        <div className="bg-purple-50/50 p-3 rounded-2xl border border-purple-200/80 space-y-2">
+                          <h4 className="font-black text-xs text-purple-950 flex items-center justify-between">
+                            <span>📋 Ca làm tháng này ({empSchedule.length} ca)</span>
+                          </h4>
+                          {empSchedule.length === 0 ? (
+                            <p className="text-xs text-purple-600 font-bold py-4 text-center">Chưa có ca làm nào</p>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-1.5 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                              {empSchedule.map((s) => {
+                                const rawBranchName = s.branches?.name || '';
+                                const displayBranch = (rawBranchName.toLowerCase().includes('thạch lam') || rawBranchName.toLowerCase().includes('thach lam'))
+                                  ? 'TL'
+                                  : rawBranchName;
+
+                                return (
+                                  <div
+                                    key={s.id}
+                                    className="p-2 bg-white rounded-xl flex items-center justify-between text-xs border border-purple-200 shadow-2xs"
+                                  >
+                                    <span className="font-black text-purple-950 text-[11px]">{formatDateShort(s.date)}</span>
+                                    <span className="px-2 py-0.5 rounded-lg text-[10px] font-black text-white bg-purple-700">
+                                      {displayBranch}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
+                          )}
+                        </div>
+
+                        {/* Cột Phải Sub-Grid: Mốc tăng lương theo mốc ngày */}
+                        <div className="bg-purple-50/50 p-3 rounded-2xl border border-purple-200/80 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-xs text-purple-950">
+                              📜 Mốc Tăng Lương
+                            </h4>
                             <button
                               type="button"
                               onClick={() => setShowAddRateModal(!showAddRateModal)}
-                              className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                              className="px-2 py-0.5 rounded-lg bg-purple-700 text-white text-[10px] font-black cursor-pointer border-0"
                             >
-                              <span>➕ Thêm Mốc Lương</span>
+                              + Thêm mốc
                             </button>
                           </div>
 
-                          {/* Form Thêm Mốc Lương Mới */}
                           {showAddRateModal && (
-                            <form onSubmit={handleAddRate} className="p-3 bg-[var(--color-surface-2)] rounded-xl border border-amber-500/40 space-y-3 animate-fade-in">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-[11px] font-bold text-amber-300 mb-1">Mức lương mới (đ/giờ):</label>
-                                  <input
-                                    type="number"
-                                    value={inputRateValue}
-                                    onChange={(e) => setInputRateValue(e.target.value)}
-                                    placeholder="24000"
-                                    required
-                                    className="w-full px-3 py-1.5 bg-[var(--color-surface-1)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-xs font-bold outline-none focus:border-amber-400"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[11px] font-bold text-amber-300 mb-1">Ngày bắt đầu áp dụng:</label>
-                                  <input
-                                    type="date"
-                                    value={inputRateDate}
-                                    onChange={(e) => setInputRateDate(e.target.value)}
-                                    required
-                                    className="w-full px-3 py-1.5 bg-[var(--color-surface-1)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white text-xs font-bold outline-none focus:border-amber-400"
-                                  />
-                                </div>
+                            <form onSubmit={handleAddRate} className="p-2.5 bg-white rounded-xl border border-purple-300 space-y-2 animate-fade-in shadow-2xs">
+                              <div>
+                                <label className="block text-[10px] font-black text-purple-900 mb-1">Mức lương mới (đ/h):</label>
+                                <input
+                                  type="number"
+                                  value={inputRateValue}
+                                  onChange={(e) => setInputRateValue(e.target.value)}
+                                  placeholder="VD: 25000"
+                                  required
+                                  className="w-full px-2 py-1 bg-purple-50 border border-purple-200 rounded text-purple-950 text-xs font-bold outline-none"
+                                />
                               </div>
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setShowAddRateModal(false)}
-                                  className="px-3 py-1 rounded-lg bg-[var(--color-surface-1)] text-xs text-[var(--color-text-secondary)] font-bold border-0 cursor-pointer"
-                                >
-                                  Hủy
-                                </button>
-                                <button
-                                  type="submit"
-                                  className="px-4 py-1 rounded-lg bg-amber-500 text-black text-xs font-black border-0 cursor-pointer shadow-md hover:bg-amber-400"
-                                >
-                                  💾 Lưu Mốc Lương
-                                </button>
+                              <div>
+                                <label className="block text-[10px] font-black text-purple-900 mb-1">Ngày áp dụng:</label>
+                                <VnDatePicker value={inputRateDate} onChange={setInputRateDate} />
+                              </div>
+                              <div className="flex justify-end gap-1 pt-1">
+                                <button type="button" onClick={() => setShowAddRateModal(false)} className="px-2 py-0.5 rounded bg-purple-100 text-[10px] text-purple-900 font-bold border-0">Hủy</button>
+                                <button type="submit" className="px-2.5 py-0.5 rounded bg-purple-700 text-white text-[10px] font-black border-0">Lưu Mốc</button>
                               </div>
                             </form>
                           )}
 
-                          {/* Danh Sách Các Mốc Lương Đã Thêm */}
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white flex items-center gap-2">
-                              <span className="text-amber-400 font-extrabold">Mặc định:</span>
-                              <span>{formatCurrency(selectedEmployee.hourly_rate || 20000)}/h</span>
+                          <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                            <div className="px-2.5 py-1 rounded-xl bg-white border border-purple-200 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs">
+                              <span className="text-purple-700 font-black text-[11px]">Mặc định:</span>
+                              <span className="text-[11px] font-black">{formatCurrency(selectedEmployee.hourly_rate || 20000)}/h</span>
                             </div>
                             {empRates.map((r) => (
                               <div
                                 key={r.id}
-                                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/40 text-xs font-extrabold text-amber-300 flex items-center gap-2 shadow-sm"
+                                className="px-2.5 py-1 rounded-xl bg-purple-100 border border-purple-300 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs"
                               >
-                                <span>📅 Từ {r.effective_date.split('-').reverse().join('/')}:</span>
-                                <span className="text-white text-sm font-black">{formatCurrency(r.hourly_rate)}/h</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteRate(r.id)}
-                                  className="text-rose-400 hover:text-white ml-1 bg-transparent border-0 cursor-pointer text-xs font-bold"
-                                  title="Xóa mốc lương này"
-                                >
-                                  ✕
-                                </button>
+                                <span className="text-[11px]">📅 Từ {r.effective_date.split('-').reverse().slice(0, 2).join('/')}:</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-purple-950 text-[11px] font-black">{formatCurrency(r.hourly_rate)}/h</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteRate(r.id)}
+                                    className="text-rose-600 hover:text-rose-900 bg-transparent border-0 cursor-pointer text-xs font-black ml-1"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
-
-                        {/* Summary Stats Cards - 5 Thẻ Chi Tiết */}
-                        {salaryData && (
-                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
-                              <div className="text-[11px] text-[var(--color-text-muted)] font-bold uppercase mb-1">📅 Ca đã làm</div>
-                              <div className="text-base font-extrabold text-amber-400">{salaryData.totalShifts} ca ({salaryData.totalHours}h)</div>
-                            </div>
-                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
-                              <div className="text-[11px] text-[var(--color-text-muted)] font-bold uppercase mb-1">💵 Lương Ca</div>
-                              <div className="text-sm font-extrabold text-blue-400">{formatCurrency(salaryData.grossSalary)}</div>
-                            </div>
-                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
-                              <div className="text-[11px] text-emerald-400 font-bold uppercase mb-1">🎁 Thưởng</div>
-                              <div className="text-sm font-extrabold text-emerald-400">+{formatCurrency(salaryData.totalBonus)}</div>
-                            </div>
-                            <div className="bg-[var(--color-surface-1)] rounded-2xl p-3 border border-[rgba(255,255,255,0.06)]">
-                              <div className="text-[11px] text-rose-400 font-bold uppercase mb-1">⚠️ Phạt</div>
-                              <div className="text-sm font-extrabold text-rose-400">-{formatCurrency(salaryData.totalPenalty)}</div>
-                            </div>
-                            <div className="col-span-2 sm:col-span-1 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-2xl p-3 border border-amber-500/40">
-                              <div className="text-[11px] text-amber-300 font-extrabold uppercase mb-1">🎉 Thực Nhận</div>
-                              <div className="text-sm font-black text-white">{formatCurrency(salaryData.netSalary)}</div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Chi tiết danh sách ca đã được gán */}
-                      <div className="glass rounded-3xl p-5 border border-[var(--color-glass-border)]">
-                        <h4 className="font-extrabold text-sm text-white mb-3 flex items-center gap-2">
-                          <span>📋</span> Ca đã phân công cho {selectedEmployee.name} ({empSchedule.length} ca)
-                        </h4>
-                        {empSchedule.length === 0 ? (
-                          <p className="text-xs text-[var(--color-text-muted)] py-6 text-center">Chưa có ca làm nào trong tháng này</p>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[350px] overflow-y-auto pr-1">
-                            {empSchedule.map((s) => (
-                              <div
-                                key={s.id}
-                                className="p-3 bg-[var(--color-surface-1)] rounded-2xl flex items-center justify-between text-xs border border-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.15)] transition-all"
-                              >
-                                <span className="font-bold text-white">{formatDateShort(s.date)}</span>
-                                <span
-                                  className="px-2.5 py-1 rounded-xl text-[11px] font-black"
-                                  style={{ backgroundColor: `${s.branches?.color}25`, color: s.branches?.color }}
-                                >
-                                  {s.branches?.name}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
@@ -926,37 +975,37 @@ function AdminContent() {
           {activeTab === 'penalty' && (
             <div className="animate-fade-in">
               {!selectedEmployee ? (
-                <div className="text-center py-16 text-[var(--color-text-muted)]">
-                  <div className="text-4xl mb-3 opacity-50">🎁</div>
+                <div className="text-center py-16 text-purple-600 font-bold bg-white rounded-3xl border border-purple-200">
+                  <div className="text-4xl mb-3 opacity-60">🎁</div>
                   <p>Chọn nhân viên để xem hoặc thêm tiền Thưởng / Phạt</p>
                 </div>
               ) : (
-                <div className="space-y-6 max-w-4xl mx-auto">
-                  <div className="glass rounded-3xl p-5 flex items-center justify-between flex-wrap gap-4 border border-[var(--color-glass-border)]">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-emerald-500 flex items-center justify-center font-extrabold text-white text-base shadow-md">
+                <div className="space-y-5 max-w-4xl mx-auto">
+                  <div className="bg-white rounded-3xl p-5 flex items-center justify-between flex-wrap gap-4 border border-purple-200/90 shadow-2xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-purple-700 flex items-center justify-center font-black text-white text-base shadow-2xs">
                         {getInitials(selectedEmployee.name)}
                       </div>
                       <div>
-                        <h3 className="font-extrabold text-white text-lg flex items-center gap-2">
+                        <h3 className="font-black text-purple-950 text-lg flex items-center gap-2">
                           <span>{selectedEmployee.name}</span>
                         </h3>
-                        <p className="text-xs text-[var(--color-text-muted)] font-semibold">
-                          Thống kê Thưởng & Phạt • <span className="text-amber-400 font-bold">{getMonthName(selectedMonth)}</span>
+                        <p className="text-xs text-purple-700 font-black">
+                          Thống kê Thưởng & Phạt • <span className="text-purple-950 font-black">{getMonthName(selectedMonth)}</span>
                         </p>
                       </div>
                     </div>
 
                     {/* Ô chọn nhân viên trực tiếp */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-[var(--color-text-muted)] font-bold uppercase">Nhân viên:</span>
+                      <span className="text-xs text-purple-900 font-black uppercase">Nhân viên:</span>
                       <select
                         value={selectedEmployee.id}
                         onChange={(e) => {
                           const emp = employees.find((em) => em.id === e.target.value);
                           if (emp) setSelectedEmployee(emp);
                         }}
-                        className="px-4 py-2.5 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-extrabold outline-none cursor-pointer focus:border-amber-500"
+                        className="px-4 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none cursor-pointer focus:border-purple-600 shadow-2xs"
                       >
                         {employees.map((emp) => (
                           <option key={emp.id} value={emp.id}>
@@ -968,33 +1017,31 @@ function AdminContent() {
                   </div>
 
                   {/* Form Thêm Khoản Thưởng / Phạt */}
-                  <div className="glass rounded-3xl p-6 border border-[var(--color-glass-border)] shadow-xl">
+                  <div className="bg-white rounded-3xl p-6 border border-purple-200/90 shadow-2xs">
                     <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                      <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                      <h3 className="font-black text-base text-purple-950 flex items-center gap-2">
                         <span>➕</span> Ghi Nhận Khoản Tiền Cho {selectedEmployee.name}
                       </h3>
 
                       {/* Nút Toggle Loại Khoản: Thưởng (+) vs Phạt (-) */}
-                      <div className="flex bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.08)]">
+                      <div className="flex bg-purple-100/70 p-1 rounded-2xl border border-purple-200/80">
                         <button
                           type="button"
                           onClick={() => setRecordType('bonus')}
-                          className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${
-                            recordType === 'bonus'
-                              ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                              : 'text-[var(--color-text-muted)] hover:text-white'
-                          }`}
+                          className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${recordType === 'bonus'
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'text-purple-900 hover:text-purple-700 font-bold'
+                            }`}
                         >
                           <span>🎁</span> THƯỞNG (+)
                         </button>
                         <button
                           type="button"
                           onClick={() => setRecordType('penalty')}
-                          className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${
-                            recordType === 'penalty'
-                              ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]'
-                              : 'text-[var(--color-text-muted)] hover:text-white'
-                          }`}
+                          className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 ${recordType === 'penalty'
+                            ? 'bg-rose-600 text-white shadow-2xs'
+                            : 'text-purple-900 hover:text-purple-700 font-bold'
+                            }`}
                         >
                           <span>⚠️</span> PHẠT (-)
                         </button>
@@ -1003,7 +1050,7 @@ function AdminContent() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-2">
+                        <label className="block text-xs font-black text-purple-900 uppercase mb-2">
                           Số tiền (VNĐ)
                         </label>
                         <input
@@ -1011,11 +1058,11 @@ function AdminContent() {
                           value={penaltyAmount}
                           onChange={(e) => setPenaltyAmount(e.target.value)}
                           placeholder={recordType === 'bonus' ? 'VD: 100000 (Thưởng)' : 'VD: 50000 (Phạt)'}
-                          className="w-full px-4 py-3 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-bold outline-none focus:border-amber-500"
+                          className="w-full px-4 py-3 bg-white border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-[var(--color-text-secondary)] uppercase mb-2">
+                        <label className="block text-xs font-black text-purple-900 uppercase mb-2">
                           Lý do
                         </label>
                         <input
@@ -1023,7 +1070,7 @@ function AdminContent() {
                           value={penaltyReason}
                           onChange={(e) => setPenaltyReason(e.target.value)}
                           placeholder={recordType === 'bonus' ? 'VD: Thưởng làm tốt, doanh số...' : 'VD: Đi trễ 20 phút, vi phạm...'}
-                          className="w-full px-4 py-3 bg-[var(--color-surface-1)] border border-[var(--color-glass-border)] rounded-xl text-white text-sm font-bold outline-none focus:border-amber-500"
+                          className="w-full px-4 py-3 bg-white border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400"
                         />
                       </div>
                       <div className="flex items-end">
@@ -1031,11 +1078,10 @@ function AdminContent() {
                           type="button"
                           onClick={handleAddPenalty}
                           disabled={!penaltyAmount || !penaltyReason.trim()}
-                          className={`w-full py-3 rounded-xl font-extrabold text-sm cursor-pointer border-0 shadow-lg transition-all active:scale-95 ${
-                            recordType === 'bonus'
-                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black'
-                              : 'bg-gradient-to-r from-rose-500 to-red-600 text-white'
-                          }`}
+                          className={`w-full py-3 rounded-xl font-black text-sm cursor-pointer border-0 shadow-2xs transition-all active:scale-95 ${recordType === 'bonus'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'bg-rose-600 hover:bg-rose-700 text-white'
+                            }`}
                         >
                           {recordType === 'bonus' ? '🎁 Thêm Tiền Thưởng' : '⚠️ Thêm Tiền Phạt'}
                         </button>
@@ -1044,12 +1090,12 @@ function AdminContent() {
                   </div>
 
                   {/* Danh Sách Khoản Thưởng & Phạt */}
-                  <div className="glass rounded-3xl p-6 border border-[var(--color-glass-border)] shadow-xl">
-                    <h3 className="font-extrabold text-base text-white mb-4 flex items-center gap-2">
+                  <div className="bg-white rounded-3xl p-6 border border-purple-200/90 shadow-2xs">
+                    <h3 className="font-black text-base text-purple-950 mb-4 flex items-center gap-2">
                       <span>📋</span> Danh sách Thưởng & Phạt - {getMonthName(selectedMonth)} ({empPenalties.length} khoản)
                     </h3>
                     {empPenalties.length === 0 ? (
-                      <p className="text-xs text-[var(--color-text-muted)] text-center py-6 font-semibold">
+                      <p className="text-xs text-purple-600 font-extrabold text-center py-6">
                         Chưa có khoản Thưởng hoặc Phạt nào trong tháng này ✨
                       </p>
                     ) : (
@@ -1061,32 +1107,31 @@ function AdminContent() {
                           return (
                             <div
                               key={p.id}
-                              className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-md ${
-                                isBonus
-                                  ? 'bg-emerald-500/10 border-emerald-500/30'
-                                  : 'bg-rose-500/10 border-rose-500/30'
-                              }`}
+                              className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-2xs ${isBonus
+                                ? 'bg-emerald-50 border-emerald-200'
+                                : 'bg-rose-50 border-rose-200'
+                                }`}
                             >
                               <div className="flex items-center gap-3">
                                 <span className="text-xl">{isBonus ? '🎁' : '⚠️'}</span>
                                 <div>
-                                  <div className={`font-extrabold text-sm ${isBonus ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                  <div className={`font-black text-sm ${isBonus ? 'text-emerald-950' : 'text-rose-950'}`}>
                                     {displayReason}
                                   </div>
-                                  <span className="text-[11px] text-[var(--color-text-muted)] font-semibold">
+                                  <span className={`text-[11px] font-extrabold ${isBonus ? 'text-emerald-700' : 'text-rose-700'}`}>
                                     {isBonus ? 'Khoản Thưởng' : 'Khoản Phạt'}
                                   </span>
                                 </div>
                               </div>
 
                               <div className="flex items-center gap-3">
-                                <span className={`font-black text-base ${isBonus ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                <span className={`font-black text-base ${isBonus ? 'text-emerald-700' : 'text-rose-700'}`}>
                                   {isBonus ? `+${formatCurrency(p.amount)}` : `-${formatCurrency(p.amount)}`}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleDeletePenalty(p.id)}
-                                  className="w-8 h-8 rounded-xl bg-black/30 hover:bg-rose-500 hover:text-white text-xs font-bold border-0 cursor-pointer flex items-center justify-center transition-all"
+                                  className="w-8 h-8 rounded-xl bg-white hover:bg-rose-600 hover:text-white text-rose-700 text-xs font-black border border-rose-200 cursor-pointer flex items-center justify-center transition-all shadow-2xs"
                                   title="Xóa khoản này"
                                 >
                                   🗑️

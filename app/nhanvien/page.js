@@ -187,99 +187,93 @@ function EmployeeContent() {
         employeeName={employee.name}
       />
 
-      <main className="flex-1 relative z-10 px-4 md:px-6 py-6">
-        <div className="max-w-7xl mx-auto space-y-4">
-          {/* Header Chào & Đổi Tài Khoản - Chữ To Rõ */}
-          <div className="glass rounded-lg p-4 flex items-center justify-between flex-wrap gap-3 border border-slate-700">
-            <div>
-              <h1 className="text-xl md:text-2xl font-black text-white flex items-center gap-2">
-                <span>Xin chào, <span className="text-amber-400 font-black">{employee.name}</span>! 👋</span>
-              </h1>
-              <p className="text-xs md:text-sm text-slate-300 font-bold mt-0.5">
-                Lịch làm việc phân công tuần này
-              </p>
-            </div>
-
+      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+        <div className="max-w-7xl mx-auto space-y-3">
+          {/* Top Header Row: Greeting & Action Controls - Purple Brand Style */}
+          <div className="flex items-center justify-between flex-wrap gap-2 py-1">
             <div className="flex items-center gap-2">
-              {/* Nút Xem Thu Nhập Nhanh */}
+              <h1 className="text-lg sm:text-xl font-black text-purple-950 tracking-tight">
+                Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>! 👋
+              </h1>
               <button
                 type="button"
                 onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
-                className="px-3.5 py-2 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs md:text-sm font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                className="px-3 py-1 rounded-full bg-purple-100/80 hover:bg-purple-200 text-purple-900 text-xs font-black border border-purple-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                title="Bấm để xem thu nhập cá nhân"
               >
                 <span>💰</span>
-                <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
+                <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Lương'}</span>
+              </button>
+            </div>
+
+            {/* Segmented Control Switcher (Lịch Phân Công / Đăng Ký Làm) */}
+            <div className="flex bg-purple-100/70 p-1 rounded-xl w-full sm:w-auto border border-purple-200/80 shadow-2xs">
+              <button
+                onClick={() => setView('schedule')}
+                className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
+                  view === 'schedule'
+                    ? 'bg-purple-700 text-white shadow-xs font-black'
+                    : 'text-purple-900 hover:text-purple-700 font-bold'
+                }`}
+              >
+                📅 Lịch Phân Công
+              </button>
+              <button
+                onClick={() => setView('availability')}
+                className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
+                  view === 'availability'
+                    ? 'bg-purple-700 text-white shadow-xs font-black'
+                    : 'text-purple-900 hover:text-purple-700 font-bold'
+                }`}
+              >
+                ✋ Đăng Ký Làm
               </button>
             </div>
           </div>
 
-          {/* BẢNG TÍNH LƯƠNG TỰ ĐỘNG CÁ NHÂN (ẨN/HIỆN THEO NHU CẦU) */}
+          {/* THÔNG TIN THU NHẬP CÁ NHÂN (BRAND PURPLE CARD) */}
           {isIncomeExpanded && (
-            <div className="glass rounded-lg p-4 border border-amber-500/30 animate-fade-in space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2 border-b border-white/10 pb-3">
+            <div className="bg-white rounded-2xl p-4 border border-purple-200/90 shadow-2xs animate-fade-in space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2 border-b border-purple-100 pb-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">💰</span>
-                  <h3 className="font-black text-base text-white">Thu Nhập Cá Nhân</h3>
+                  <h3 className="font-black text-base md:text-lg text-purple-950">Thu Nhập Cá Nhân</h3>
                 </div>
                 {/* Bộ chọn tháng */}
-                <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-md border border-white/10">
-                  <button onClick={handlePrevMonth} className="text-slate-300 hover:text-white font-bold text-sm">◀</button>
-                  <span className="text-xs md:text-sm font-black text-amber-400">
+                <div className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200/80">
+                  <button onClick={handlePrevMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs">◀</button>
+                  <span className="text-xs sm:text-sm font-black text-purple-900">
                     Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
                   </span>
-                  <button onClick={handleNextMonth} className="text-slate-300 hover:text-white font-bold text-sm">▶</button>
+                  <button onClick={handleNextMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs">▶</button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                <div className="p-3 bg-slate-900/60 rounded-md border border-white/5 text-center">
-                  <div className="text-xs text-slate-400 font-bold mb-1">⏱️ Tổng số giờ làm</div>
-                  <div className="text-xl md:text-2xl font-black text-amber-400">{monthlyHours} <span className="text-xs font-normal">tiếng</span> ({monthlyShiftsCount} ca)</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-0.5">
+                <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/70 text-center">
+                  <div className="text-xs text-purple-700 font-bold mb-0.5">⏱️ Tổng giờ làm</div>
+                  <div className="text-lg sm:text-xl font-black text-purple-800">{monthlyHours} <span className="text-xs font-normal text-purple-600">tiếng</span> ({monthlyShiftsCount} ca)</div>
                 </div>
-                <div className="p-3 bg-slate-900/60 rounded-md border border-white/5 text-center">
-                  <div className="text-xs text-slate-400 font-bold mb-1">💵 Lương thỏa thuận</div>
-                  <div className="text-xl md:text-2xl font-black text-white">{formatCurrency(currentRate)}<span className="text-xs font-normal text-slate-400">/h</span></div>
+                <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/70 text-center">
+                  <div className="text-xs text-purple-700 font-bold mb-0.5">💵 Lương thỏa thuận</div>
+                  <div className="text-lg sm:text-xl font-black text-purple-950">{formatCurrency(currentRate)}<span className="text-xs font-normal text-purple-600">/h</span></div>
                 </div>
-                <div className="p-3 bg-amber-500/10 rounded-md border border-amber-500/30 text-center">
-                  <div className="text-xs text-amber-300 font-black mb-1">💰 Lương ước tính</div>
-                  <div className="text-xl md:text-2xl font-black text-emerald-400">{formatCurrency(monthlySalary)}</div>
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/80 text-center">
+                  <div className="text-xs text-emerald-700 font-black mb-0.5">💰 Lương ước tính</div>
+                  <div className="text-lg sm:text-xl font-black text-emerald-700">{formatCurrency(monthlySalary)}</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tab Navigation - Góc Vuông Phẳng */}
-          <div className="flex gap-2 bg-slate-900 rounded-lg p-1.5 border border-slate-700 mb-6 animate-fade-in-up">
-            <button
-              onClick={() => setView('schedule')}
-              className={`flex-1 py-2.5 rounded-md font-black text-sm cursor-pointer border transition-all ${
-                view === 'schedule'
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
-                  : 'bg-transparent text-slate-400 border-transparent hover:text-white'
-              }`}
-            >
-              📅 Lịch Làm Việc
-            </button>
-            <button
-              onClick={() => setView('availability')}
-              className={`flex-1 py-2.5 rounded-md font-black text-sm cursor-pointer border transition-all ${
-                view === 'availability'
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
-                  : 'bg-transparent text-slate-400 border-transparent hover:text-white'
-              }`}
-            >
-              ✋ Đăng Ký Làm
-            </button>
-          </div>
-
-          {/* SCHEDULE VIEW (Bảng lịch làm tuần chuẩn Excel phân công bởi chủ - CHỈ XEM, KHÔNG ĐƯỢC CHỈNH SỬA) */}
+          {/* SCHEDULE VIEW */}
           {view === 'schedule' && (
             <div className="animate-fade-in">
               <WeeklyMatrixBoard employees={employees} highlightEmployeeId={employee.id} readOnly={true} />
             </div>
           )}
 
-          {/* AVAILABILITY VIEW (Đăng ký rảnh theo tuần) */}
+          {/* AVAILABILITY VIEW */}
           {view === 'availability' && (
             <div className="animate-fade-in">
               <WeeklyAvailability employee={employee} />

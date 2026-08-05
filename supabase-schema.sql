@@ -83,7 +83,7 @@ CREATE TABLE penalties (
 INSERT INTO branches (name, color, sort_order) VALUES
   ('HBD', '#f59e0b', 1),
   ('A4', '#10b981', 2),
-  ('Thạch Lam', '#8b5cf6', 3),
+  ('TL', '#8b5cf6', 3),
   ('38', '#ef4444', 4),
   ('30', '#3b82f6', 5)
 ON CONFLICT (name) DO NOTHING;

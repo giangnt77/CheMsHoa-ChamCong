@@ -153,123 +153,117 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
 
   if (loading) {
     return (
-      <div className="glass rounded-2xl p-6 text-center">
-        <div className="inline-block w-8 h-8 border-3 border-[var(--color-surface-3)] border-t-amber-500 rounded-full animate-spin" />
-        <p className="mt-3 text-sm text-[var(--color-text-muted)]">Đang tải lịch tuần sau...</p>
+      <div className="bg-white rounded-2xl p-6 text-center border border-purple-200 shadow-2xs">
+        <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
+        <p className="mt-3 text-sm text-purple-700 font-bold">Đang tải lịch tuần sau...</p>
       </div>
     );
   }
 
   return (
-    <div className="glass rounded-3xl p-5 md:p-7 space-y-6 shadow-2xl">
+    <div className="bg-white rounded-2xl p-4 sm:p-6 space-y-5 border border-purple-200/90 shadow-2xs">
       {/* Header */}
-      <div className="border-b border-[rgba(255,255,255,0.08)] pb-4 space-y-3">
+      <div className="border-b border-purple-100 pb-3 space-y-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h3 className="font-black text-lg md:text-2xl flex items-center gap-2 text-white">
-            <span className="text-2xl">✋</span> Đăng Ký Lịch Rảnh
+          <h3 className="font-black text-lg sm:text-xl flex items-center gap-2 text-purple-950 tracking-tight">
+            <span className="text-xl">✋</span> Đăng Ký Lịch Làm
           </h3>
 
           {/* Tab chọn Tuần Này vs Tuần Sau */}
-          <div className="flex bg-[var(--color-surface-2)] p-1 rounded-2xl border border-[rgba(255,255,255,0.08)]">
+          <div className="flex bg-purple-100/70 p-1 rounded-xl border border-purple-200/80 shadow-2xs">
             <button
               type="button"
               onClick={() => setWeekType('this')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                weekType === 'this'
-                  ? 'bg-amber-500 text-black shadow-md'
-                  : 'text-[var(--color-text-muted)] hover:text-white'
-              }`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${weekType === 'this'
+                  ? 'bg-purple-700 text-white shadow-2xs font-black'
+                  : 'text-purple-900 hover:text-purple-700 font-bold'
+                }`}
             >
               ⚡ Tuần Này
             </button>
             <button
               type="button"
               onClick={() => setWeekType('next')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                weekType === 'next'
-                  ? 'bg-amber-500 text-black shadow-md'
-                  : 'text-[var(--color-text-muted)] hover:text-white'
-              }`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${weekType === 'next'
+                  ? 'bg-purple-700 text-white shadow-2xs font-black'
+                  : 'text-purple-900 hover:text-purple-700 font-bold'
+                }`}
             >
               🚀 Tuần Sau
             </button>
           </div>
         </div>
 
-        <p className="text-xs md:text-sm text-[var(--color-text-secondary)] font-semibold">
-          📅 Đăng ký cho tuần: <span className="text-amber-400 font-extrabold">{getWeekLabel()}</span> ({weekType === 'next' ? 'Chốt lịch tuần sau' : 'Bổ sung lịch tuần này'})
+        <p className="text-xs sm:text-sm text-purple-800 font-bold">
+          📅 Đăng ký cho tuần: <span className="text-purple-950 font-black">{getWeekLabel()}</span> ({weekType === 'next' ? 'Chốt lịch tuần sau' : 'Bổ sung lịch tuần này'})
         </p>
       </div>
 
       {/* Days Grid */}
-      <div className="space-y-3.5">
+      <div className="space-y-3">
         {days.map((dateStr, idx) => {
           const status = availability[dateStr]; // 'full' | 'option' | 'off' | undefined
 
           return (
             <div
               key={dateStr}
-              className={`rounded-2xl p-4 border transition-all shadow-md ${
-                status === 'full'
-                  ? 'border-emerald-500/80 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+              className={`rounded-2xl p-3.5 sm:p-4 border transition-all ${status === 'full'
+                  ? 'border-emerald-300 bg-emerald-50/90 shadow-2xs'
                   : status === 'option'
-                  ? 'border-amber-500/80 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
-                  : status === 'off'
-                  ? 'border-rose-500/80 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
-                  : 'border-[rgba(255,255,255,0.08)] bg-[var(--color-surface-1)]'
-              }`}
+                    ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
+                    : status === 'off'
+                      ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
+                      : 'border-purple-100 bg-purple-50/30'
+                }`}
             >
               {/* Day Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-black text-base md:text-lg text-white">
+                  <span className="font-black text-base sm:text-lg text-purple-950">
                     {DAY_NAMES[idx]}
                   </span>
-                  <span className="text-xs md:text-sm text-amber-400/90 font-extrabold">
+                  <span className="text-xs sm:text-sm text-purple-800 font-black">
                     ({formatDateLabel(dateStr)})
                   </span>
                 </div>
                 {status && (
-                  <span className="text-xs font-black px-3 py-1 rounded-full bg-white/10 text-white border border-white/20">
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-white text-purple-950 border border-purple-200 shadow-2xs">
                     {status === 'full' && '💪 Chọn Cả Ngày'}
-                    {status === 'option' && '📝 Chọn Tùy Chọn Ca'}
+                    {status === 'option' && '📝 Chọn Tùy Ca'}
                     {status === 'off' && '🛑 Chọn Xin Nghỉ'}
                   </span>
                 )}
               </div>
 
-              {/* 3 Nút chọn lớn rõ ràng cho Mobile */}
-              <div className="grid grid-cols-3 gap-2 md:gap-3">
+              {/* 3 Nút chọn lớn rõ ràng */}
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => handleSelect(dateStr, 'full')}
-                  className={`py-3 px-2 rounded-2xl font-black text-xs md:text-sm cursor-pointer border-2 transition-all active:scale-95 shadow-sm ${
-                    status === 'full'
-                      ? 'border-emerald-400 bg-gradient-to-tr from-emerald-500 to-teal-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                      : 'border-[rgba(255,255,255,0.08)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:border-emerald-500/50 hover:text-white'
-                  }`}
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm cursor-pointer border transition-all active:scale-95 shadow-2xs ${status === 'full'
+                      ? 'border-emerald-600 bg-emerald-700 text-white font-black'
+                      : 'border-purple-200 bg-white text-purple-950 hover:bg-emerald-50 font-bold'
+                    }`}
                 >
                   {status === 'full' ? '✅ Cả ngày' : '💪 Cả ngày'}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSelect(dateStr, 'option')}
-                  className={`py-3 px-2 rounded-2xl font-black text-xs md:text-sm cursor-pointer border-2 transition-all active:scale-95 shadow-sm ${
-                    status === 'option'
-                      ? 'border-amber-400 bg-gradient-to-tr from-amber-400 to-yellow-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'
-                      : 'border-[rgba(255,255,255,0.08)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:border-amber-500/50 hover:text-white'
-                  }`}
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm cursor-pointer border transition-all active:scale-95 shadow-2xs ${status === 'option'
+                      ? 'border-purple-600 bg-purple-700 text-white font-black'
+                      : 'border-purple-200 bg-white text-purple-950 hover:bg-purple-50 font-bold'
+                    }`}
                 >
-                  {status === 'option' ? '✅ Tùy chọn ca' : '📝 Tùy chọn ca'}
+                  {status === 'option' ? '✅ Tùy ca' : '📝 Tùy ca'}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSelect(dateStr, 'off')}
-                  className={`py-3 px-2 rounded-2xl font-black text-xs md:text-sm cursor-pointer border-2 transition-all active:scale-95 shadow-sm ${
-                    status === 'off'
-                      ? 'border-rose-400 bg-gradient-to-tr from-rose-500 to-red-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]'
-                      : 'border-[rgba(255,255,255,0.08)] bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:border-rose-500/50 hover:text-white'
-                  }`}
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm cursor-pointer border transition-all active:scale-95 shadow-2xs ${status === 'off'
+                      ? 'border-rose-600 bg-rose-600 text-white font-black'
+                      : 'border-purple-200 bg-white text-purple-950 hover:bg-rose-50 font-bold'
+                    }`}
                 >
                   {status === 'off' ? '✅ Xin nghỉ' : '🛑 Xin nghỉ'}
                 </button>
@@ -277,7 +271,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
 
               {/* Ô ghi chú nếu chọn Tùy chọn ca hoặc Xin nghỉ */}
               {(status === 'option' || status === 'off') && (
-                <div className="mt-3 animate-fade-in">
+                <div className="mt-2.5 animate-fade-in">
                   <textarea
                     value={noteInputs[dateStr] || ''}
                     onChange={(e) => handleNoteChange(dateStr, e.target.value)}
@@ -287,7 +281,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                         : 'Ghi chú thời gian làm (ví dụ: rảnh sáng 8-12h, hoặc làm từ 13h...)'
                     }
                     rows={2}
-                    className="w-full px-4 py-2.5 bg-[var(--color-surface-1)] border border-[rgba(255,255,255,0.1)] rounded-xl text-white text-xs md:text-sm focus:border-amber-400 outline-none transition-all resize-none placeholder:text-[var(--color-text-muted)]"
+                    className="w-full px-3.5 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm focus:border-purple-600 outline-none transition-all resize-none placeholder:text-purple-400 font-bold"
                   />
                 </div>
               )}
@@ -296,23 +290,22 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
         })}
       </div>
 
-      {/* Nút XÁC NHẬN ĐĂNG KÝ to chốt lịch */}
-      <div className="pt-4 border-t border-[rgba(255,255,255,0.08)]">
+      {/* Nút XÁC NHẬN ĐĂNG KÝ */}
+      <div className="pt-2 border-t border-purple-100">
         <button
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className={`w-full py-4.5 rounded-3xl font-black text-base md:text-xl border-0 cursor-pointer shadow-2xl transition-all active:scale-95 ${
-            hasChanges
-              ? 'btn-gradient btn-shine text-white animate-pulse'
-              : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-[0_0_25px_rgba(16,185,129,0.3)]'
-          }`}
+          className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${hasChanges
+              ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
         >
           {submitting
             ? '⏳ Đang chốt lịch...'
             : hasChanges
-            ? '🚀 XÁC NHẬN ĐĂNG KÝ TUẦN SAU'
-            : '✅ ĐÃ CHỐT ĐĂNG KÝ (Bấm để cập nhật)'}
+              ? '🚀 XÁC NHẬN ĐĂNG KÝ TUẦN SAU'
+              : '✅ ĐÃ CHỐT ĐĂNG KÝ (Bấm để cập nhật)'}
         </button>
       </div>
     </div>

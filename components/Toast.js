@@ -50,40 +50,48 @@ export function ToastProvider({ children }) {
   }, [addToast]);
 
   const icons = {
-    success: '✅',
-    error: '❌',
-    warning: '⚠️',
-    info: 'ℹ️',
+    success: '✨',
+    error: '⚠️',
+    warning: '🔔',
+    info: '💜',
   };
 
-  const borderColors = {
-    success: 'border-l-emerald-500',
-    error: 'border-l-[var(--color-coral-500)]',
-    warning: 'border-l-amber-500',
-    info: 'border-l-sky-500',
+  const badgeStyles = {
+    success: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    error: 'bg-rose-100 text-rose-800 border-rose-300',
+    warning: 'bg-amber-100 text-amber-800 border-amber-300',
+    info: 'bg-purple-100 text-purple-900 border-purple-300',
   };
 
   return (
     <ToastContext.Provider value={{ success, error, warning, info }}>
       {children}
-      {/* Toast Container */}
-      <div className="fixed top-5 right-5 z-[2000] flex flex-col gap-2">
+      {/* Toast Notification Container */}
+      <div className="fixed top-4 right-4 sm:right-6 z-[9999] flex flex-col gap-2.5 max-w-sm w-[90vw] pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
             className={`
-              bg-[#12121e] border border-[var(--color-glass-border)] border-l-[3px] ${borderColors[toast.type]}
-              rounded-xl px-5 py-4 min-w-[300px] max-w-[400px]
-              shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+              pointer-events-auto bg-white/95 backdrop-blur-md border border-purple-200/90
+              rounded-2xl p-3.5 shadow-xl transition-all duration-300
               flex items-start gap-3
-              ${toast.leaving ? 'animate-slide-out-right' : 'animate-slide-in-right'}
+              ${toast.leaving ? 'opacity-0 translate-x-10 scale-95' : 'opacity-100 translate-x-0 scale-100 animate-slide-in-right'}
             `}
           >
-            <span className="text-lg flex-shrink-0 mt-0.5">{icons[toast.type]}</span>
-            <div className="flex-1">
-              <p className="font-semibold text-sm text-white">{toast.title}</p>
+            {/* Left Badge Icon */}
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black border flex-shrink-0 shadow-2xs ${badgeStyles[toast.type]}`}>
+              {icons[toast.type]}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0 pr-1">
+              <p className="font-black text-xs sm:text-sm text-purple-950 truncate leading-tight">
+                {toast.title}
+              </p>
               {toast.message && (
-                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">{toast.message}</p>
+                <p className="text-[11px] font-extrabold text-purple-800 mt-0.5 leading-normal">
+                  {toast.message}
+                </p>
               )}
             </div>
           </div>

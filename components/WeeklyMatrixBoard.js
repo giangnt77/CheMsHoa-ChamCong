@@ -41,14 +41,34 @@ function getMondayOfCurrentWeek() {
   return formatDateISO(monday);
 }
 
-function getBranchColor(name = '', fallbackColor = '#f59e0b') {
+function getBranchColorStyle(name = '', fallbackColor = '#d97706') {
   const n = String(name).toLowerCase().trim();
-  if (n.includes('thạch lam') || n.includes('thach lam') || n === 'tl') return '#f97316'; // Cam - Thạch Lam
-  if (n.includes('hbd')) return '#ffffff'; // Trắng - HBD
-  if (n.includes('a4') || n.includes('aa4')) return '#a855f7'; // Tím - A4
-  if (n.includes('30') || n.includes('30r')) return '#22c55e'; // Green - 30
-  if (n.includes('38') || n.includes('38v')) return '#3b82f6'; // Blue - 38
-  return fallbackColor;
+  // Solid rich color badges for high clarity & zero eye strain for older employees
+  if (n.includes('tl') || n.includes('thạch lam') || n.includes('thach lam')) {
+    return { badge: 'bg-amber-600 text-white border-amber-700', text: '#92400e', bg: '#fffbe3', border: '#fde68a' }; // Cam Thạch Lam -> TL
+  }
+  if (n.includes('hbd')) {
+    return { badge: 'bg-slate-800 text-white border-slate-900', text: '#1e293b', bg: '#f1f5f9', border: '#cbd5e1' }; // Xám HBD
+  }
+  if (n.includes('a4') || n.includes('aa4')) {
+    return { badge: 'bg-purple-700 text-white border-purple-800', text: '#6b21a8', bg: '#faf5ff', border: '#e9d5ff' }; // Tím A4
+  }
+  if (n.includes('30') || n.includes('30r')) {
+    return { badge: 'bg-emerald-700 text-white border-emerald-800', text: '#166534', bg: '#f0fdf4', border: '#bbf7d0' }; // Xanh lá 30
+  }
+  if (n.includes('38') || n.includes('38v')) {
+    return { badge: 'bg-blue-600 text-white border-blue-700', text: '#075985', bg: '#f0f9ff', border: '#bae6fd' }; // Xanh dương 38
+  }
+  return { badge: 'bg-amber-600 text-white border-amber-700', text: '#92400e', bg: '#fffbe3', border: '#fde68a' };
+}
+
+function formatBranchDisplayName(name = '') {
+  if (!name) return '';
+  const n = String(name).trim();
+  if (n.toLowerCase().includes('thạch lam') || n.toLowerCase().includes('thach lam') || n.toUpperCase() === 'TL') {
+    return 'TL';
+  }
+  return n;
 }
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -167,7 +187,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   }
 
   function openCellModal(emp, dateStr, existingShift = null) {
-    if (readOnly) return; // Nếu là nhân viên xem -> KHÔNG CHO MỞ MODAL XẾP LỊCH!
+    if (readOnly) return;
     const defaultBranch = branches[0] || { id: '', name: 'Chi nhánh' };
     setModalState({
       isOpen: true,
@@ -179,54 +199,53 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   }
 
   return (
-    <div className="space-y-3">
-      {/* Thanh điều hướng Tuần & Ghi chú Chi Nhánh - Siêu Gọn & Dễ Nhìn */}
-      <div className="glass rounded-lg px-4 py-3 border border-slate-700/80 flex items-center justify-between flex-wrap gap-3">
-        {/* Bộ chuyển tuần tích hợp 1 dòng */}
-        <div className="flex items-center gap-2">
+    <div className="space-y-2.5">
+      {/* Thanh điều hướng Tuần & Chú thích Chi Nhánh - Compact 1-Line Row */}
+      <div className="bg-white rounded-2xl p-2.5 sm:px-4 sm:py-3 border border-purple-200/90 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+        {/* Bộ chuyển tuần 1 dòng */}
+        <div className="flex items-center justify-between sm:justify-start gap-2">
           <button
             type="button"
             onClick={prevWeek}
-            className="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold border border-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
             title="Tuần trước"
           >
             ◀
           </button>
 
-          <div className="text-xs sm:text-sm font-black text-white px-1">
-            <span>Lịch tuần: </span>
-            <span className="text-amber-400 font-black">{startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}</span>
+          <div className="text-xs sm:text-base font-black text-purple-950 px-1 text-center">
+            <span className="text-purple-800 font-black">
+              {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}
+            </span>
           </div>
 
-          <button
-            type="button"
-            onClick={nextWeek}
-            className="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold border border-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs"
-            title="Tuần sau"
-          >
-            ▶
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={nextWeek}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+              title="Tuần sau"
+            >
+              ▶
+            </button>
 
-          <button
-            type="button"
-            onClick={goTodayWeek}
-            className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-black border border-amber-500/40 cursor-pointer ml-1"
-          >
-            Hôm nay
-          </button>
+            <button
+              type="button"
+              onClick={goTodayWeek}
+              className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95"
+            >
+              Hôm nay
+            </button>
+          </div>
         </div>
 
-        {/* Chú thích màu Chi Nhánh - Dạng Chấm Tròn Tinh Tế, Không Hộp Hộp Dày Dặn Rối Mắt */}
-        <div className="flex items-center flex-wrap gap-3 text-xs font-bold">
+        {/* Chú thích màu Chi Nhánh - Thẻ Màu Nổi Rõ Ràng */}
+        <div className="flex items-center flex-wrap gap-1.5 text-xs font-black justify-center sm:justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-purple-100">
           {branches.map((b) => {
-            const bColor = getBranchColor(b.name, b.color);
+            const style = getBranchColorStyle(b.name, b.color);
             return (
-              <div key={b.id} className="flex items-center gap-1.5 text-slate-200 font-extrabold">
-                <span
-                  className="w-3 h-3 rounded-sm inline-block shadow-sm"
-                  style={{ backgroundColor: bColor }}
-                />
-                <span>{b.name}</span>
+              <div key={b.id} className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs ${style.badge}`}>
+                <span>{formatBranchDisplayName(b.name)}</span>
               </div>
             );
           })}
@@ -234,28 +253,20 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       </div>
 
       {/* =========================================================================
-         BẢNG EXCEL MA TRẬN PHÂN CÔNG GÓC VUÔNG CHUẨN KẺ Ô SẮC NÉT
+         BẢNG MA TRẬN PHÂN CÔNG CHÈ Ms HOA • HEADER 1 DÒNG TỐI ƯU • CỐ ĐỊNH CỘT TÊN
          ========================================================================= */}
-      <div className="glass rounded-lg p-2 border border-slate-700/80 overflow-x-auto custom-scrollbar">
-        <table className="w-full min-w-[980px] border-collapse text-xs">
+      <div className="bg-white rounded-2xl p-1 border border-purple-200 shadow-2xs overflow-x-auto custom-scrollbar relative">
+        <table className="w-full min-w-[780px] border-collapse text-xs">
           <thead>
-            {/* Hàng 1: Tên Thứ (T2 -> CN) */}
-            <tr className="bg-slate-800/90 text-white border-b border-slate-700">
-              <th className="py-2.5 px-2 border-r border-slate-700 w-12 text-center font-black">STT</th>
-              <th className="py-2.5 px-3 border-r border-slate-700 w-48 text-left font-black">THỨ</th>
+            {/* Header 1 Dòng Duy Nhất: Tên Nhân Viên + T2 (03/08) -> CN (09/08) */}
+            <tr className="bg-purple-200 text-purple-950 border-b border-purple-300">
+              <th className="py-2.5 px-3 border-r-2 border-purple-300 w-36 sm:w-44 text-left font-black sticky left-0 bg-purple-200 z-20 text-xs sm:text-sm shadow-[3px_0_6px_-2px_rgba(107,33,168,0.1)]">
+                NHÂN VIÊN
+              </th>
               {weekDays.map((dStr, idx) => (
-                <th key={dStr} className="py-2.5 px-2 border-r border-slate-700 text-center font-black uppercase text-amber-400 text-sm">
-                  {DAY_LABELS[idx]}
-                </th>
-              ))}
-            </tr>
-            {/* Hàng 2: Ngày Tây (VD: 03/08, 04/08...) */}
-            <tr className="bg-slate-900/80 text-amber-300 border-b border-slate-700 text-xs">
-              <th className="py-1 px-2 border-r border-slate-700" />
-              <th className="py-1 px-3 border-r border-slate-700 text-left font-extrabold">NGÀY TÂY</th>
-              {weekDays.map((dStr) => (
-                <th key={dStr} className="py-1 px-2 border-r border-slate-700 text-center font-black">
-                  {dStr.split('-').reverse().slice(0, 2).join('/')}
+                <th key={dStr} className="py-2.5 px-1.5 border-r border-purple-300 text-center font-black text-purple-950 text-xs sm:text-sm min-w-[105px]">
+                  <div className="font-black text-sm uppercase">{DAY_LABELS[idx]}</div>
+                  <div className="text-[11px] font-black text-purple-900">{dStr.split('-').reverse().slice(0, 2).join('/')}</div>
                 </th>
               ))}
             </tr>
@@ -263,13 +274,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="text-center py-12">
-                  <div className="inline-block w-8 h-8 border-3 border-[var(--color-surface-3)] border-t-amber-500 rounded-full animate-spin" />
+                <td colSpan={8} className="text-center py-12">
+                  <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                 </td>
               </tr>
             ) : sortedEmployees.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center py-10 text-[var(--color-text-muted)] italic font-bold">
+                <td colSpan={8} className="text-center py-10 text-purple-600 italic font-bold">
                   Chưa có nhân viên nào trong hệ thống.
                 </td>
               </tr>
@@ -277,30 +288,25 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               sortedEmployees.map((emp, idx) => {
                 const isMe = emp.id === highlightEmployeeId;
 
+                const rowBgClass = isMe
+                  ? 'bg-purple-100'
+                  : idx % 2 === 0
+                    ? 'bg-white'
+                    : 'bg-purple-50';
+
                 return (
                   <tr
                     key={emp.id}
-                    className={`border-b border-[rgba(255,255,255,0.06)] transition-all ${
-                      isMe
-                        ? 'bg-amber-500/15 font-bold'
-                        : idx % 2 === 0
-                        ? 'bg-[var(--color-surface-1)]/50'
-                        : 'bg-[var(--color-surface-2)]/30'
-                    } hover:bg-amber-500/15`}
+                    className={`border-b border-purple-100 transition-all ${rowBgClass} hover:bg-purple-100`}
                   >
-                    {/* STT */}
-                    <td className="py-3 px-2 border-r border-[rgba(255,255,255,0.08)] text-center font-black text-slate-300 text-sm">
-                      {idx + 1}
-                    </td>
-
-                    {/* Tên Nhân Viên - To Rõ Cho Người Già & Người Dùng Nhanh */}
-                    <td className="py-3 px-3 border-r border-[rgba(255,255,255,0.08)] font-black text-white text-base">
-                      <div className="flex items-center gap-1.5 truncate">
-                        {isMe && <span className="text-amber-400 text-lg">⭐</span>}
-                        <span className={isMe ? 'text-amber-300 font-extrabold text-base md:text-lg' : 'text-white font-bold text-sm md:text-base'}>
+                    {/* Tên Nhân Viên - FIXED STICKY LEFT WITH SOLID 100% OPAQUE BACKGROUND */}
+                    <td className={`py-3 px-3 border-r-2 border-purple-300 font-black text-purple-950 text-sm sm:text-base sticky left-0 z-20 ${rowBgClass} shadow-[3px_0_6px_-2px_rgba(107,33,168,0.1)]`}>
+                      <div className="flex items-center gap-1 truncate">
+                        {isMe && <span className="text-purple-700 text-sm">⭐</span>}
+                        <span className={isMe ? 'text-purple-950 font-black text-sm sm:text-base' : 'text-purple-950 font-extrabold text-sm sm:text-base'}>
                           {emp.name}
                         </span>
-                        {isMe && <span className="text-xs text-amber-400 font-black bg-amber-500/20 px-1.5 py-0.5 rounded">(TÔI)</span>}
+                        {isMe && <span className="text-[10px] text-purple-950 font-black bg-purple-200 px-1.5 py-0.5 rounded border border-purple-300 ml-0.5">(TÔI)</span>}
                       </div>
                     </td>
 
@@ -313,39 +319,32 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                         <td
                           key={dStr}
                           onClick={() => openCellModal(emp, dStr, empShifts[0] || null)}
-                          className={`py-2 px-2 border-r border-[rgba(255,255,255,0.08)] text-center align-middle transition-all min-w-[120px] ${
-                            readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:opacity-90'
+                          className={`py-1.5 px-1 border-r border-purple-100 text-center align-middle transition-all min-w-[105px] ${
+                            readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:bg-purple-100/60'
                           }`}
                         >
                           {empShifts.length > 0 ? (
-                            /* Có Ca Phân Công -> Render màu sắc chuẩn Excel (Giờ làm & Mã CN) - Chữ To Rõ */
+                            /* Có Ca Phân Công -> Phô diễn màu sắc tươi sáng, chữ to rõ */
                             <div className="space-y-1">
                               {empShifts.map((shift) => {
-                                const bColor = getBranchColor(shift.branches?.name, shift.branches?.color);
-                                const isWhiteBg = bColor.toLowerCase() === '#ffffff' || bColor.toLowerCase() === '#f8fafc';
+                                const style = getBranchColorStyle(shift.branches?.name, shift.branches?.color);
                                 const startTimeStr = shift.start_time ? shift.start_time.slice(0, 5) : '09:00';
                                 const endTimeStr = shift.end_time ? shift.end_time.slice(0, 5) : '14:00';
                                 const timeRange = `${startTimeStr}-${endTimeStr}`;
+                                const branchDisplayName = formatBranchDisplayName(shift.branches?.name);
 
                                 return (
                                   <div
                                     key={shift.id}
-                                    className={`p-2 rounded-md font-black text-xs md:text-sm leading-tight border transition-all ${
-                                      isWhiteBg ? 'bg-white text-slate-900 border-slate-300' : 'text-white'
-                                    }`}
-                                    style={{
-                                      backgroundColor: isWhiteBg ? '#ffffff' : bColor,
-                                      borderColor: isWhiteBg ? '#cbd5e1' : `${bColor}dd`,
-                                      color: isWhiteBg ? '#0f172a' : '#ffffff',
-                                    }}
+                                    className={`p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border shadow-2xs transition-all hover:scale-[1.02] ${style.badge}`}
                                   >
-                                    <div className="text-xs md:text-sm font-black tracking-tight">{timeRange}</div>
-                                    <div className="text-[11px] md:text-xs opacity-95 mt-0.5 flex items-center justify-center gap-1 font-extrabold">
-                                      <span>CN {shift.branches?.name}</span>
+                                    <div className="text-xs font-black tracking-tight">{timeRange}</div>
+                                    <div className="text-[11px] font-black opacity-95 mt-0.5 flex items-center justify-center gap-1">
+                                      <span>CN {branchDisplayName}</span>
                                       <span className="opacity-80">({shift.hours || 5}h)</span>
                                     </div>
                                     {shift.note && (
-                                      <div className="text-[10px] font-bold italic opacity-90 truncate mt-0.5">
+                                      <div className="text-[10px] font-extrabold italic opacity-90 truncate mt-0.5">
                                         📝 {shift.note}
                                       </div>
                                     )}
@@ -355,13 +354,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                             </div>
                           ) : (
                             /* Ô Ngày Trống / Không có ca */
-                            <div className="py-2 text-center">
+                            <div className="py-1 text-center">
                               {!readOnly && empAvail ? (
-                                <div className="text-[11px] font-bold text-amber-300/90 truncate">
+                                <div className="text-[11px] font-black text-purple-700 truncate">
                                   {empAvail.type === 'full' ? '💪 Cả ngày' : empAvail.type === 'off' ? '🛑 Xin nghỉ' : `📝 ${empAvail.note || 'Tùy ca'}`}
                                 </div>
                               ) : (
-                                <span className="text-slate-500 font-extrabold text-xs">OFF</span>
+                                <span className="text-purple-300 font-extrabold text-xs">—</span>
                               )}
                             </div>
                           )}

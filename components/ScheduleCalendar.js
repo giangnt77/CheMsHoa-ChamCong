@@ -42,6 +42,15 @@ function getWeekDaysFromMonday(mondayStr) {
   return days;
 }
 
+function formatBranchDisplayName(name = '') {
+  if (!name) return '';
+  const n = String(name).trim();
+  if (n.toLowerCase().includes('thạch lam') || n.toLowerCase().includes('thach lam') || n.toUpperCase() === 'TL') {
+    return 'TL';
+  }
+  return n;
+}
+
 export default function ScheduleCalendar({ highlightEmployeeId }) {
   const today = getToday();
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
@@ -409,7 +418,7 @@ export default function ScheduleCalendar({ highlightEmployeeId }) {
                                       className="font-extrabold text-xs px-2 py-0.5 rounded-md text-white"
                                       style={{ backgroundColor: `${branchColor}35` }}
                                     >
-                                      CN {shift.branches?.name}
+                                      CN {formatBranchDisplayName(shift.branches?.name)}
                                     </span>
                                     <span className="font-extrabold text-sm text-white truncate">
                                       {isMe ? `⭐ ${shift.employees?.name} (TÔI)` : shift.employees?.name}

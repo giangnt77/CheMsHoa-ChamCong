@@ -110,11 +110,11 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-amber-400 to-red-500 flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(245,158,11,0.4)] mx-auto animate-bounce-in">
-            🍵
+          <div className="w-20 h-20 mx-auto mb-3">
+            <img src="/logo.png" alt="Chè Ms Hoa Logo" className="w-full h-full object-contain animate-bounce" />
           </div>
-          <div className="inline-block w-8 h-8 border-3 border-[var(--color-surface-3)] border-t-amber-400 rounded-full animate-spin mt-4" />
-          <p className="mt-2 text-xs font-bold text-amber-400 uppercase tracking-widest">Đang tải danh sách...</p>
+          <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin mt-2" />
+          <p className="mt-2 text-xs font-black text-purple-800 uppercase tracking-widest">Đang tải danh sách...</p>
         </div>
       </div>
     );
@@ -124,31 +124,35 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     <div className="min-h-screen flex items-center justify-center px-4 py-8 relative z-10">
       <div className="w-full max-w-md">
         {/* Header Branding */}
-        <div className="text-center mb-8 animate-fade-in-up">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-400 via-orange-500 to-rose-500 flex items-center justify-center text-4xl shadow-[0_0_40px_rgba(245,158,11,0.5)] mx-auto mb-4 animate-bounce-in">
-            🍵
+        <div className="text-center mb-6 sm:mb-8 animate-fade-in-up">
+          <div className="w-36 h-36 mx-auto mb-2 relative flex items-center justify-center">
+            <img
+              src="/logo.png"
+              alt="Chè Ms Hoa Logo"
+              className="w-full h-full object-contain drop-shadow-md hover:scale-105 transition-transform"
+            />
           </div>
-          <h1 className="font-[family-name:var(--font-playfair)] text-3xl md:text-4xl font-black mb-1">
-            <span className="text-gradient">Tiệm Chè Ms Hoa</span>
+          <h1 className="text-2xl sm:text-3xl font-black mb-1 text-purple-950 tracking-tight">
+            Chè Ms Hoa
           </h1>
-          <p className="text-[var(--color-text-secondary)] text-sm font-semibold">
-            Chọn tên của bạn để đăng nhập làm việc
+          <p className="text-purple-700 text-xs sm:text-sm font-black">
+            ❤ CHÈ ÍT NGỌT ❤ • Chọn tên để vào làm việc
           </p>
         </div>
 
         {/* =========================================================================
-           POPUP / POP-OVER NHẬP MÃ PIN 6 SỐ
+           POPUP / POP-OVER NHẬP MÃ PIN 6 SỐ (BRAND PURPLE THEME)
            ========================================================================= */}
         {selectedEmp ? (
-          <div className="glass rounded-3xl p-6 md:p-8 animate-scale-in shadow-2xl border border-[rgba(245,158,11,0.3)]">
-            <div className="flex items-center justify-between mb-4 border-b border-[rgba(255,255,255,0.08)] pb-3">
+          <div className="bg-white rounded-2xl p-6 md:p-8 animate-scale-in shadow-xs border border-purple-200">
+            <div className="flex items-center justify-between mb-4 border-b border-purple-100 pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center font-black text-black text-lg">
+                <div className="w-12 h-12 rounded-xl bg-purple-700 text-white flex items-center justify-center font-black text-lg shadow-2xs">
                   {getInitials(selectedEmp.name)}
                 </div>
                 <div>
-                  <h3 className="font-black text-white text-lg">{selectedEmp.name}</h3>
-                  <p className="text-xs text-amber-400 font-extrabold">
+                  <h3 className="font-black text-purple-950 text-lg">{selectedEmp.name}</h3>
+                  <p className="text-xs text-purple-700 font-black">
                     🔐 Nhập mã PIN 6 số do Admin cấp
                   </p>
                 </div>
@@ -156,7 +160,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
               <button
                 type="button"
                 onClick={() => setSelectedEmp(null)}
-                className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-secondary)] hover:text-white flex items-center justify-center border-0 cursor-pointer text-sm"
+                className="w-8 h-8 rounded-full bg-purple-50 text-purple-700 hover:text-purple-950 hover:bg-purple-100 flex items-center justify-center border-0 cursor-pointer text-sm font-black"
               >
                 ✕
               </button>
@@ -165,7 +169,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
             {/* Hiển thị 6 Ô Tròn PIN */}
             <div className="space-y-6">
               <div className="text-center">
-                <p className="text-xs text-[var(--color-text-muted)] mb-3 font-semibold">
+                <p className="text-xs text-purple-900 mb-3 font-extrabold">
                   Nhập 6 số PIN bảo mật của bạn:
                 </p>
                 <div className="flex justify-center gap-2.5 sm:gap-3">
@@ -174,12 +178,12 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                     return (
                       <div
                         key={idx}
-                        className={`w-10 h-11 sm:w-11 sm:h-12 rounded-2xl border-2 flex items-center justify-center text-xl font-black transition-all ${
+                        className={`w-10 h-11 sm:w-11 sm:h-12 rounded-xl border-2 flex items-center justify-center text-xl font-black transition-all ${
                           filled
-                            ? 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                            ? 'border-purple-600 bg-purple-100 text-purple-950 shadow-2xs'
                             : pinError
-                            ? 'border-rose-500 bg-rose-500/20 text-white animate-shake'
-                            : 'border-[rgba(255,255,255,0.15)] bg-[var(--color-surface-1)] text-white'
+                            ? 'border-rose-500 bg-rose-100 text-rose-900 animate-shake'
+                            : 'border-purple-200 bg-purple-50/50 text-purple-950'
                         }`}
                       >
                         {filled ? '●' : ''}
@@ -188,20 +192,20 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                   })}
                 </div>
                 {pinError && (
-                  <p className="text-xs text-rose-400 font-extrabold mt-2 animate-bounce">
+                  <p className="text-xs text-rose-600 font-black mt-2 animate-bounce">
                     ❌ Mã PIN không đúng! Vui lòng thử lại.
                   </p>
                 )}
               </div>
 
               {/* Bàn Phím Số 0-9 */}
-              <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-3 pt-2">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => handleKeypadPress(String(num))}
-                    className="py-3.5 bg-[var(--color-surface-2)] hover:bg-amber-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
+                    className="py-3.5 bg-purple-50 hover:bg-purple-100 active:scale-95 rounded-xl font-black text-2xl text-purple-950 border border-purple-200/80 cursor-pointer transition-all shadow-2xs"
                   >
                     {num}
                   </button>
@@ -211,21 +215,21 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                   onClick={() => {
                     toast.info('Quên PIN 6 số?', 'Hãy nhờ Admin / Chủ Quán đặt lại mã PIN 6 số mới cho bạn!');
                   }}
-                  className="py-3.5 bg-transparent text-[var(--color-text-muted)] hover:text-amber-400 rounded-2xl text-[11px] font-bold border-0 cursor-pointer flex items-center justify-center text-center"
+                  className="py-3 bg-transparent text-purple-600 hover:text-purple-950 rounded-xl text-[11px] font-bold border-0 cursor-pointer flex items-center justify-center text-center"
                 >
                   Quên PIN?
                 </button>
                 <button
                   type="button"
                   onClick={() => handleKeypadPress('0')}
-                  className="py-3.5 bg-[var(--color-surface-2)] hover:bg-amber-500/20 active:scale-95 rounded-2xl font-black text-2xl text-white border border-[rgba(255,255,255,0.08)] cursor-pointer transition-all shadow-md"
+                  className="py-3.5 bg-purple-50 hover:bg-purple-100 active:scale-95 rounded-xl font-black text-2xl text-purple-950 border border-purple-200/80 cursor-pointer transition-all shadow-2xs"
                 >
                   0
                 </button>
                 <button
                   type="button"
                   onClick={handleKeypadDelete}
-                  className="py-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 active:scale-95 rounded-2xl font-black text-xl border border-rose-500/20 cursor-pointer transition-all flex items-center justify-center"
+                  className="py-3 text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl font-black text-xl border border-rose-200 cursor-pointer transition-all flex items-center justify-center"
                 >
                   ⌫
                 </button>
@@ -234,7 +238,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
           </div>
         ) : (
           /* =========================================================================
-             DANH SÁCH THẺ NHÂN VIÊN (TOUCH CARDS - CHỈ ADMIN MỚI ĐƯỢC TẠO TÀI KHOẢN)
+             DANH SÁCH THẺ NHÂN VIÊN (TOUCH CARDS PURPLE BRAND THEME)
              ========================================================================= */
           <div className="space-y-3 animate-fade-in-up-delay-1">
             {/* Ô TÌM KIẾM NHANH TÊN NHÂN VIÊN */}
@@ -245,13 +249,13 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="🔍 Gõ tên của bạn để tìm nhanh..."
-                  className="w-full px-5 py-3.5 bg-[var(--color-surface-1)] border border-[rgba(245,158,11,0.3)] focus:border-amber-400 rounded-2xl text-white text-sm font-bold outline-none transition-all placeholder:text-[var(--color-text-muted)] shadow-md"
+                  className="w-full px-4 py-3 bg-white border border-purple-200 focus:border-purple-600 rounded-xl text-purple-950 text-sm font-bold outline-none transition-all placeholder:text-purple-400 shadow-2xs"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-text-secondary)] hover:text-white bg-[var(--color-surface-3)] w-6 h-6 rounded-full flex items-center justify-center border-0 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-purple-600 hover:text-purple-950 bg-purple-100 w-6 h-6 rounded-full flex items-center justify-center border-0 cursor-pointer font-black"
                   >
                     ✕
                   </button>
@@ -266,13 +270,13 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
 
               if (filtered.length === 0) {
                 return (
-                  <div className="text-center py-8 glass rounded-3xl text-[var(--color-text-muted)]">
+                  <div className="text-center py-8 bg-white rounded-2xl border border-purple-200 text-purple-600">
                     <div className="text-3xl mb-2">🔍</div>
                     <p className="text-sm font-bold">Không tìm thấy &quot;{searchQuery}&quot;</p>
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="mt-2 text-xs text-amber-400 font-bold border-0 bg-transparent cursor-pointer underline"
+                      className="mt-2 text-xs text-purple-700 font-bold border-0 bg-transparent cursor-pointer underline"
                     >
                       Xóa tìm kiếm
                     </button>
@@ -283,14 +287,14 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
               return (
                 <div className="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
                   {filtered.map((emp, idx) => {
-                    const gradients = [
-                      'from-amber-400 to-orange-500',
-                      'from-emerald-400 to-teal-500',
-                      'from-purple-400 to-indigo-500',
-                      'from-rose-400 to-pink-500',
-                      'from-sky-400 to-blue-500',
+                    const badgeBgs = [
+                      'bg-purple-700 text-white',
+                      'bg-amber-600 text-white',
+                      'bg-emerald-700 text-white',
+                      'bg-rose-600 text-white',
+                      'bg-blue-600 text-white',
                     ];
-                    const grad = gradients[idx % gradients.length];
+                    const badgeBg = badgeBgs[idx % badgeBgs.length];
 
                     return (
                       <button
@@ -298,18 +302,18 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                         type="button"
                         onClick={() => handleSelectEmployeeCard(emp)}
                         disabled={parentLoading}
-                        className="emp-select-btn w-full flex items-center gap-4 p-3.5 glass rounded-2xl cursor-pointer border border-[rgba(255,255,255,0.08)] hover:border-amber-500/60 active:scale-95 transition-all text-left group shadow-lg"
+                        className="w-full flex items-center gap-3.5 p-3.5 bg-white hover:bg-purple-50/70 rounded-2xl cursor-pointer border border-purple-200/90 hover:border-purple-500 active:scale-98 transition-all text-left group shadow-2xs"
                       >
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${grad} flex items-center justify-center font-black text-black text-base flex-shrink-0 shadow-md group-hover:scale-105 transition-transform`}>
+                        <div className={`w-12 h-12 rounded-xl ${badgeBg} flex items-center justify-center font-black text-base flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform`}>
                           {getInitials(emp.name)}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <span className="text-base font-black text-white block truncate">
+                          <span className="text-base sm:text-lg font-black text-purple-950 block truncate">
                             {emp.name}
                           </span>
-                          <span className="text-xs text-amber-400 font-bold block">
-                            🔒 Bấm để chọn & đăng ký lịch →
+                          <span className="text-xs text-purple-700 font-extrabold block">
+                            🔒 Bấm để chọn & xem lịch →
                           </span>
                         </div>
                       </button>
@@ -320,15 +324,15 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
             })()}
 
             {employees.length === 0 && (
-              <div className="text-center py-10 glass rounded-3xl text-[var(--color-text-muted)]">
+              <div className="text-center py-10 bg-white rounded-2xl border border-purple-200 text-purple-500">
                 <div className="text-4xl mb-2 opacity-60">👥</div>
                 <p className="text-sm font-bold">Chưa có nhân viên nào trong danh sách</p>
               </div>
             )}
 
             {/* Ghi chú bảo mật Admin */}
-            <div className="pt-2 text-center text-xs text-[var(--color-text-muted)] font-semibold border-t border-[rgba(255,255,255,0.06)]">
-              💡 <span className="text-amber-400/90">Lưu ý:</span> Tài khoản & mã PIN 6 số do Admin tạo & cấp. Nếu chưa có tên, vui lòng báo Admin tạo tài khoản.
+            <div className="pt-2 text-center text-xs text-purple-700 font-bold border-t border-purple-200/70">
+              💡 <span className="text-purple-900 font-black">Lưu ý:</span> Mã PIN do Admin cấp. Nếu chưa có tài khoản, vui lòng báo Admin.
             </div>
           </div>
         )}
