@@ -21,6 +21,7 @@ CREATE TABLE employees (
   name TEXT NOT NULL UNIQUE,
   hourly_rate INTEGER DEFAULT 20000,
   pin TEXT DEFAULT '1234',
+  status TEXT DEFAULT 'active',        -- 'active' (Làm) | 'leave' (Xin nghỉ ngắn ngày) | 'off' (Nghỉ/Off)
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -78,7 +79,18 @@ CREATE TABLE penalties (
 );
 
 -- --------------------------------------------
--- BƯỚC 7: NẠP DỮ LIỆU SẴN 5 CHI NHÁNH CỦA TIỆM CHÈ MS HOA
+-- BƯỚC 7: TẠO BẢNG MỐC TĂNG LƯƠNG THEO THỜI GIAN
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS employee_rates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  hourly_rate INTEGER NOT NULL,
+  effective_date DATE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- --------------------------------------------
+-- BƯỚC 8: NẠP DỮ LIỆU SẴN 5 CHI NHÁNH CỦA TIỆM CHÈ MS HOA
 -- --------------------------------------------
 INSERT INTO branches (name, color, sort_order) VALUES
   ('HBD', '#f59e0b', 1),
@@ -89,27 +101,29 @@ INSERT INTO branches (name, color, sort_order) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- --------------------------------------------
--- BƯỚC 8: TẠO INDEXES TỐI ƯU TỐC ĐỘ TRUY VẤN
+-- BƯỚC 9: TẠO INDEXES TỐI ƯU TỐC ĐỘ TRUY VẤN
 -- --------------------------------------------
-CREATE INDEX idx_availability_employee ON availability(employee_id);
-CREATE INDEX idx_availability_date ON availability(date);
-CREATE INDEX idx_schedule_employee ON schedule(employee_id);
-CREATE INDEX idx_schedule_date ON schedule(date);
-CREATE INDEX idx_schedule_branch ON schedule(branch_id);
-CREATE INDEX idx_penalties_employee_id ON penalties(employee_id);
-CREATE INDEX idx_penalties_month ON penalties(month);
+CREATE INDEX IF NOT EXISTS idx_availability_employee ON availability(employee_id);
+CREATE INDEX IF NOT EXISTS idx_availability_date ON availability(date);
+CREATE INDEX IF NOT EXISTS idx_schedule_employee ON schedule(employee_id);
+CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule(date);
+CREATE INDEX IF NOT EXISTS idx_schedule_branch ON schedule(branch_id);
+CREATE INDEX IF NOT EXISTS idx_penalties_employee_id ON penalties(employee_id);
+CREATE INDEX IF NOT EXISTS idx_penalties_month ON penalties(month);
+CREATE INDEX IF NOT EXISTS idx_employee_rates_employee ON employee_rates(employee_id);
 
 -- --------------------------------------------
--- BƯỚC 9: BẬT RLS (ROW LEVEL SECURITY)
+-- BƯỚC 10: BẬT RLS (ROW LEVEL SECURITY)
 -- --------------------------------------------
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE availability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schedule ENABLE ROW LEVEL SECURITY;
 ALTER TABLE penalties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE employee_rates ENABLE ROW LEVEL SECURITY;
 
 -- --------------------------------------------
--- BƯỚC 10: TẠO QUYỀN TRUY CẬP PUBLIC (APPLICATIONS POLICIES)
+-- BƯỚC 11: TẠO QUYỀN TRUY CẬP PUBLIC (APPLICATIONS POLICIES)
 -- --------------------------------------------
 DO $$
 BEGIN
@@ -132,4 +146,16 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all penalties') THEN
     CREATE POLICY "Allow all penalties" ON penalties FOR ALL USING (true) WITH CHECK (true);
   END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all employee_rates') THEN
+    CREATE POLICY "Allow all employee_rates" ON employee_rates FOR ALL USING (true) WITH CHECK (true);
+  END IF;
 END $$;
+
+-- --------------------------------------------
+-- BƯỚC 12: NÂNG CẤP BẢNG NẾU BẢNG ĐÃ TỒN TẠI TỪ TRƯỚC (QUICK MIGRATION SQL)
+-- --------------------------------------------
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS pin TEXT DEFAULT '1234';
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_rate INTEGER DEFAULT 20000;
+
