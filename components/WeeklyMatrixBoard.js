@@ -166,8 +166,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
   // Phân loại danh sách nhân viên thành 3 nhóm độc lập:
   // 1. matrixEmployees: Nhân viên đi làm -> Hiện trong bảng ma trận xếp lịch chính
-  // 2. shortLeaveEmployees: Bảng riêng 1 -> Danh sách Xin nghỉ ngắn ngày / nghỉ trong tuần
-  // 3. permanentOffEmployees: Bảng riêng 2 -> Danh sách Off / Nghỉ việc
+  // 2. shortLeaveEmployees: BẢNG VÀNG 🟡 -> Danh sách Nhân viên xin nghỉ vài ngày / nghỉ ngắn ngày
+  // 3. permanentOffEmployees: BẢNG ĐỎ 🔴 -> Danh sách Nhân viên Off luôn / nghỉ việc cố định
   const { matrixEmployees, shortLeaveEmployees, permanentOffEmployees } = useMemo(() => {
     if (!sortedEmployees) return { matrixEmployees: [], shortLeaveEmployees: [], permanentOffEmployees: [] };
 
@@ -176,40 +176,30 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     const permanentOffList = [];
 
     sortedEmployees.forEach((emp) => {
-      // Nhóm 1: Off / Nghỉ việc cố định
+      // 1. OFF LUÔN / Nghỉ việc cố định (Bảng Đỏ 🔴)
       if (emp.status === 'off' || emp.is_active === false) {
         permanentOffList.push({
           employee: emp,
-          reason: 'Off / Nghỉ việc',
+          reason: 'Off / Nghỉ việc cố định',
         });
         return;
       }
 
-      // Nhóm 2: Xin nghỉ ngắn ngày ở Admin
-      if (emp.status === 'leave') {
-        const empOffDays = weekDays.filter((dStr) => availByEmpAndDate[`${emp.id}_${dStr}`]?.type === 'off');
-        shortLeaveList.push({
-          employee: emp,
-          reason: 'Xin nghỉ ngắn ngày',
-          offDaysCount: empOffDays.length,
-        });
-        return;
-      }
-
-      // Nhóm 3: Đăng ký xin nghỉ trong tuần (4+ ngày) và chưa được xếp ca nào
-      const empWeekShifts = weekDays.flatMap((dStr) => scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
+      // Đếm số ngày đăng ký xin nghỉ trong tuần này
       const empOffDays = weekDays.filter((dStr) => availByEmpAndDate[`${emp.id}_${dStr}`]?.type === 'off');
+      const empWeekShifts = weekDays.flatMap((dStr) => scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
 
-      if (empWeekShifts.length === 0 && empOffDays.length >= 4) {
+      // 2. XIN NGHỈ VÀI NGÀY / Nghỉ ngắn ngày (Bảng Vàng 🟡)
+      if (emp.status === 'leave' || (empOffDays.length > 0 && empWeekShifts.length === 0)) {
         shortLeaveList.push({
           employee: emp,
-          reason: 'Xin nghỉ trong tuần',
+          reason: emp.status === 'leave' ? 'Xin nghỉ ngắn ngày' : `Xin nghỉ ${empOffDays.length}/7 ngày`,
           offDaysCount: empOffDays.length,
         });
         return;
       }
 
-      // Còn lại: Nhân viên đi làm bình thường -> Hiện ở bảng chính
+      // 3. Nhân viên đi làm bình thường -> Hiện ở bảng xếp lịch chính
       matrix.push(emp);
     });
 
