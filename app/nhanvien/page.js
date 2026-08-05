@@ -125,17 +125,37 @@ function EmployeeContent() {
       if (!emp) {
         toast.error('Lỗi', 'Không tìm thấy thông tin tài khoản! Vui lòng báo Admin tạo tài khoản.');
         localStorage.removeItem('chemshoa_employee_name');
+        setEmployee(null);
+      } else if (emp.status === 'off') {
+        toast.error('Tài khoản ngưng hoạt động', `Tài khoản của ${emp.name} đã ngưng hoạt động.`);
+        localStorage.removeItem('chemshoa_employee_name');
+        setEmployee(null);
       } else {
-        setEmployee(emp);
-        localStorage.setItem('chemshoa_employee_name', emp.name);
-        if (showToast) toast.success('Đăng nhập', `Xin chào ${emp.name}!`);
+        // Kiểm tra nếu PIN đã bị Admin thay đổi trên hệ thống
+        const savedPin = localStorage.getItem(`chemshoa_saved_pin_${emp.id}`);
+        const actualPin = emp.pin || '123456';
+
+        if (savedPin && savedPin !== actualPin) {
+          // Mã PIN đã bị Admin đổi -> Xóa bộ nhớ cũ & yêu cầu nhập PIN mới
+          localStorage.removeItem('chemshoa_employee_name');
+          localStorage.removeItem(`chemshoa_saved_pin_${emp.id}`);
+          setEmployee(null);
+          toast.warning('Mã PIN thay đổi', 'Admin đã thay đổi mã PIN của bạn. Vui lòng nhập mã PIN mới!');
+        } else {
+          setEmployee(emp);
+          localStorage.setItem('chemshoa_employee_name', emp.name);
+          if (showToast) toast.success('Đăng nhập', `Xin chào ${emp.name}!`);
+        }
       }
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi', 'Không thể đăng nhập');
+      toast.error('Lỗi', 'Không thể tự động đăng nhập');
+      localStorage.removeItem('chemshoa_employee_name');
+      setEmployee(null);
+    } finally {
+      setAuthLoading(false);
+      setInitialLoading(false);
     }
-    setAuthLoading(false);
-    setInitialLoading(false);
   }
 
   async function handleSelectEmployee(name) {
