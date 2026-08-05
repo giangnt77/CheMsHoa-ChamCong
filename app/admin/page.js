@@ -8,11 +8,13 @@ import VnDatePicker from '@/components/VnDatePicker';
 import { ToastProvider, useToast } from '@/components/Toast';
 import {
   getEmployees,
+  getAllEmployees,
   createEmployee,
   updateEmployeeRate,
   updateEmployeeName,
   updateEmployeePin,
   updateEmployeeCreatedAt,
+  updateEmployeeStatus,
   deleteEmployee,
   getBranches,
   getAvailabilityByDateRange,
@@ -144,6 +146,25 @@ function AdminContent() {
     }
   }
 
+  async function handleUpdateStatus(status) {
+    if (!selectedEmployee) return;
+    try {
+      const updated = await updateEmployeeStatus(selectedEmployee.id, status);
+      setSelectedEmployee(updated);
+      if (status === 'active') {
+        toast.success('Cập nhật trạng thái', `${updated.name}: 🟢 Đang làm (Hiển thị trong bảng xếp lịch)`);
+      } else if (status === 'leave') {
+        toast.warning('Cập nhật trạng thái', `${updated.name}: 🟡 Xin nghỉ ngắn ngày (Ẩn khỏi bảng xếp lịch)`);
+      } else {
+        toast.error('Cập nhật trạng thái', `${updated.name}: 🔴 Off (Ẩn khỏi bảng xếp lịch)`);
+      }
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể cập nhật trạng thái');
+    }
+  }
+
   // Check PIN on mount
   useEffect(() => {
     const saved = sessionStorage.getItem('chemshoa_admin_unlocked');
@@ -171,7 +192,7 @@ function AdminContent() {
     setLoading(true);
     try {
       const [empData, branchData] = await Promise.all([
-        getEmployees(),
+        getAllEmployees(),
         getBranches(),
       ]);
       setEmployees(empData);
@@ -688,6 +709,13 @@ function AdminContent() {
                                     <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${isSelected ? 'bg-purple-800 text-white' : 'bg-purple-100 text-purple-950'}`}>
                                       PIN: {emp.pin || '1234'}
                                     </span>
+                                    {emp.status === 'leave' ? (
+                                      <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300">🟡 Xin nghỉ</span>
+                                    ) : (emp.status === 'off' || emp.is_active === false) ? (
+                                      <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300">🔴 Off</span>
+                                    ) : (
+                                      <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-900 font-black border border-emerald-300">🟢 Làm</span>
+                                    )}
                                   </div>
                                   <div className={`text-[10px] font-bold truncate ${isSelected ? 'text-purple-100' : 'text-purple-700'}`}>
                                     {formatCurrency(emp.hourly_rate || 20000)}/h • Làm từ {formatDateFull(emp.created_at)}
@@ -813,6 +841,23 @@ function AdminContent() {
                                   <span className="text-[10px] bg-purple-100 text-purple-950 px-2 py-0.5 rounded-full font-black border border-purple-200">
                                     PIN: {selectedEmployee.pin || '1234'}
                                   </span>
+
+                                  {/* Select Trạng Thái (Làm - Xin nghỉ - Off) */}
+                                  <select
+                                    value={selectedEmployee.status || (selectedEmployee.is_active !== false ? 'active' : 'off')}
+                                    onChange={(e) => handleUpdateStatus(e.target.value)}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-black outline-none border cursor-pointer ${
+                                      (selectedEmployee.status === 'leave')
+                                        ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                        : (selectedEmployee.status === 'off' || selectedEmployee.is_active === false)
+                                          ? 'bg-rose-100 text-rose-900 border-rose-300'
+                                          : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                    }`}
+                                  >
+                                    <option value="active" className="text-emerald-950 font-bold bg-white">🟢 Làm (Hiện trong bảng xếp lịch)</option>
+                                    <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin nghỉ (ngắn ngày) (Ẩn khỏi bảng xếp lịch)</option>
+                                    <option value="off" className="text-rose-950 font-bold bg-white">🔴 Off (Ẩn khỏi bảng xếp lịch)</option>
+                                  </select>
                                 </>
                               )}
                             </div>
