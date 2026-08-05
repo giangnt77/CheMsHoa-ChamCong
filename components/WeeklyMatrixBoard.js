@@ -412,49 +412,62 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       </div>
 
       {/* =========================================================================
-         BẢNG RIÊNG DÀNH CHO NHÂN VIÊN XIN NGHỈ / OFF TUẦN NÀY (ĐÃ DỜI KHỎI BẢNG CHÍNH)
+         BẢNG RIÊNG DÀNH CHO NHÂN VIÊN XIN NGHỈ / OFF TUẦN NÀY (PHÂN MÀU RÕ RÀNG)
          ========================================================================= */}
       {offEmployees.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 border border-rose-200/90 shadow-2xs space-y-3">
+        <div className="bg-white rounded-2xl p-4 border border-purple-200 shadow-2xs space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="font-black text-xs sm:text-sm text-rose-950 flex items-center gap-2">
-              <span>🛑</span> Danh Sách Nhân Viên Xin Nghỉ / Off Tuần Này ({offEmployees.length} nhân viên)
+            <h3 className="font-black text-xs sm:text-sm text-purple-950 flex items-center gap-2">
+              <span>📋</span> Danh Sách Nhân Viên Xin Nghỉ / Off Tuần Này ({offEmployees.length} nhân viên)
             </h3>
-            <span className="text-[11px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+            <span className="text-[11px] font-extrabold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
               Đã dời khỏi bảng chính để bảng xếp lịch gọn gàng
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {offEmployees.map(({ employee: emp, reason, offDaysCount }) => (
-              <div
-                key={emp.id}
-                className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 flex items-center justify-between gap-2 shadow-2xs"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-black text-sm text-purple-950 truncate">{emp.name}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-rose-100 text-rose-900 border border-rose-300 flex-shrink-0">
-                      {reason}
-                    </span>
-                  </div>
-                  <div className="text-[11px] font-extrabold text-rose-800 mt-1">
-                    🗓️ Số ngày nghỉ: {offDaysCount > 0 ? `${offDaysCount}/7 ngày tuần này` : 'Cả tuần'}
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {offEmployees.map(({ employee: emp, reason, offDaysCount }) => {
+              const isShortLeave = reason.toLowerCase().includes('xin nghỉ');
+              const cardBgClass = isShortLeave
+                ? 'bg-amber-50/80 border-amber-200'
+                : 'bg-rose-50/80 border-rose-200';
+              const badgeClass = isShortLeave
+                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                : 'bg-rose-100 text-rose-900 border-rose-300';
+              const textClass = isShortLeave
+                ? 'text-amber-800'
+                : 'text-rose-800';
 
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => openCellModal(emp, startDate)}
-                    className="px-2.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex-shrink-0"
-                    title="Xếp lịch làm cho nhân viên này"
-                  >
-                    + Xếp lịch
-                  </button>
-                )}
-              </div>
-            ))}
+              return (
+                <div
+                  key={emp.id}
+                  className={`p-3 rounded-xl border flex items-center justify-between gap-2 shadow-2xs ${cardBgClass}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-black text-sm text-purple-950 truncate">{emp.name}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-black border flex-shrink-0 ${badgeClass}`}>
+                        {isShortLeave ? '🟡 ' : '🔴 '}{reason}
+                      </span>
+                    </div>
+                    <div className={`text-[11px] font-extrabold mt-1 ${textClass}`}>
+                      🗓️ Số ngày nghỉ: {offDaysCount > 0 ? `${offDaysCount}/7 ngày tuần này` : 'Cả tuần'}
+                    </div>
+                  </div>
+
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => openCellModal(emp, startDate)}
+                      className="px-2.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex-shrink-0"
+                      title="Xếp lịch làm cho nhân viên này"
+                    >
+                      + Xếp lịch
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
