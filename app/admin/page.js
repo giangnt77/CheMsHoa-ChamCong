@@ -802,14 +802,15 @@ function AdminContent() {
                       <p className="text-xs font-bold text-purple-700">Bảng tính lương chi tiết, tổng số ca làm và số tiền thực nhận sẽ hiển thị ngay tại đây.</p>
                     </div>
                   ) : (
-                    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-200/90 shadow-2xs space-y-4 animate-fade-in">
-                      {/* Top Header: Info + Month Switcher */}
-                      <div className="flex items-center justify-between flex-wrap gap-3 border-b border-purple-100 pb-3">
+                    <div className="bg-white rounded-3xl p-5 border border-purple-200/90 shadow-2xs space-y-4 animate-fade-in">
+                      {/* TOP HEADER: Clean Info + Month Switcher */}
+                      <div className="flex items-start justify-between flex-wrap gap-3 border-b border-purple-100 pb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-purple-700 flex items-center justify-center font-black text-white text-base shadow-2xs flex-shrink-0">
+                          <div className="w-11 h-11 rounded-2xl bg-purple-700 flex items-center justify-center font-black text-white text-base shadow-2xs flex-shrink-0">
                             {getInitials(selectedEmployee.name)}
                           </div>
                           <div>
+                            {/* Line 1: Name + Edit + Status */}
                             <div className="flex items-center gap-2 flex-wrap">
                               {editingName ? (
                                 <div className="flex items-center gap-1">
@@ -817,11 +818,11 @@ function AdminContent() {
                                     type="text"
                                     value={newNameInput}
                                     onChange={(e) => setNewNameInput(e.target.value)}
-                                    className="w-32 px-2 py-0.5 bg-white border border-purple-400 rounded text-purple-950 text-xs font-black outline-none"
+                                    className="w-36 px-2 py-0.5 bg-white border border-purple-400 rounded-lg text-purple-950 text-xs font-black outline-none"
                                     autoFocus
                                   />
-                                  <button onClick={handleUpdateName} className="px-2 py-0.5 rounded bg-emerald-600 text-white text-xs font-black cursor-pointer border-0">Lưu</button>
-                                  <button onClick={() => setEditingName(false)} className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 text-xs border-0 cursor-pointer font-bold">Hủy</button>
+                                  <button onClick={handleUpdateName} className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-xs font-black cursor-pointer border-0">Lưu</button>
+                                  <button onClick={() => setEditingName(false)} className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 text-xs border-0 cursor-pointer font-bold">Hủy</button>
                                 </div>
                               ) : (
                                 <>
@@ -832,21 +833,21 @@ function AdminContent() {
                                         setEditingName(true);
                                         setNewNameInput(selectedEmployee.name);
                                       }}
-                                      className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-950 text-[10px] font-black border border-purple-200 hover:bg-purple-200 cursor-pointer"
-                                      title="Đổi tên nhân viên"
+                                      className="text-purple-400 hover:text-purple-800 bg-transparent border-0 cursor-pointer text-xs"
+                                      title="Sửa tên"
                                     >
-                                      ✏️ Đổi tên
+                                      ✏️
                                     </button>
                                   </h3>
-                                  <span className="text-[10px] bg-purple-100 text-purple-950 px-2 py-0.5 rounded-full font-black border border-purple-200">
+                                  <span className="text-[10px] bg-purple-100 text-purple-950 px-2 py-0.5 rounded-md font-extrabold">
                                     PIN: {selectedEmployee.pin || '1234'}
                                   </span>
 
-                                  {/* Select Trạng Thái (Làm - Xin nghỉ - Off) */}
+                                  {/* Select Trạng Thái (Gọn gàng) */}
                                   <select
                                     value={selectedEmployee.status || (selectedEmployee.is_active !== false ? 'active' : 'off')}
                                     onChange={(e) => handleUpdateStatus(e.target.value)}
-                                    className={`px-2 py-0.5 rounded-full text-[10px] font-black outline-none border cursor-pointer ${
+                                    className={`px-2 py-0.5 rounded-lg text-[11px] font-black outline-none border cursor-pointer ${
                                       (selectedEmployee.status === 'leave')
                                         ? 'bg-amber-100 text-amber-900 border-amber-300'
                                         : (selectedEmployee.status === 'off' || selectedEmployee.is_active === false)
@@ -854,15 +855,16 @@ function AdminContent() {
                                           : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                                     }`}
                                   >
-                                    <option value="active" className="text-emerald-950 font-bold bg-white">🟢 Làm (Hiện trong bảng xếp lịch)</option>
-                                    <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin nghỉ (ngắn ngày) (Ẩn khỏi bảng xếp lịch)</option>
-                                    <option value="off" className="text-rose-950 font-bold bg-white">🔴 Off (Ẩn khỏi bảng xếp lịch)</option>
+                                    <option value="active" className="text-emerald-950 font-bold bg-white">🟢 Làm</option>
+                                    <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin nghỉ (ngắn ngày)</option>
+                                    <option value="off" className="text-rose-950 font-bold bg-white">🔴 Off</option>
                                   </select>
                                 </>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2 mt-0.5 text-xs font-bold text-purple-800 flex-wrap">
+                            {/* Line 2: Subtle Metadata Row (Lương & Ngày vào làm) */}
+                            <div className="flex items-center gap-2 mt-1 text-xs font-bold text-purple-800 flex-wrap">
                               {/* Lương/h */}
                               {editingRate ? (
                                 <div className="flex items-center gap-1">
@@ -878,13 +880,14 @@ function AdminContent() {
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1">
-                                  <span>💵 <strong className="text-purple-950 font-black">{formatCurrency(selectedEmployee.hourly_rate || 20000)}/h</strong></span>
+                                  <span>💵 Lương gốc: <strong className="text-purple-950 font-black">{formatCurrency(selectedEmployee.hourly_rate || 20000)}/h</strong></span>
                                   <button
                                     onClick={() => {
                                       setEditingRate(true);
                                       setNewRate(String(selectedEmployee.hourly_rate || 20000));
                                     }}
-                                    className="px-1 py-0.2 rounded bg-purple-100 text-purple-950 text-[10px] font-black border border-purple-200 hover:bg-purple-200 cursor-pointer"
+                                    className="text-purple-400 hover:text-purple-800 bg-transparent border-0 cursor-pointer text-xs"
+                                    title="Sửa lương gốc"
                                   >
                                     ✏️
                                   </button>
@@ -909,7 +912,8 @@ function AdminContent() {
                                       const dStr = selectedEmployee.created_at ? selectedEmployee.created_at.slice(0, 10) : getToday();
                                       setNewStartDate(dStr);
                                     }}
-                                    className="px-1 py-0.2 rounded bg-purple-100 text-purple-950 text-[10px] font-black border border-purple-200 hover:bg-purple-200 cursor-pointer"
+                                    className="text-purple-400 hover:text-purple-800 bg-transparent border-0 cursor-pointer text-xs"
+                                    title="Sửa ngày vào làm"
                                   >
                                     ✏️
                                   </button>
@@ -920,50 +924,50 @@ function AdminContent() {
                         </div>
 
                         {/* Bộ chuyển tháng */}
-                        <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200 shadow-2xs">
+                        <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1 rounded-2xl border border-purple-200 shadow-2xs">
                           <button onClick={prevMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs bg-transparent border-0 cursor-pointer px-1">◀</button>
-                          <span className="font-black text-xs text-purple-950 min-w-[80px] text-center">{getMonthName(selectedMonth)}</span>
+                          <span className="font-black text-xs text-purple-950 min-w-[85px] text-center">{getMonthName(selectedMonth)}</span>
                           <button onClick={nextMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs bg-transparent border-0 cursor-pointer px-1">▶</button>
                         </div>
                       </div>
 
-                      {/* 5 Thẻ Thống Kê Lương Nổi Bật Nằm Hàng Ngang */}
+                      {/* 5 THẺ THỐNG KÊ LƯƠNG GỌN GÀNG HÀNG NGANG */}
                       {salaryData && (
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                          <div className="bg-purple-50 rounded-xl p-2.5 border border-purple-200 text-center">
+                          <div className="bg-purple-50/70 rounded-2xl p-2.5 border border-purple-200/80 text-center">
                             <div className="text-[10px] text-purple-800 font-black uppercase">🗓️ Ca đã làm</div>
                             <div className="text-xs sm:text-sm font-black text-purple-950 mt-0.5">{salaryData.totalShifts} ca ({salaryData.totalHours}h)</div>
                           </div>
-                          <div className="bg-purple-50 rounded-xl p-2.5 border border-purple-200 text-center">
+                          <div className="bg-purple-50/70 rounded-2xl p-2.5 border border-purple-200/80 text-center">
                             <div className="text-[10px] text-purple-800 font-black uppercase">💵 Lương Ca</div>
                             <div className="text-xs sm:text-sm font-black text-purple-950 mt-0.5">{formatCurrency(salaryData.grossSalary)}</div>
                           </div>
-                          <div className="bg-emerald-50 rounded-xl p-2.5 border border-emerald-200 text-center">
+                          <div className="bg-emerald-50/70 rounded-2xl p-2.5 border border-emerald-200/80 text-center">
                             <div className="text-[10px] text-emerald-800 font-black uppercase">🎁 Thưởng</div>
                             <div className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">+{formatCurrency(salaryData.totalBonus)}</div>
                           </div>
-                          <div className="bg-rose-50 rounded-xl p-2.5 border border-rose-200 text-center">
+                          <div className="bg-rose-50/70 rounded-2xl p-2.5 border border-rose-200/80 text-center">
                             <div className="text-[10px] text-rose-800 font-black uppercase">⚠️ Phạt</div>
                             <div className="text-xs sm:text-sm font-black text-rose-700 mt-0.5">-{formatCurrency(salaryData.totalPenalty)}</div>
                           </div>
-                          <div className="col-span-2 sm:col-span-1 bg-purple-700 rounded-xl p-2.5 text-white text-center shadow-2xs">
+                          <div className="col-span-2 sm:col-span-1 bg-purple-700 rounded-2xl p-2.5 text-white text-center shadow-2xs">
                             <div className="text-[10px] text-purple-200 font-black uppercase">🎉 THỰC NHẬN</div>
                             <div className="text-xs sm:text-sm font-black mt-0.5">{formatCurrency(salaryData.netSalary)}</div>
                           </div>
                         </div>
                       )}
 
-                      {/* LƯỚI SONG SONG 2 CỘT GỌN GÀNG: CA ĐÃ PHÂN CÔNG (TRÁI) & MỐC TĂNG LƯƠNG (PHẢI) */}
+                      {/* SUB-GRID SONG SONG 2 CỘT: CA ĐÃ PHÂN CÔNG & MỐC TĂNG LƯƠNG */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        {/* Cột Trái Sub-Grid: Chi tiết ca đã gán */}
-                        <div className="bg-purple-50/50 p-3 rounded-2xl border border-purple-200/80 space-y-2">
+                        {/* Cột Trái: Ca làm tháng này */}
+                        <div className="bg-purple-50/40 p-3 rounded-2xl border border-purple-200/70 space-y-2">
                           <h4 className="font-black text-xs text-purple-950 flex items-center justify-between">
                             <span>📋 Ca làm tháng này ({empSchedule.length} ca)</span>
                           </h4>
                           {empSchedule.length === 0 ? (
                             <p className="text-xs text-purple-600 font-bold py-4 text-center">Chưa có ca làm nào</p>
                           ) : (
-                            <div className="grid grid-cols-2 gap-1.5 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                            <div className="grid grid-cols-2 gap-1.5 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
                               {empSchedule.map((s) => {
                                 const rawBranchName = s.branches?.name || '';
                                 const displayBranch = (rawBranchName.toLowerCase().includes('thạch lam') || rawBranchName.toLowerCase().includes('thach lam'))
@@ -973,10 +977,10 @@ function AdminContent() {
                                 return (
                                   <div
                                     key={s.id}
-                                    className="p-2 bg-white rounded-xl flex items-center justify-between text-xs border border-purple-200 shadow-2xs"
+                                    className="px-2.5 py-1.5 bg-white rounded-xl flex items-center justify-between text-xs border border-purple-200/80 shadow-2xs"
                                   >
                                     <span className="font-black text-purple-950 text-[11px]">{formatDateShort(s.date)}</span>
-                                    <span className="px-2 py-0.5 rounded-lg text-[10px] font-black text-white bg-purple-700">
+                                    <span className="px-1.5 py-0.2 rounded text-[10px] font-black text-white bg-purple-700">
                                       {displayBranch}
                                     </span>
                                   </div>
@@ -986,8 +990,8 @@ function AdminContent() {
                           )}
                         </div>
 
-                        {/* Cột Phải Sub-Grid: Mốc tăng lương theo mốc ngày */}
-                        <div className="bg-purple-50/50 p-3 rounded-2xl border border-purple-200/80 space-y-2">
+                        {/* Cột Phải: Mốc tăng lương */}
+                        <div className="bg-purple-50/40 p-3 rounded-2xl border border-purple-200/70 space-y-2">
                           <div className="flex items-center justify-between">
                             <h4 className="font-black text-xs text-purple-950">
                               📜 Mốc Tăng Lương
@@ -995,7 +999,7 @@ function AdminContent() {
                             <button
                               type="button"
                               onClick={() => setShowAddRateModal(!showAddRateModal)}
-                              className="px-2 py-0.5 rounded-lg bg-purple-700 text-white text-[10px] font-black cursor-pointer border-0"
+                              className="px-2 py-0.5 rounded-md bg-purple-700 text-white text-[10px] font-black cursor-pointer border-0"
                             >
                               + Thêm mốc
                             </button>
@@ -1025,23 +1029,24 @@ function AdminContent() {
                             </form>
                           )}
 
-                          <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
-                            <div className="px-2.5 py-1 rounded-xl bg-white border border-purple-200 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs">
-                              <span className="text-purple-700 font-black text-[11px]">Mặc định:</span>
+                          <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
+                            <div className="px-2.5 py-1 rounded-xl bg-white border border-purple-200/80 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs">
+                              <span className="text-purple-700 font-bold text-[11px]">Mặc định:</span>
                               <span className="text-[11px] font-black">{formatCurrency(selectedEmployee.hourly_rate || 20000)}/h</span>
                             </div>
                             {empRates.map((r) => (
                               <div
                                 key={r.id}
-                                className="px-2.5 py-1 rounded-xl bg-purple-100 border border-purple-300 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs"
+                                className="px-2.5 py-1 rounded-xl bg-purple-100/70 border border-purple-200 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs"
                               >
-                                <span className="text-[11px]">📅 Từ {r.effective_date.split('-').reverse().slice(0, 2).join('/')}:</span>
+                                <span className="text-[11px] font-bold text-purple-900">📅 Từ {r.effective_date.split('-').reverse().slice(0, 2).join('/')}:</span>
                                 <div className="flex items-center gap-1">
                                   <span className="text-purple-950 text-[11px] font-black">{formatCurrency(r.hourly_rate)}/h</span>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteRate(r.id)}
                                     className="text-rose-600 hover:text-rose-900 bg-transparent border-0 cursor-pointer text-xs font-black ml-1"
+                                    title="Xóa mốc này"
                                   >
                                     ✕
                                   </button>
