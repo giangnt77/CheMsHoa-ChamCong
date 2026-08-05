@@ -176,8 +176,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     const permanentOffList = [];
 
     sortedEmployees.forEach((emp) => {
-      // 1. OFF LUÔN / Nghỉ việc cố định (Bảng Đỏ 🔴)
-      if (emp.status === 'off' || emp.is_active === false) {
+      // 1. NGHỈ VIỆC / OFF CỐ ĐỊNH (Bảng Đỏ 🔴) -> Chỉ khi trạng thái chính xác là 'off'
+      if (emp.status === 'off') {
         permanentOffList.push({
           employee: emp,
           reason: 'Off / Nghỉ việc cố định',
@@ -189,11 +189,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       const empOffDays = weekDays.filter((dStr) => availByEmpAndDate[`${emp.id}_${dStr}`]?.type === 'off');
       const empWeekShifts = weekDays.flatMap((dStr) => scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
 
-      // 2. XIN NGHỈ VÀI NGÀY / Nghỉ ngắn ngày (Bảng Vàng 🟡)
+      // 2. XIN NGHỈ NGẮN NGÀY / NGHỈ VÀI NGÀY (BẢNG VÀNG 🟡) -> Khi status là 'leave' hoặc đăng ký xin nghỉ trong tuần
       if (emp.status === 'leave' || (empOffDays.length > 0 && empWeekShifts.length === 0)) {
         shortLeaveList.push({
           employee: emp,
-          reason: emp.status === 'leave' ? 'Xin nghỉ ngắn ngày' : `Xin nghỉ ${empOffDays.length}/7 ngày`,
+          reason: emp.status === 'leave' ? 'Xin nghỉ ngắn ngày' : `Xin nghỉ ${empOffDays.length}/7 ngày tuần này`,
           offDaysCount: empOffDays.length,
         });
         return;
