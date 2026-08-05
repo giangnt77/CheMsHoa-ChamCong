@@ -180,58 +180,54 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
   return (
     <div className="space-y-3">
-      {/* Thanh điều hướng Tuần & Legend màu Chi Nhánh - Góc Vuông Sang Trọng */}
-      <div className="glass rounded-lg p-3.5 border border-slate-700/80 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-1.5">
+      {/* Thanh điều hướng Tuần & Ghi chú Chi Nhánh - Siêu Gọn & Dễ Nhìn */}
+      <div className="glass rounded-lg px-4 py-3 border border-slate-700/80 flex items-center justify-between flex-wrap gap-3">
+        {/* Bộ chuyển tuần tích hợp 1 dòng */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={prevWeek}
-            className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer transition-all active:scale-95"
+            className="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold border border-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs"
+            title="Tuần trước"
           >
-            ◀ Tuần trước
+            ◀
           </button>
-          <button
-            type="button"
-            onClick={goTodayWeek}
-            className="px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-black border border-amber-500/40 cursor-pointer transition-all active:scale-95"
-          >
-            Tuần này
-          </button>
+
+          <div className="text-xs sm:text-sm font-black text-white px-1">
+            <span>Lịch tuần: </span>
+            <span className="text-amber-400 font-black">{startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}</span>
+          </div>
+
           <button
             type="button"
             onClick={nextWeek}
-            className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 cursor-pointer transition-all active:scale-95"
+            className="w-8 h-8 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold border border-slate-700 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs"
+            title="Tuần sau"
           >
-            Tuần sau ▶
+            ▶
+          </button>
+
+          <button
+            type="button"
+            onClick={goTodayWeek}
+            className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-xs font-black border border-amber-500/40 cursor-pointer ml-1"
+          >
+            Hôm nay
           </button>
         </div>
 
-        <div className="text-xs md:text-sm font-black text-white">
-          📅 Lịch tuần: <span className="text-amber-400 font-black">{startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}</span>
-        </div>
-
-        {/* Legend Chi Nhánh - Phẳng Góc Vuông */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Chú thích màu Chi Nhánh - Dạng Chấm Tròn Tinh Tế, Không Hộp Hộp Dày Dặn Rối Mắt */}
+        <div className="flex items-center flex-wrap gap-3 text-xs font-bold">
           {branches.map((b) => {
             const bColor = getBranchColor(b.name, b.color);
-            const isWhite = bColor.toLowerCase() === '#ffffff';
-
             return (
-              <span
-                key={b.id}
-                className="text-[11px] font-black px-2 py-0.5 rounded border"
-                style={{
-                  backgroundColor: isWhite ? '#ffffff' : `${bColor}30`,
-                  borderColor: isWhite ? '#cbd5e1' : bColor,
-                  color: isWhite ? '#0f172a' : '#ffffff',
-                }}
-              >
+              <div key={b.id} className="flex items-center gap-1.5 text-slate-200 font-extrabold">
                 <span
-                  className="w-2 h-2 rounded-sm inline-block mr-1"
+                  className="w-3 h-3 rounded-sm inline-block shadow-sm"
                   style={{ backgroundColor: bColor }}
                 />
-                {b.name}
-              </span>
+                <span>{b.name}</span>
+              </div>
             );
           })}
         </div>
