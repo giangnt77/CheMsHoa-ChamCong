@@ -422,16 +422,16 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       </div>
 
       {/* =========================================================================
-         BẢNG RIÊNG 1: DANH SÁCH NHÂN VIÊN XIN NGHỈ (NGẮN NGÀY / TRONG TUẦN)
+         BẢNG RIÊNG 1: DANH SÁCH NHÂN VIÊN XIN OFF (TẠM NGHỈ VÀI NGÀY)
          ========================================================================= */}
       {shortLeaveEmployees.length > 0 && (
         <div className="bg-white rounded-2xl p-4 border border-amber-200/90 shadow-2xs space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="font-black text-xs sm:text-sm text-amber-950 flex items-center gap-2">
-              <span>🟡</span> Danh Sách Nhân Viên Xin Nghỉ Tuần Này ({shortLeaveEmployees.length} nhân viên)
+              <span>🟡</span> Danh Sách Nhân Viên Xin Off ({shortLeaveEmployees.length} nhân viên)
             </h3>
             <span className="text-[11px] font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-              Nghỉ tạm thời trong tuần
+              Tạm off vài ngày trong tuần
             </span>
           </div>
 
@@ -449,7 +449,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     </span>
                   </div>
                   <div className="text-[11px] font-extrabold text-amber-800 mt-1">
-                    🗓️ Đã xin nghỉ: {offDaysCount > 0 ? `${offDaysCount}/7 ngày tuần này` : 'Cả tuần'}
+                    🗓️ Đã xin off: {offDaysCount > 0 ? `${offDaysCount}/7 ngày tuần này` : 'Tạm off'}
                   </div>
                 </div>
 
@@ -470,16 +470,16 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       )}
 
       {/* =========================================================================
-         BẢNG RIÊNG 2: DANH SÁCH NHÂN VIÊN OFF / NGHỈ VIỆC
+         BẢNG RIÊNG 2: DANH SÁCH NHÂN VIÊN NGHỈ VIỆC (NGỪNG LÀM / OFF LUÔN)
          ========================================================================= */}
       {permanentOffEmployees.length > 0 && (
         <div className="bg-white rounded-2xl p-4 border border-rose-200/90 shadow-2xs space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="font-black text-xs sm:text-sm text-rose-950 flex items-center gap-2">
-              <span>🔴</span> Danh Sách Nhân Viên Off / Nghỉ Việc ({permanentOffEmployees.length} nhân viên)
+              <span>🔴</span> Danh Sách Nhân Viên Nghỉ Việc ({permanentOffEmployees.length} nhân viên)
             </h3>
             <span className="text-[11px] font-extrabold text-rose-800 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
-              Nghỉ việc / Off cố định
+              Nghỉ luôn / Ngừng làm
             </span>
           </div>
 
@@ -497,7 +497,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     </span>
                   </div>
                   <div className="text-[11px] font-extrabold text-rose-800 mt-1">
-                    ⛔ Đã ngừng xếp lịch làm
+                    ⛔ Đã nghỉ việc / ngưng xếp lịch
                   </div>
                 </div>
 

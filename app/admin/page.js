@@ -224,9 +224,9 @@ function AdminContent() {
       if (status === 'active') {
         toast.success('Cập nhật trạng thái', `${updated.name}: 🟢 Đang làm (Hiển thị trong bảng xếp lịch)`);
       } else if (status === 'leave') {
-        toast.warning('Cập nhật trạng thái', `${updated.name}: 🟡 Xin nghỉ ngắn ngày (Ẩn khỏi bảng xếp lịch)`);
+        toast.warning('Cập nhật trạng thái', `${updated.name}: 🟡 Xin off (Tạm nghỉ vài ngày)`);
       } else {
-        toast.error('Cập nhật trạng thái', `${updated.name}: 🔴 Off (Ẩn khỏi bảng xếp lịch)`);
+        toast.error('Cập nhật trạng thái', `${updated.name}: 🔴 Nghỉ việc (Ngừng xếp lịch làm)`);
       }
       loadInitialData();
     } catch (err) {
@@ -781,9 +781,9 @@ function AdminContent() {
                                       PIN: {emp.pin || '1234'}
                                     </span>
                                     {emp.status === 'leave' ? (
-                                      <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300">🟡 Xin nghỉ</span>
+                                      <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300">🟡 Xin off</span>
                                     ) : (emp.status === 'off' || emp.is_active === false) ? (
-                                      <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300">🔴 Off</span>
+                                      <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300">🔴 Nghỉ việc</span>
                                     ) : (
                                       <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-900 font-black border border-emerald-300">🟢 Làm</span>
                                     )}
@@ -927,8 +927,8 @@ function AdminContent() {
                                     }`}
                                   >
                                     <option value="active" className="text-emerald-950 font-bold bg-white">🟢 Làm</option>
-                                    <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin nghỉ (ngắn ngày)</option>
-                                    <option value="off" className="text-rose-950 font-bold bg-white">🔴 Off</option>
+                                    <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin off (Tạm nghỉ)</option>
+                                    <option value="off" className="text-rose-950 font-bold bg-white">🔴 Nghỉ việc (Nghỉ luôn)</option>
                                   </select>
                                 </>
                               )}
