@@ -53,14 +53,17 @@ function formatBranchDisplayName(name = '') {
   return n;
 }
 
+import ModalSortEmployees from './ModalSortEmployees';
+
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeId, readOnly = false }) {
+export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeId, readOnly = false, onRefreshEmployees }) {
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
   const [branches, setBranches] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showSortModal, setShowSortModal] = useState(false);
 
   // Modal State
   const [modalState, setModalState] = useState({
@@ -113,14 +116,20 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
-  // Sắp xếp danh sách nhân viên: Ưu tiên tên cá nhân lên vị trí #1
+  // Sắp xếp danh sách nhân viên: Ưu tiên sort_order từ Supabase Database 100%
   const sortedEmployees = useMemo(() => {
-    if (!employees) return [];
+    if (!employees || employees.length === 0) return [];
+
     return [...employees].sort((a, b) => {
       if (highlightEmployeeId) {
         if (a.id === highlightEmployeeId) return -1;
         if (b.id === highlightEmployeeId) return 1;
       }
+
+      const orderA = a.sort_order ?? 999;
+      const orderB = b.sort_order ?? 999;
+      if (orderA !== orderB) return orderA - orderB;
+
       return a.name.localeCompare(b.name);
     });
   }, [employees, highlightEmployeeId]);
@@ -264,15 +273,30 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             >
               Hôm nay
             </button>
+
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setShowSortModal(true)}
+                className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-purple-700 text-white hover:bg-purple-800 text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ml-1"
+                title="Bấm để sắp xếp thứ tự hiển thị của từng nhân viên"
+              >
+                <span>↕️</span> Sắp Xếp NV
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Chú thích màu Chi Nhánh - Thẻ Màu Nổi Rõ Ràng */}
+        {/* Chú thích màu Chi Nhánh - Tự động đồng bộ 100% từ DB */}
         <div className="flex items-center flex-wrap gap-1.5 text-xs font-black justify-center sm:justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-purple-100">
           {branches.map((b) => {
             const style = getBranchColorStyle(b.name, b.color);
             return (
-              <div key={b.id} className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-black shadow-2xs ${style.badge}`}>
+              <div
+                key={b.id}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-black border shadow-2xs"
+                style={style.badgeStyle}
+              >
                 <span>{formatBranchDisplayName(b.name)}</span>
               </div>
             );
@@ -281,20 +305,20 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       </div>
 
       {/* =========================================================================
-         BẢNG MA TRẬN PHÂN CÔNG CHÈ Ms HOA • HEADER 1 DÒNG TỐI ƯU • CỐ ĐỊNH CỘT TÊN
+         BẢNG MA TRẬN PHÂN CÔNG CHÈ Ms HOA • HEADER 1 DÒNG TỐI ƯU • CỐ ĐỊNH CỘT TÊN CHE KHẤT 100%
          ========================================================================= */}
-      <div className="bg-white rounded-2xl p-1 border border-purple-200 shadow-2xs overflow-x-auto custom-scrollbar relative">
-        <table className="w-full min-w-[780px] border-collapse text-xs">
+      <div className="bg-white rounded-3xl p-0 border border-purple-200 shadow-xl overflow-x-auto custom-scrollbar relative">
+        <table className="w-full min-w-[980px] border-collapse text-xs">
           <thead>
-            {/* Header 1 Dòng Duy Nhất: Tên Nhân Viên + T2 (03/08) -> CN (09/08) */}
-            <tr className="bg-purple-200 text-purple-950 border-b border-purple-300">
-              <th className="py-2.5 px-3 border-r-2 border-purple-300 w-36 sm:w-44 text-left font-black sticky left-0 bg-purple-200 z-20 text-xs sm:text-sm shadow-[3px_0_6px_-2px_rgba(107,33,168,0.1)]">
+            {/* Hàng 1: Tên Thứ (T2 -> CN) */}
+            <tr className="bg-purple-900 text-white border-b border-purple-800">
+              <th className="py-3 px-3 border-r-2 border-purple-300 w-36 sm:w-44 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)]">
                 NHÂN VIÊN
               </th>
               {weekDays.map((dStr, idx) => (
-                <th key={dStr} className="py-2.5 px-1.5 border-r border-purple-300 text-center font-black text-purple-950 text-xs sm:text-sm min-w-[105px]">
-                  <div className="font-black text-sm uppercase">{DAY_LABELS[idx]}</div>
-                  <div className="text-[11px] font-black text-purple-900">{dStr.split('-').reverse().slice(0, 2).join('/')}</div>
+                <th key={dStr} className="py-2.5 px-2 border-r border-purple-800 text-center font-black uppercase text-amber-300 text-xs sm:text-sm">
+                  <div>{DAY_LABELS[idx]}</div>
+                  <div className="text-[11px] font-extrabold text-purple-200 mt-0.5">{dStr.split('-').reverse().slice(0, 2).join('/')}</div>
                 </th>
               ))}
             </tr>
@@ -327,8 +351,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     key={emp.id}
                     className={`border-b border-purple-100 transition-all ${rowBgClass} hover:bg-purple-100`}
                   >
-                    {/* Tên Nhân Viên - FIXED STICKY LEFT WITH SOLID 100% OPAQUE BACKGROUND */}
-                    <td className={`py-3 px-3 border-r-2 border-purple-300 font-black text-purple-950 text-sm sm:text-base sticky left-0 z-20 ${rowBgClass} shadow-[3px_0_6px_-2px_rgba(107,33,168,0.1)]`}>
+                    {/* Tên Nhân Viên - CHE KHẤT 100% MỌI NỘI DUNG CUỘN PHÍA TRÁI */}
+                    <td className={`py-3 px-3 border-r-2 border-purple-300 font-black text-purple-950 text-sm sm:text-base sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)]`}>
                       <div className="flex items-center gap-1 truncate">
                         {isMe && <span className="text-purple-700 text-sm">⭐</span>}
                         <span className={isMe ? 'text-purple-950 font-black text-sm sm:text-base' : 'text-purple-950 font-extrabold text-sm sm:text-base'}>
@@ -352,7 +376,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                           }`}
                         >
                           {empShifts.length > 0 ? (
-                            /* Có Ca Phân Công -> Phô diễn màu sắc tươi sáng, chữ to rõ */
+                            /* Có Ca Phân Công -> Phô diễn màu sắc tươi sáng chuẩn DB 100% */
                             <div className="space-y-1">
                               {empShifts.map((shift) => {
                                 const style = getBranchColorStyle(shift.branches?.name, shift.branches?.color);
@@ -364,12 +388,12 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 return (
                                   <div
                                     key={shift.id}
-                                    className={`p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border shadow-2xs transition-all hover:scale-[1.02] ${style.badge}`}
+                                    className="p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border shadow-2xs transition-all hover:scale-[1.02]"
+                                    style={style.badgeStyle}
                                   >
                                     <div className="text-xs font-black tracking-tight">{timeRange}</div>
-                                    <div className="text-[11px] font-black opacity-95 mt-0.5 flex items-center justify-center gap-1">
-                                      <span>CN {branchDisplayName}</span>
-                                      <span className="opacity-80">({shift.hours || 5}h)</span>
+                                    <div className="text-xs font-black opacity-95 mt-0.5">
+                                      {branchDisplayName}
                                     </div>
                                     {shift.note && (
                                       <div className="text-[10px] font-extrabold italic opacity-90 truncate mt-0.5">
@@ -381,14 +405,16 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                               })}
                             </div>
                           ) : (
-                            /* Ô Ngày Trống / Không có ca */
+                            /* Ô Ngày Trống / Không có ca -> Hiện chữ thông báo OFF rõ ràng */
                             <div className="py-1 text-center">
                               {!readOnly && empAvail ? (
                                 <div className="text-[11px] font-black text-purple-700 truncate">
                                   {empAvail.type === 'full' ? '💪 Cả ngày' : empAvail.type === 'off' ? '🛑 Xin nghỉ' : `📝 ${empAvail.note || 'Tùy ca'}`}
                                 </div>
                               ) : (
-                                <span className="text-purple-300 font-extrabold text-xs">—</span>
+                                <span className="text-red-600 font-black text-[11px] sm:text-xs uppercase px-2 py-0.5 rounded-md bg-red-50 border border-red-200 inline-block shadow-2xs">
+                                  OFF
+                                </span>
                               )}
                             </div>
                           )}
@@ -516,6 +542,17 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           initialEmployee={modalState.employee}
         />
       )}
+
+      {/* MODAL SẮP XẾP THỨ TỰ NHÂN VIÊN (CHỈNH TÙY Ý HÀNG LỐI THEO CHI NHÁNH) */}
+      <ModalSortEmployees
+        isOpen={showSortModal}
+        onClose={() => setShowSortModal(false)}
+        employees={employees}
+        onSaveSuccess={() => {
+          if (onRefreshEmployees) onRefreshEmployees();
+          loadWeekData();
+        }}
+      />
     </div>
   );
 }

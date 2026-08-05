@@ -73,7 +73,13 @@ function EmployeeContent() {
 
       setEmpRates(rates);
 
-      const myShifts = schedData.filter((s) => s.employee_id === employee.id);
+      // Quy tắc tính lương chuẩn: Chỉ cộng dồn ca làm ĐÃ DIỄN RA (s.date <= getToday())
+      // Các ca tương lai được xếp sẵn chưa đến ngày sẽ KHÔNG bị dồn cộng trước!
+      const todayStr = getToday();
+      const myShifts = schedData.filter(
+        (s) => s.employee_id === employee.id && s.date <= todayStr
+      );
+
       const { totalHours, grossSalary } = calculateSalaryFromShifts(
         myShifts,
         rates,
@@ -271,7 +277,7 @@ function EmployeeContent() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-0.5">
                 <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/70 text-center">
-                  <div className="text-xs text-purple-700 font-bold mb-0.5">⏱️ Tổng giờ làm</div>
+                  <div className="text-xs text-purple-700 font-bold mb-0.5">⏱️ Đã làm (tính đến hôm nay)</div>
                   <div className="text-lg sm:text-xl font-black text-purple-800">{monthlyHours} <span className="text-xs font-normal text-purple-600">tiếng</span> ({monthlyShiftsCount} ca)</div>
                 </div>
                 <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/70 text-center">
@@ -279,7 +285,7 @@ function EmployeeContent() {
                   <div className="text-lg sm:text-xl font-black text-purple-950">{formatCurrency(currentRate)}<span className="text-xs font-normal text-purple-600">/h</span></div>
                 </div>
                 <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/80 text-center">
-                  <div className="text-xs text-emerald-700 font-black mb-0.5">💰 Lương ước tính</div>
+                  <div className="text-xs text-emerald-700 font-black mb-0.5">💰 Lương tích lũy hôm nay</div>
                   <div className="text-lg sm:text-xl font-black text-emerald-700">{formatCurrency(monthlySalary)}</div>
                 </div>
               </div>

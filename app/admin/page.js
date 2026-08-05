@@ -31,6 +31,7 @@ import {
   addEmployeeRate,
   deleteEmployeeRate,
   calculateSalaryFromShifts,
+  updateEmployeeContactInfo,
 } from '@/lib/supabase';
 import {
   getCurrentMonth,
@@ -43,6 +44,8 @@ import {
   getBranchColorStyle,
 } from '@/lib/utils';
 
+import ModalSortEmployees from '@/components/ModalSortEmployees';
+
 function AdminContent() {
   const toast = useToast();
 
@@ -50,6 +53,7 @@ function AdminContent() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
+  const [showSortEmpModal, setShowSortEmpModal] = useState(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'employees' | 'salary' | 'penalty'
@@ -85,6 +89,74 @@ function AdminContent() {
   const [newPinInput, setNewPinInput] = useState('');
   const [editingStartDate, setEditingStartDate] = useState(false);
   const [newStartDate, setNewStartDate] = useState(getToday());
+
+  // Contact & CCCD State cho selectedEmployee
+  const [editingContactInfo, setEditingContactInfo] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [relativePhoneInput, setRelativePhoneInput] = useState('');
+  const [contactInfo, setContactInfo] = useState({ phone: '', relative_phone: '', cccd_url: '' });
+  const [previewCccdUrl, setPreviewCccdUrl] = useState(null);
+
+  // Load contact info & CCCD khi chọn nhân viên 100% từ Supabase
+  useEffect(() => {
+    if (selectedEmployee) {
+      setContactInfo({
+        phone: selectedEmployee.phone || '',
+        relative_phone: selectedEmployee.relative_phone || '',
+        cccd_url: selectedEmployee.cccd_url || '',
+      });
+      setEditingContactInfo(false);
+    }
+  }, [selectedEmployee]);
+
+  async function handleSaveContactInfo(e) {
+    e.preventDefault();
+    if (!selectedEmployee) return;
+    try {
+      const updated = await updateEmployeeContactInfo(selectedEmployee.id, {
+        phone: phoneInput.trim(),
+        relative_phone: relativePhoneInput.trim(),
+      });
+      setContactInfo({
+        phone: updated.phone || phoneInput.trim(),
+        relative_phone: updated.relative_phone || relativePhoneInput.trim(),
+        cccd_url: updated.cccd_url || contactInfo.cccd_url,
+      });
+      setSelectedEmployee((prev) => ({
+        ...prev,
+        phone: updated.phone || phoneInput.trim(),
+        relative_phone: updated.relative_phone || relativePhoneInput.trim(),
+      }));
+      setEditingContactInfo(false);
+      toast.success('Đã lưu Supabase', 'Cập nhật thông tin liên hệ thành công!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể lưu thông tin liên hệ lên Supabase!');
+    }
+  }
+
+  async function handleUploadCccdImage(e) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedEmployee) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result;
+      if (dataUrl) {
+        try {
+          const updated = await updateEmployeeContactInfo(selectedEmployee.id, {
+            cccd_url: dataUrl,
+          });
+          setContactInfo((prev) => ({ ...prev, cccd_url: updated.cccd_url || dataUrl }));
+          setSelectedEmployee((prev) => ({ ...prev, cccd_url: updated.cccd_url || dataUrl }));
+          toast.success('Đã lưu Supabase', 'Đã lưu ảnh Căn cước công dân lên Supabase!');
+        } catch (err) {
+          console.error(err);
+          toast.error('Lỗi', 'Không thể lưu ảnh CCCD lên Supabase!');
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  }
 
   // Create New Employee State
   const [showAddEmpModal, setShowAddEmpModal] = useState(false);
@@ -1128,6 +1200,119 @@ function AdminContent() {
                           </div>
                         </div>
                       </div>
+
+                      {/* SUB-GRID SONG SONG 2 CỘT MỚI: 📞 THÔNG TIN LIÊN LẠC & 🆔 CĂN CƯỚC CÔNG DÂN (CCCD) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-purple-100">
+                        {/* Ô 1: 📞 Thông Tin Liên Lạc (SĐT & SĐT Người Thân) */}
+                        <div className="bg-purple-50/40 p-3 rounded-2xl border border-purple-200/70 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-xs text-purple-950 flex items-center gap-1.5">
+                              <span>📞</span> Thông Tin Liên Lạc
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingContactInfo(!editingContactInfo);
+                                setPhoneInput(contactInfo.phone || '');
+                                setRelativePhoneInput(contactInfo.relative_phone || '');
+                              }}
+                              className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-950 hover:bg-purple-200 text-[10px] font-black cursor-pointer border border-purple-300 transition-all"
+                            >
+                              {editingContactInfo ? 'Hủy' : '✏️ Sửa liên hệ'}
+                            </button>
+                          </div>
+
+                          {editingContactInfo ? (
+                            <form onSubmit={handleSaveContactInfo} className="p-2.5 bg-white rounded-xl border border-purple-300 space-y-2 animate-fade-in shadow-2xs">
+                              <div>
+                                <label className="block text-[10px] font-black text-purple-900 mb-0.5">SĐT Nhân Viên:</label>
+                                <input
+                                  type="text"
+                                  value={phoneInput}
+                                  onChange={(e) => setPhoneInput(e.target.value)}
+                                  placeholder="VD: 0901234567"
+                                  className="w-full px-2 py-1 bg-purple-50 border border-purple-200 rounded text-purple-950 text-xs font-bold outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-black text-purple-900 mb-0.5">SĐT Người Thân (Mẹ/Cha...):</label>
+                                <input
+                                  type="text"
+                                  value={relativePhoneInput}
+                                  onChange={(e) => setRelativePhoneInput(e.target.value)}
+                                  placeholder="VD: 0909876543 (Mẹ)"
+                                  className="w-full px-2 py-1 bg-purple-50 border border-purple-200 rounded text-purple-950 text-xs font-bold outline-none"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-1 pt-1">
+                                <button type="button" onClick={() => setEditingContactInfo(false)} className="px-2 py-0.5 rounded bg-purple-100 text-[10px] text-purple-900 font-bold border-0">Hủy</button>
+                                <button type="submit" className="px-2.5 py-0.5 rounded bg-purple-700 text-white text-[10px] font-black border-0">Lưu Thông Tin</button>
+                              </div>
+                            </form>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <div className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200/80 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs">
+                                <span className="text-purple-700 font-bold text-[11px]">📱 SĐT Nhân Viên:</span>
+                                <span className="text-[11px] font-black text-purple-950">
+                                  {contactInfo.phone ? (
+                                    <a href={`tel:${contactInfo.phone}`} className="hover:underline text-purple-900">{contactInfo.phone}</a>
+                                  ) : (
+                                    <span className="text-purple-400 italic font-normal">Chưa nhập</span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200/80 text-xs font-black text-purple-950 flex items-center justify-between shadow-2xs">
+                                <span className="text-purple-700 font-bold text-[11px]">👨‍👩‍👧 SĐT Người Thân:</span>
+                                <span className="text-[11px] font-black text-purple-950">
+                                  {contactInfo.relative_phone ? (
+                                    <a href={`tel:${contactInfo.relative_phone.split(' ')[0]}`} className="hover:underline text-purple-900">{contactInfo.relative_phone}</a>
+                                  ) : (
+                                    <span className="text-purple-400 italic font-normal">Chưa nhập</span>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Ô 2: 🆔 Căn Cước Công Dân (Hình Ảnh CCCD) */}
+                        <div className="bg-purple-50/40 p-3 rounded-2xl border border-purple-200/70 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-xs text-purple-950 flex items-center gap-1.5">
+                              <span>🆔</span> Căn Cước Công Dân (CCCD)
+                            </h4>
+                            <label className="px-2 py-0.5 rounded-md bg-purple-700 text-white hover:bg-purple-800 text-[10px] font-black cursor-pointer shadow-2xs border-0 transition-all flex items-center gap-1">
+                              <span>📸</span> {contactInfo.cccd_url ? 'Đổi ảnh' : '+ Tải ảnh'}
+                              <input type="file" accept="image/*" onChange={handleUploadCccdImage} className="hidden" />
+                            </label>
+                          </div>
+
+                          {contactInfo.cccd_url ? (
+                            <div className="relative group rounded-xl overflow-hidden border border-purple-200 bg-slate-100/80 shadow-2xs">
+                              <img
+                                src={contactInfo.cccd_url}
+                                alt="CCCD Nhân Viên"
+                                onClick={() => setPreviewCccdUrl(contactInfo.cccd_url)}
+                                className="w-full h-36 object-contain cursor-pointer transition-all hover:scale-102 p-1"
+                              />
+                              <div className="absolute inset-0 bg-purple-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all pointer-events-none">
+                                <span className="text-white text-xs font-black bg-purple-900/90 px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1">
+                                  <span>🔍</span> Phóng To Xem Chi Tiết
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="border-2 border-dashed border-purple-200 rounded-xl p-3 text-center bg-white">
+                              <span className="text-xl opacity-40">🪪</span>
+                              <p className="text-[11px] font-bold text-purple-500 mt-0.5">Chưa có ảnh CCCD nhân viên</p>
+                              <label className="inline-block mt-1 px-3 py-1 rounded-lg bg-purple-100 text-purple-950 hover:bg-purple-200 text-[10px] font-black cursor-pointer border border-purple-300">
+                                📸 Tải ảnh CCCD từ máy
+                                <input type="file" accept="image/*" onChange={handleUploadCccdImage} className="hidden" />
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1465,6 +1650,32 @@ function AdminContent() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* MODAL SẮP XẾP THỨ TỰ NHÂN VIÊN */}
+          <ModalSortEmployees
+            isOpen={showSortEmpModal}
+            onClose={() => setShowSortEmpModal(false)}
+            employees={employees}
+            onSaveSuccess={() => {
+              loadEmployeeData();
+            }}
+          />
+          {/* MODAL PHÓNG TO XEM ẢNH CCCD SẮC NÉT (KÍCH THƯỚC LỚN RÕ RÀNG) */}
+          {previewCccdUrl && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xs animate-fade-in" onClick={() => setPreviewCccdUrl(null)}>
+              <div className="relative max-w-4xl w-full max-h-[92vh] bg-white rounded-3xl p-4 shadow-2xl space-y-3 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between w-full border-b border-purple-100 pb-2.5 px-1 shrink-0">
+                  <h3 className="font-black text-sm sm:text-base text-purple-950 flex items-center gap-2">
+                    <span>🆔</span> Ảnh Căn Cước Công Dân — {selectedEmployee?.name}
+                  </h3>
+                  <button onClick={() => setPreviewCccdUrl(null)} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border-0 cursor-pointer flex items-center justify-center">✕</button>
+                </div>
+                <div className="overflow-auto flex-1 flex items-center justify-center p-1 w-full max-h-[82vh]">
+                  <img src={previewCccdUrl} alt="CCCD Phóng To" className="max-h-[80vh] max-w-full w-auto h-auto rounded-2xl object-contain shadow-xl border border-purple-200" />
+                </div>
+              </div>
             </div>
           )}
         </div>
