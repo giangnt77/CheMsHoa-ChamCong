@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import ScheduleCalendar from '@/components/ScheduleCalendar';
 import WeeklyMatrixBoard from '@/components/WeeklyMatrixBoard';
+import WeeklySalaryReportBoard from '@/components/WeeklySalaryReportBoard';
 import VnDatePicker from '@/components/VnDatePicker';
 import { ToastProvider, useToast } from '@/components/Toast';
 import {
@@ -653,9 +654,10 @@ function AdminContent() {
           </div>
 
           {/* Segmented Control Navigation Tabs - Purple Brand Bar */}
-          <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 max-w-3xl mx-auto animate-fade-in shadow-2xs">
+          <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 max-w-4xl mx-auto animate-fade-in shadow-2xs">
             {[
               { id: 'schedule', label: '📅 Xếp Lịch' },
+              { id: 'salary_report', label: '💵 Báo Cáo Lương Tuần' },
               { id: 'employees', label: '👥 Nhân viên & Lương' },
               { id: 'penalty', label: '⚠️ Thưởng & Phạt' },
               { id: 'branches', label: '🏢 Chi Nhánh' },
@@ -678,6 +680,13 @@ function AdminContent() {
             <div className="animate-fade-in">
               {/* Bảng Ma Trận Xếp Lịch Theo Tuần Cho 5 Chi Nhánh Tinh Gọn */}
               <WeeklyMatrixBoard employees={employees} toast={toast} />
+            </div>
+          )}
+
+          {/* ============ TAB: SALARY REPORT (BÁO CÁO LƯƠNG TUẦN CỦA TOÀN TIỆM) ============ */}
+          {activeTab === 'salary_report' && (
+            <div className="animate-fade-in">
+              <WeeklySalaryReportBoard employees={employees} toast={toast} />
             </div>
           )}
 
