@@ -164,6 +164,42 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     return map;
   }, [availability]);
 
+  // Phân loại danh sách nhân viên:
+  // 1. matrixEmployees: Nhân viên đi làm -> Hiện trong bảng ma trận xếp lịch chính
+  // 2. offEmployees: Nhân viên có trạng thái 'leave', 'off' hoặc xin nghỉ cả tuần -> Dời sang bảng riêng bên dưới
+  const { matrixEmployees, offEmployees } = useMemo(() => {
+    if (!sortedEmployees) return { matrixEmployees: [], offEmployees: [] };
+
+    const matrix = [];
+    const offList = [];
+
+    sortedEmployees.forEach((emp) => {
+      // 1. Trạng thái cá nhân trong database là 'leave' hoặc 'off'
+      const isStatusOff = emp.status === 'leave' || emp.status === 'off' || emp.is_active === false;
+
+      // 2. Số ca đã phân công & số ngày đăng ký xin nghỉ tuần này
+      const empWeekShifts = weekDays.flatMap((dStr) => scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
+      const empOffDays = weekDays.filter((dStr) => availByEmpAndDate[`${emp.id}_${dStr}`]?.type === 'off');
+
+      // Nếu bị set off/leave HOẶC (chưa được phân công ca nào và đăng ký xin nghỉ 4+ ngày trong tuần)
+      if (isStatusOff || (empWeekShifts.length === 0 && empOffDays.length >= 4)) {
+        offList.push({
+          employee: emp,
+          reason: emp.status === 'leave'
+            ? 'Xin nghỉ ngắn ngày'
+            : (emp.status === 'off' || emp.is_active === false)
+              ? 'Off / Nghỉ việc'
+              : 'Xin nghỉ trong tuần',
+          offDaysCount: empOffDays.length,
+        });
+      } else {
+        matrix.push(emp);
+      }
+    });
+
+    return { matrixEmployees: matrix, offEmployees: offList };
+  }, [sortedEmployees, weekDays, availByEmpAndDate, scheduleByEmpAndDate]);
+
   async function handleSaveModal(data) {
     try {
       await upsertSchedule(data);
@@ -278,14 +314,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                 </td>
               </tr>
-            ) : sortedEmployees.length === 0 ? (
+            ) : matrixEmployees.length === 0 ? (
               <tr>
                 <td colSpan={8} className="text-center py-10 text-purple-600 italic font-bold">
-                  Chưa có nhân viên nào trong hệ thống.
+                  Không có nhân viên đi làm tuần này.
                 </td>
               </tr>
             ) : (
-              sortedEmployees.map((emp, idx) => {
+              matrixEmployees.map((emp, idx) => {
                 const isMe = emp.id === highlightEmployeeId;
 
                 const rowBgClass = isMe
@@ -374,6 +410,54 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           </tbody>
         </table>
       </div>
+
+      {/* =========================================================================
+         BẢNG RIÊNG DÀNH CHO NHÂN VIÊN XIN NGHỈ / OFF TUẦN NÀY (ĐÃ DỜI KHỎI BẢNG CHÍNH)
+         ========================================================================= */}
+      {offEmployees.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-rose-200/90 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="font-black text-xs sm:text-sm text-rose-950 flex items-center gap-2">
+              <span>🛑</span> Danh Sách Nhân Viên Xin Nghỉ / Off Tuần Này ({offEmployees.length} nhân viên)
+            </h3>
+            <span className="text-[11px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+              Đã dời khỏi bảng chính để bảng xếp lịch gọn gàng
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {offEmployees.map(({ employee: emp, reason, offDaysCount }) => (
+              <div
+                key={emp.id}
+                className="p-3 rounded-xl bg-rose-50/70 border border-rose-200 flex items-center justify-between gap-2 shadow-2xs"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-sm text-purple-950 truncate">{emp.name}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-rose-100 text-rose-900 border border-rose-300 flex-shrink-0">
+                      {reason}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-extrabold text-rose-800 mt-1">
+                    🗓️ Số ngày nghỉ: {offDaysCount > 0 ? `${offDaysCount}/7 ngày tuần này` : 'Cả tuần'}
+                  </div>
+                </div>
+
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => openCellModal(emp, startDate)}
+                    className="px-2.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex-shrink-0"
+                    title="Xếp lịch làm cho nhân viên này"
+                  >
+                    + Xếp lịch
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* MODAL XẾP LỊCH QUICK KHI BẤM VÀO Ô BẤT KỲ */}
       {modalState.isOpen && (
