@@ -10,6 +10,7 @@ import {
   getEmployees,
   createEmployee,
   updateEmployeeRate,
+  updateEmployeeName,
   updateEmployeePin,
   updateEmployeeCreatedAt,
   deleteEmployee,
@@ -69,7 +70,9 @@ function AdminContent() {
   const [penaltyReason, setPenaltyReason] = useState('');
   const [recordType, setRecordType] = useState('bonus'); // 'bonus' | 'penalty'
 
-  // Rate, PIN & Start Date edit
+  // Name, Rate, PIN & Start Date edit
+  const [editingName, setEditingName] = useState(false);
+  const [newNameInput, setNewNameInput] = useState('');
   const [editingRate, setEditingRate] = useState(false);
   const [newRate, setNewRate] = useState('');
   const [editingPinEmpId, setEditingPinEmpId] = useState(null);
@@ -110,6 +113,20 @@ function AdminContent() {
     } catch (err) {
       console.error(err);
       toast.error('Lỗi', 'Không thể tạo nhân viên mới!');
+    }
+  }
+
+  async function handleUpdateName() {
+    if (!newNameInput.trim() || !selectedEmployee) return;
+    try {
+      const updated = await updateEmployeeName(selectedEmployee.id, newNameInput.trim());
+      setSelectedEmployee(updated);
+      setEditingName(false);
+      toast.success('Đổi tên nhân viên', `Tên mới: ${updated.name}`);
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể đổi tên (có thể tên bị trùng)');
     }
   }
 
@@ -766,12 +783,38 @@ function AdminContent() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-black text-base text-purple-950">
-                                {selectedEmployee.name}
-                              </h3>
-                              <span className="text-[10px] bg-purple-100 text-purple-950 px-2 py-0.5 rounded-full font-black border border-purple-200">
-                                PIN: {selectedEmployee.pin || '1234'}
-                              </span>
+                              {editingName ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={newNameInput}
+                                    onChange={(e) => setNewNameInput(e.target.value)}
+                                    className="w-32 px-2 py-0.5 bg-white border border-purple-400 rounded text-purple-950 text-xs font-black outline-none"
+                                    autoFocus
+                                  />
+                                  <button onClick={handleUpdateName} className="px-2 py-0.5 rounded bg-emerald-600 text-white text-xs font-black cursor-pointer border-0">Lưu</button>
+                                  <button onClick={() => setEditingName(false)} className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 text-xs border-0 cursor-pointer font-bold">Hủy</button>
+                                </div>
+                              ) : (
+                                <>
+                                  <h3 className="font-black text-base text-purple-950 flex items-center gap-1.5">
+                                    <span>{selectedEmployee.name}</span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingName(true);
+                                        setNewNameInput(selectedEmployee.name);
+                                      }}
+                                      className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-950 text-[10px] font-black border border-purple-200 hover:bg-purple-200 cursor-pointer"
+                                      title="Đổi tên nhân viên"
+                                    >
+                                      ✏️ Đổi tên
+                                    </button>
+                                  </h3>
+                                  <span className="text-[10px] bg-purple-100 text-purple-950 px-2 py-0.5 rounded-full font-black border border-purple-200">
+                                    PIN: {selectedEmployee.pin || '1234'}
+                                  </span>
+                                </>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 mt-0.5 text-xs font-bold text-purple-800 flex-wrap">
