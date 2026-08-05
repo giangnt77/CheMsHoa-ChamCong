@@ -40,6 +40,7 @@ import {
   formatDateFull,
   getInitials,
   getToday,
+  getBranchColorStyle,
 } from '@/lib/utils';
 
 function AdminContent() {
@@ -110,9 +111,10 @@ function AdminContent() {
   }
 
   function handleOpenEditBranch(b) {
+    const style = getBranchColorStyle(b.name, b.color);
     setEditingBranch(b);
     setBranchNameInput(b.name || '');
-    setBranchColorInput(b.color || '#7e22ce');
+    setBranchColorInput(style.hex);
     setBranchAddressInput(b.address || '');
     setBranchSortOrderInput(String(b.sort_order || 1));
     setShowBranchModal(true);
@@ -1336,23 +1338,26 @@ function AdminContent() {
 
               {/* Lưới Chi Nhánh */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {branches.map((b) => (
-                  <div
-                    key={b.id}
-                    className="p-4 rounded-2xl bg-white border border-purple-200 shadow-2xs space-y-3 relative overflow-hidden transition-all hover:border-purple-300"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-4 h-4 rounded-full border border-purple-300 flex-shrink-0 shadow-2xs"
-                          style={{ backgroundColor: b.color || '#7e22ce' }}
-                        />
-                        <h3 className="font-black text-base text-purple-950">{b.name}</h3>
+                {branches.map((b) => {
+                  const style = getBranchColorStyle(b.name, b.color);
+
+                  return (
+                    <div
+                      key={b.id}
+                      className="p-4 rounded-2xl bg-white border border-purple-200 shadow-2xs space-y-3 relative overflow-hidden transition-all hover:border-purple-300"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-4 h-4 rounded-full border border-purple-300 flex-shrink-0 shadow-2xs"
+                            style={{ backgroundColor: style.hex }}
+                          />
+                          <h3 className="font-black text-base text-purple-950">{b.name}</h3>
+                        </div>
+                        <span className="text-[10px] font-black text-purple-900 bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200">
+                          Thứ tự #{b.sort_order || 1}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black text-purple-900 bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200">
-                        Thứ tự #{b.sort_order || 1}
-                      </span>
-                    </div>
 
                     {b.address && (
                       <p className="text-xs font-extrabold text-purple-800 flex items-center gap-1">
@@ -1376,8 +1381,8 @@ function AdminContent() {
                         🗑️ Xóa
                       </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* MODAL THÊM / SỬA CHI NHÁNH */}

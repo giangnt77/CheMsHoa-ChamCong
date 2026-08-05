@@ -8,6 +8,7 @@ import {
   upsertSchedule,
   deleteSchedule,
 } from '@/lib/supabase';
+import { getBranchColorStyle } from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
 
 /**
@@ -41,26 +42,7 @@ function getMondayOfCurrentWeek() {
   return formatDateISO(monday);
 }
 
-function getBranchColorStyle(name = '', fallbackColor = '#d97706') {
-  const n = String(name).toLowerCase().trim();
-  // Solid rich color badges for high clarity & zero eye strain for older employees
-  if (n.includes('tl') || n.includes('thạch lam') || n.includes('thach lam')) {
-    return { badge: 'bg-amber-600 text-white border-amber-700', text: '#92400e', bg: '#fffbe3', border: '#fde68a' }; // Cam Thạch Lam -> TL
-  }
-  if (n.includes('hbd')) {
-    return { badge: 'bg-slate-800 text-white border-slate-900', text: '#1e293b', bg: '#f1f5f9', border: '#cbd5e1' }; // Xám HBD
-  }
-  if (n.includes('a4') || n.includes('aa4')) {
-    return { badge: 'bg-purple-700 text-white border-purple-800', text: '#6b21a8', bg: '#faf5ff', border: '#e9d5ff' }; // Tím A4
-  }
-  if (n.includes('30') || n.includes('30r')) {
-    return { badge: 'bg-emerald-700 text-white border-emerald-800', text: '#166534', bg: '#f0fdf4', border: '#bbf7d0' }; // Xanh lá 30
-  }
-  if (n.includes('38') || n.includes('38v')) {
-    return { badge: 'bg-blue-600 text-white border-blue-700', text: '#075985', bg: '#f0f9ff', border: '#bae6fd' }; // Xanh dương 38
-  }
-  return { badge: 'bg-amber-600 text-white border-amber-700', text: '#92400e', bg: '#fffbe3', border: '#fde68a' };
-}
+
 
 function formatBranchDisplayName(name = '') {
   if (!name) return '';
