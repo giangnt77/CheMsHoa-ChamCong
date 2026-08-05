@@ -17,6 +17,9 @@ import {
   updateEmployeeStatus,
   deleteEmployee,
   getBranches,
+  createBranch,
+  updateBranch,
+  deleteBranch,
   getAvailabilityByDateRange,
   getScheduleByDateRange,
   upsertSchedule,
@@ -88,6 +91,73 @@ function AdminContent() {
   const [addEmpRate, setAddEmpRate] = useState('20000');
   const [addEmpPin, setAddEmpPin] = useState('');
   const [addEmpStartDate, setAddEmpStartDate] = useState(getToday());
+
+  // Branch Management State
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [editingBranch, setEditingBranch] = useState(null);
+  const [branchNameInput, setBranchNameInput] = useState('');
+  const [branchColorInput, setBranchColorInput] = useState('#7e22ce');
+  const [branchAddressInput, setBranchAddressInput] = useState('');
+  const [branchSortOrderInput, setBranchSortOrderInput] = useState('1');
+
+  function handleOpenAddBranch() {
+    setEditingBranch(null);
+    setBranchNameInput('');
+    setBranchColorInput('#7e22ce');
+    setBranchAddressInput('');
+    setBranchSortOrderInput(String(branches.length + 1));
+    setShowBranchModal(true);
+  }
+
+  function handleOpenEditBranch(b) {
+    setEditingBranch(b);
+    setBranchNameInput(b.name || '');
+    setBranchColorInput(b.color || '#7e22ce');
+    setBranchAddressInput(b.address || '');
+    setBranchSortOrderInput(String(b.sort_order || 1));
+    setShowBranchModal(true);
+  }
+
+  async function handleSaveBranch(e) {
+    e.preventDefault();
+    if (!branchNameInput.trim()) return;
+
+    try {
+      const payload = {
+        name: branchNameInput.trim(),
+        color: branchColorInput || '#7e22ce',
+        address: branchAddressInput.trim() || null,
+        sort_order: parseInt(branchSortOrderInput, 10) || 1,
+      };
+
+      if (editingBranch) {
+        await updateBranch(editingBranch.id, payload);
+        toast.success('Thành công', `Đã cập nhật chi nhánh ${branchNameInput}`);
+      } else {
+        await createBranch(payload);
+        toast.success('Thành công', `Đã tạo chi nhánh mới ${branchNameInput}`);
+      }
+
+      setShowBranchModal(false);
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể lưu chi nhánh');
+    }
+  }
+
+  async function handleDeleteBranchItem(branchId, branchName) {
+    if (confirm(`Bạn có chắc chắn muốn XÓA chi nhánh "${branchName}"?`)) {
+      try {
+        await deleteBranch(branchId);
+        toast.success('Đã xóa', `Đã xóa chi nhánh ${branchName}`);
+        loadInitialData();
+      } catch (err) {
+        console.error(err);
+        toast.error('Lỗi', 'Không thể xóa chi nhánh');
+      }
+    }
+  }
 
   function generateRandom6Pin() {
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
@@ -510,11 +580,12 @@ function AdminContent() {
           </div>
 
           {/* Segmented Control Navigation Tabs - Purple Brand Bar */}
-          <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 max-w-2xl mx-auto animate-fade-in shadow-2xs">
+          <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 max-w-3xl mx-auto animate-fade-in shadow-2xs">
             {[
               { id: 'schedule', label: '📅 Xếp Lịch' },
               { id: 'employees', label: '👥 Nhân viên & Lương' },
               { id: 'penalty', label: '⚠️ Thưởng & Phạt' },
+              { id: 'branches', label: '🏢 Chi Nhánh' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1235,6 +1306,170 @@ function AdminContent() {
                         })}
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: QUẢN LÝ CHI NHÁNH */}
+          {activeTab === 'branches' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="bg-white rounded-3xl p-5 border border-purple-200/90 shadow-2xs flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="font-black text-lg text-purple-950 flex items-center gap-2">
+                    <span>🏢</span> Danh Sách Chi Nhánh Hệ Thống ({branches.length} chi nhánh)
+                  </h2>
+                  <p className="text-xs font-bold text-purple-700 mt-0.5">
+                    Thêm, sửa tên, màu sắc hiển thị và thứ tự sắp xếp các chi nhánh
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddBranch}
+                  className="px-4 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs cursor-pointer shadow-xs transition-all active:scale-95 border-0 flex items-center gap-1.5"
+                >
+                  <span>➕</span> Thêm Chi Nhánh Mới
+                </button>
+              </div>
+
+              {/* Lưới Chi Nhánh */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {branches.map((b) => (
+                  <div
+                    key={b.id}
+                    className="p-4 rounded-2xl bg-white border border-purple-200 shadow-2xs space-y-3 relative overflow-hidden transition-all hover:border-purple-300"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-4 h-4 rounded-full border border-purple-300 flex-shrink-0 shadow-2xs"
+                          style={{ backgroundColor: b.color || '#7e22ce' }}
+                        />
+                        <h3 className="font-black text-base text-purple-950">{b.name}</h3>
+                      </div>
+                      <span className="text-[10px] font-black text-purple-900 bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200">
+                        Thứ tự #{b.sort_order || 1}
+                      </span>
+                    </div>
+
+                    {b.address && (
+                      <p className="text-xs font-extrabold text-purple-800 flex items-center gap-1">
+                        📍 <span>{b.address}</span>
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-purple-100">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditBranch(b)}
+                        className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                      >
+                        ✏️ Sửa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteBranchItem(b.id, b.name)}
+                        className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white text-xs font-black border border-rose-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                      >
+                        🗑️ Xóa
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* MODAL THÊM / SỬA CHI NHÁNH */}
+              {showBranchModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white rounded-3xl p-6 border border-purple-200 shadow-xl max-w-md w-full space-y-4 animate-scale-up">
+                    <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                      <h3 className="font-black text-base text-purple-950 flex items-center gap-2">
+                        <span>🏢</span> {editingBranch ? 'Chỉnh Sửa Chi Nhánh' : 'Thêm Chi Nhánh Mới'}
+                      </h3>
+                      <button
+                        onClick={() => setShowBranchModal(false)}
+                        className="text-purple-400 hover:text-purple-950 font-black text-sm bg-transparent border-0 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSaveBranch} className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-black text-purple-900 mb-1">
+                          Tên Chi Nhánh <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={branchNameInput}
+                          onChange={(e) => setBranchNameInput(e.target.value)}
+                          placeholder="VD: Thạch Lam (TL), HBD, A4..."
+                          required
+                          className="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-black text-purple-900 mb-1">
+                            Màu sắc đại diện
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={branchColorInput}
+                              onChange={(e) => setBranchColorInput(e.target.value)}
+                              className="w-10 h-9 p-0.5 bg-white border border-purple-300 rounded-lg cursor-pointer"
+                            />
+                            <span className="text-xs font-mono font-black text-purple-950">{branchColorInput}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-black text-purple-900 mb-1">
+                            Thứ tự hiển thị
+                          </label>
+                          <input
+                            type="number"
+                            value={branchSortOrderInput}
+                            onChange={(e) => setBranchSortOrderInput(e.target.value)}
+                            min={1}
+                            className="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-purple-900 mb-1">
+                          Địa chỉ (Tùy chọn)
+                        </label>
+                        <input
+                          type="text"
+                          value={branchAddressInput}
+                          onChange={(e) => setBranchAddressInput(e.target.value)}
+                          placeholder="VD: 123 Đường Thạch Lam, Q.Tân Phú"
+                          className="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2 border-t border-purple-100">
+                        <button
+                          type="button"
+                          onClick={() => setShowBranchModal(false)}
+                          className="px-4 py-2 rounded-xl bg-purple-100 text-purple-950 font-bold text-xs border-0 cursor-pointer"
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 rounded-xl bg-purple-700 text-white font-black text-xs border-0 cursor-pointer shadow-xs"
+                        >
+                          Lưu Chi Nhánh
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}
