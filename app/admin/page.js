@@ -128,7 +128,6 @@ function AdminContent() {
       const payload = {
         name: branchNameInput.trim(),
         color: branchColorInput || '#7e22ce',
-        address: branchAddressInput.trim() || null,
         sort_order: parseInt(branchSortOrderInput, 10) || 1,
       };
 
@@ -1445,19 +1444,6 @@ function AdminContent() {
                             className="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
                           />
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-black text-purple-900 mb-1">
-                          Địa chỉ (Tùy chọn)
-                        </label>
-                        <input
-                          type="text"
-                          value={branchAddressInput}
-                          onChange={(e) => setBranchAddressInput(e.target.value)}
-                          placeholder="VD: 123 Đường Thạch Lam, Q.Tân Phú"
-                          className="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
-                        />
                       </div>
 
                       <div className="flex justify-end gap-2 pt-2 border-t border-purple-100">
