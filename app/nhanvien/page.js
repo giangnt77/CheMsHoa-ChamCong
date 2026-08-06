@@ -129,12 +129,12 @@ function EmployeeContent() {
     try {
       const emp = await getEmployeeByName(name);
       if (!emp) {
-        toast.error('Lỗi', 'Không tìm thấy thông tin tài khoản! Vui lòng báo Admin tạo tài khoản.');
-        localStorage.removeItem('chemshoa_employee_name');
+        toast.error('Tài khoản đã bị xóa', 'Không tìm thấy tài khoản! Bộ nhớ đệm thiết bị đã được dọn sạch.');
+        localStorage.clear();
         setEmployee(null);
-      } else if (emp.status === 'off') {
+      } else if (emp.status === 'off' || emp.is_active === false) {
         toast.error('Tài khoản ngưng hoạt động', `Tài khoản của ${emp.name} đã ngưng hoạt động.`);
-        localStorage.removeItem('chemshoa_employee_name');
+        localStorage.clear();
         setEmployee(null);
       } else {
         // Kiểm tra nếu PIN đã bị Admin thay đổi trên hệ thống
@@ -156,7 +156,7 @@ function EmployeeContent() {
     } catch (err) {
       console.error(err);
       toast.error('Lỗi', 'Không thể tự động đăng nhập');
-      localStorage.removeItem('chemshoa_employee_name');
+      localStorage.clear();
       setEmployee(null);
     } finally {
       setAuthLoading(false);
@@ -170,7 +170,7 @@ function EmployeeContent() {
 
   function handleLogout() {
     setEmployee(null);
-    localStorage.removeItem('chemshoa_employee_name');
+    localStorage.clear();
   }
 
   // Mức lương hiệu lực hiện tại (tính tới ngày hôm nay)

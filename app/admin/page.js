@@ -843,105 +843,125 @@ function AdminContent() {
                         .map((emp) => {
                           const isSelected = selectedEmployee?.id === emp.id;
                           return (
-                            <div
-                              key={emp.id}
-                              className={`rounded-2xl px-3 py-2 flex items-center justify-between gap-2.5 border cursor-pointer transition-all ${isSelected
-                                  ? 'bg-purple-700 text-white border-purple-700 shadow-2xs'
-                                  : 'bg-white text-purple-950 border-purple-200/90 hover:bg-purple-50'
+                              <div
+                                key={emp.id}
+                                className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all ${
+                                  isSelected
+                                    ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50'
+                                    : 'bg-white text-purple-950 border-purple-200/90 hover:bg-purple-50'
                                 }`}
-                              onClick={() => setSelectedEmployee(emp)}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${isSelected ? 'bg-white text-purple-950' : 'bg-purple-700 text-white'
-                                  }`}>
-                                  {getInitials(emp.name)}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="font-black text-xs sm:text-sm truncate flex items-center gap-1">
-                                    <span>{emp.name}</span>
-                                    <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${isSelected ? 'bg-purple-800 text-white' : 'bg-purple-100 text-purple-950'}`}>
-                                      PIN: {emp.pin || '1234'}
+                                onClick={() => setSelectedEmployee(emp)}
+                              >
+                                {/* Hàng 1: Avatar + Tên + Trạng Thái + Nút Thao Tác */}
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <div
+                                      className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
+                                        isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-purple-700 text-white'
+                                      }`}
+                                    >
+                                      {getInitials(emp.name)}
+                                    </div>
+                                    <span className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
+                                      {emp.name}
                                     </span>
                                     {emp.status === 'leave' ? (
-                                      <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300">🟡 Xin off</span>
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300 flex-shrink-0">🟡 Off</span>
                                     ) : (emp.status === 'off' || emp.is_active === false) ? (
-                                      <span className="text-[9px] px-1 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300">🔴 Nghỉ việc</span>
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300 flex-shrink-0">🔴 Nghỉ</span>
                                     ) : (
-                                      <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-900 font-black border border-emerald-300">🟢 Làm</span>
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-900 font-black border border-emerald-300 flex-shrink-0">🟢 Làm</span>
                                     )}
                                   </div>
-                                  <div className={`text-[10px] font-bold truncate ${isSelected ? 'text-purple-100' : 'text-purple-700'}`}>
-                                    {formatCurrency(emp.hourly_rate || 20000)}/h • Làm từ {formatDateFull(emp.created_at)}
+
+                                  {/* Action buttons (🔑 Đổi PIN & 🗑️ Xóa) */}
+                                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    {editingPinEmpId === emp.id ? (
+                                      <div className="flex items-center gap-1">
+                                        <input
+                                          type="text"
+                                          maxLength={6}
+                                          value={newPinInput}
+                                          onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                                          className="w-14 px-1 py-0.5 bg-white border border-purple-500 rounded text-purple-950 text-xs font-black text-center outline-none"
+                                          autoFocus
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            if (!newPinInput.trim()) return;
+                                            try {
+                                              await updateEmployeePin(emp.id, newPinInput.trim());
+                                              toast.success('Đã lưu PIN', `PIN mới của ${emp.name}: ${newPinInput.trim()}`);
+                                              setEditingPinEmpId(null);
+                                              setNewPinInput('');
+                                              loadInitialData();
+                                            } catch (err) {
+                                              console.error(err);
+                                              toast.error('Lỗi', 'Không thể đổi PIN');
+                                            }
+                                          }}
+                                          className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black border-0 cursor-pointer"
+                                        >
+                                          ✓
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingPinEmpId(emp.id);
+                                            setNewPinInput(emp.pin || '123456');
+                                          }}
+                                          className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
+                                            isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                          }`}
+                                          title="Đổi PIN nhân viên"
+                                        >
+                                          🔑
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}"?`)) {
+                                              try {
+                                                await deleteEmployee(emp.id);
+                                                toast.success('Đã xóa', `Đã xóa ${emp.name}`);
+                                                if (selectedEmployee?.id === emp.id) setSelectedEmployee(null);
+                                                loadInitialData();
+                                              } catch (err) {
+                                                console.error(err);
+                                                toast.error('Lỗi', 'Không thể xóa');
+                                              }
+                                            }
+                                          }}
+                                          className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
+                                            isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                          }`}
+                                          title="Xóa nhân viên"
+                                        >
+                                          🗑️
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Hàng 2: Lương • Ngày Làm • PIN */}
+                                <div className="flex items-center justify-between text-[11px] font-bold mt-1 pt-1 border-t border-purple-100/30">
+                                  <div className={`truncate ${isSelected ? 'text-purple-200' : 'text-purple-700'}`}>
+                                    💰 {formatCurrency(emp.hourly_rate || 20000)}/h • Làm từ {formatDateFull(emp.created_at)}
+                                  </div>
+                                  <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${
+                                    isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-purple-100 text-purple-900'
+                                  }`}>
+                                    PIN: {emp.pin || '123456'}
                                   </div>
                                 </div>
                               </div>
-
-                              {/* Action buttons */}
-                              {editingPinEmpId === emp.id ? (
-                                <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <input
-                                    type="text"
-                                    maxLength={6}
-                                    value={newPinInput}
-                                    onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
-                                    className="w-14 px-1 py-0.5 bg-white border border-purple-500 rounded text-purple-950 text-xs font-black text-center outline-none"
-                                    autoFocus
-                                  />
-                                  <button
-                                    onClick={async () => {
-                                      if (!newPinInput.trim()) return;
-                                      try {
-                                        await updateEmployeePin(emp.id, newPinInput.trim());
-                                        toast.success('Đã lưu PIN', `PIN mới của ${emp.name}: ${newPinInput.trim()}`);
-                                        setEditingPinEmpId(null);
-                                        setNewPinInput('');
-                                        loadInitialData();
-                                      } catch (err) {
-                                        console.error(err);
-                                        toast.error('Lỗi', 'Không thể đổi PIN');
-                                      }
-                                    }}
-                                    className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black border-0 cursor-pointer"
-                                  >
-                                    Lưu
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    onClick={() => {
-                                      setEditingPinEmpId(emp.id);
-                                      setNewPinInput(emp.pin || '1234');
-                                    }}
-                                    className={`p-1 rounded-lg text-xs border cursor-pointer font-bold ${isSelected ? 'bg-purple-800 text-white border-purple-600' : 'bg-purple-50 text-purple-800 border-purple-200'}`}
-                                    title="Đổi PIN"
-                                  >
-                                    🔑
-                                  </button>
-                                  <button
-                                    onClick={async () => {
-                                      if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}"?`)) {
-                                        try {
-                                          await deleteEmployee(emp.id);
-                                          toast.success('Đã xóa', `Đã xóa ${emp.name}`);
-                                          if (selectedEmployee?.id === emp.id) setSelectedEmployee(null);
-                                          loadInitialData();
-                                        } catch (err) {
-                                          console.error(err);
-                                          toast.error('Lỗi', 'Không thể xóa');
-                                        }
-                                      }
-                                    }}
-                                    className={`p-1 rounded-lg text-xs border cursor-pointer font-bold ${isSelected ? 'bg-rose-900 text-rose-200 border-rose-700' : 'bg-rose-50 text-rose-700 border-rose-200'}`}
-                                    title="Xóa nhân viên"
-                                  >
-                                    🗑️
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
                     </div>
                   )}
                 </div>
