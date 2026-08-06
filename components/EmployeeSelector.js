@@ -23,7 +23,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
-  const [rememberPin, setRememberPin] = useState(true); // Checkbox Ghi nhớ mật khẩu
+  const [rememberPin, setRememberPin] = useState(false); // Checkbox Ghi nhớ mật khẩu (Mặc định LUÔN TẮT)
 
   useEffect(() => {
     loadEmployees();
@@ -55,7 +55,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     setSelectedEmp(emp);
     setPinInput('');
     setPinError(false);
-    setRememberPin(true);
+    setRememberPin(false);
   }
 
   // Hủy ghi nhớ PIN trên máy này đối với nhân viên mượn thiết bị
