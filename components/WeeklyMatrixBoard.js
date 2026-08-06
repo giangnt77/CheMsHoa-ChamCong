@@ -352,6 +352,25 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCopyingEmpId(null);
   }
 
+  async function handleCopyShiftFromPrevDay(employeeId, sourceShift, targetDateStr) {
+    try {
+      await upsertSchedule({
+        employeeId: employeeId,
+        branchId: sourceShift.branch_id,
+        date: targetDateStr,
+        startTime: sourceShift.start_time ? sourceShift.start_time.slice(0, 5) : '09:00',
+        endTime: sourceShift.end_time ? sourceShift.end_time.slice(0, 5) : '14:00',
+        hours: sourceShift.hours || 5,
+        note: sourceShift.note || '',
+      });
+      if (toast) toast.success('Đã sao chép ca!', 'Đã copy ca làm ngày hôm trước sang hôm nay!');
+      await loadWeekData();
+    } catch (err) {
+      console.error(err);
+      if (toast) toast.error('Lỗi', 'Không thể sao chép ca làm');
+    }
+  }
+
   async function handleSaveModal(data) {
     try {
       if (data.applyWholeWeek) {
@@ -550,47 +569,34 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                       } ${draggedIdx === idx ? 'bg-purple-200/90 opacity-75 border-purple-500 shadow-xl scale-98' : ''}`}
                       title={isSortMode ? 'Đang bật Sắp Xếp: Chạm/Giữ kéo thả hàng này' : ''}
                     >
-                      <div className="flex items-center justify-between gap-1 min-w-0">
-                        <div className="flex items-center gap-1 truncate min-w-0 flex-1">
-                          {isSortMode && (
-                            <span className="text-amber-600 font-black text-sm select-none touch-none animate-pulse" title="Chạm giữ để kéo hàng">
-                              ≡
-                            </span>
-                          )}
-                          {isMe && <span className="text-purple-700 text-xs" title="Tài khoản của tôi">⭐</span>}
-                          <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'}>
-                            {emp.name}
+                      <div className="flex items-center gap-1.5 truncate min-w-0">
+                        {isSortMode && (
+                          <span className="text-amber-600 font-black text-sm select-none touch-none animate-pulse" title="Chạm giữ để kéo hàng">
+                            ≡
                           </span>
-                        </div>
-
-                        {!readOnly && !isSortMode && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyEmployeePrevWeek(emp);
-                            }}
-                            disabled={copyingEmpId === emp.id}
-                            className="px-1.5 py-0.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-purple-950 font-black text-[10px] border border-amber-500/50 cursor-pointer shadow-2xs flex-shrink-0 transition-all active:scale-95 flex items-center gap-0.5"
-                            title={`Sao chép toàn bộ ca làm tuần trước của ${emp.name} sang tuần này`}
-                          >
-                            <span>📋</span>
-                            <span className="hidden sm:inline">{copyingEmpId === emp.id ? '⏳' : 'Copy'}</span>
-                          </button>
                         )}
+                        {isMe && <span className="text-purple-700 text-xs" title="Tài khoản của tôi">⭐</span>}
+                        <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'}>
+                          {emp.name}
+                        </span>
                       </div>
                     </td>
 
                     {/* 7 Ô Ngày (T2 -> CN) */}
-                    {weekDays.map((dStr) => {
+                    {weekDays.map((dStr, dayIdx) => {
                       const empShifts = scheduleByEmpAndDate[`${emp.id}_${dStr}`] || [];
                       const empAvail = availByEmpAndDate[`${emp.id}_${dStr}`];
+
+                      // Tìm ca của ngày hôm trước (nếu dayIdx > 0)
+                      const prevDateStr = dayIdx > 0 ? weekDays[dayIdx - 1] : null;
+                      const prevDayShifts = prevDateStr ? scheduleByEmpAndDate[`${emp.id}_${prevDateStr}`] || [] : [];
+                      const canCopyFromPrevDay = !readOnly && !isSortMode && empShifts.length === 0 && prevDayShifts.length > 0;
 
                       return (
                         <td
                           key={dStr}
                           onClick={() => openCellModal(emp, dStr, empShifts[0] || null)}
-                          className={`py-1.5 px-1 border-r border-purple-100 text-center align-middle transition-all min-w-[105px] ${
+                          className={`py-2 px-1 border-r border-purple-100 text-center align-middle transition-all min-w-[105px] group ${
                             readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:bg-purple-100/60'
                           }`}
                         >
@@ -624,16 +630,32 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                               })}
                             </div>
                           ) : (
-                            /* Ô Ngày Trống / Không có ca -> Hiện chữ thông báo OFF rõ ràng */
-                            <div className="py-1 text-center">
+                            /* Ô Ngày Trống / Không có ca -> Hiện chữ OFF & NÚT COPY NGÀY HÔM TRƯỚC TINH TẾ */
+                            <div className="py-1 text-center space-y-1">
                               {!readOnly && empAvail ? (
                                 <div className="text-[11px] font-black text-purple-700 truncate">
                                   {empAvail.type === 'full' ? '💪 Cả ngày' : empAvail.type === 'off' ? '🛑 Xin nghỉ' : `📝 ${empAvail.note || 'Tùy ca'}`}
                                 </div>
                               ) : (
-                                <span className="text-red-600 font-black text-[11px] sm:text-xs uppercase px-2 py-0.5 rounded-md bg-red-50 border border-red-200 inline-block shadow-2xs">
+                                <span className="text-red-500 font-black text-[10px] sm:text-[11px] uppercase px-2 py-0.5 rounded-md bg-red-50/80 border border-red-100 inline-block shadow-2xs">
                                   OFF
                                 </span>
+                              )}
+
+                              {/* NÚT SAO CHÉP NHANH TINH TẾ TỪ NGÀY HÔM TRƯỚC */}
+                              {canCopyFromPrevDay && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCopyShiftFromPrevDay(emp.id, prevDayShifts[0], dStr);
+                                  }}
+                                  className="py-0.5 px-2 rounded-lg bg-purple-100 hover:bg-purple-700 text-purple-900 hover:text-white font-black text-[10px] border border-purple-200 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1 mx-auto opacity-80 group-hover:opacity-100 group-hover:scale-105"
+                                  title={`Bấm 1-chạm để sao chép ca làm của ${DAY_LABELS[dayIdx - 1]} sang ${DAY_LABELS[dayIdx]}`}
+                                >
+                                  <span>⚡</span>
+                                  <span>Copy {DAY_LABELS[dayIdx - 1]}</span>
+                                </button>
                               )}
                             </div>
                           )}

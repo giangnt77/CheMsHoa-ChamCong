@@ -634,9 +634,10 @@ function AdminContent() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar
-        title="Chè Ms Hoa Chủ"
+        title="Chè Ms Hoa"
         icon="👑"
-        backHref="/admin"
+        backHref="/nhanvien"
+        homeIcon="👑"
         homeTitle="Quản lý Admin"
         onBackClick={() => setActiveTab('schedule')}
       />
@@ -646,21 +647,18 @@ function AdminContent() {
           {/* Header Bar */}
           <div className="mb-2">
             <h1 className="text-xl md:text-2xl font-black text-purple-950 tracking-tight">
-              <span className="text-purple-700 font-black">Quản Lý</span> Xếp Lịch & Chấm Công 👑
+              <span className="text-purple-700 font-black">Quản Lý</span> Xếp Lịch & Chấm Công
             </h1>
-            <p className="text-xs md:text-sm text-purple-800 font-black mt-0.5">
-              Phân công 5 chi nhánh, xem đăng ký ngày và tính lương
-            </p>
           </div>
 
           {/* Segmented Control Navigation Tabs - Purple Brand Bar */}
           <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 max-w-4xl mx-auto animate-fade-in shadow-2xs">
             {[
-              { id: 'schedule', label: '📅 Xếp Lịch' },
-              { id: 'salary_report', label: '💵 Báo Cáo Lương Tuần' },
-              { id: 'employees', label: '👥 Nhân viên & Lương' },
-              { id: 'penalty', label: '⚠️ Thưởng & Phạt' },
-              { id: 'branches', label: '🏢 Chi Nhánh' },
+              { id: 'schedule', label: 'Xếp Lịch' },
+              { id: 'salary_report', label: 'QL Tính Lương' },
+              { id: 'employees', label: 'QL Nhân Viên' },
+              { id: 'penalty', label: 'Thưởng & Phạt' },
+              { id: 'branches', label: 'Chi Nhánh' },
             ].map((tab) => (
               <button
                 key={tab.id}

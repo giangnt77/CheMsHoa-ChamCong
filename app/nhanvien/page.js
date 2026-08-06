@@ -217,7 +217,7 @@ function EmployeeContent() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar
-        title="Tiệm Chè Ms Hoa"
+        title="Chè Ms Hoa"
         icon="🍵"
         employeeName={employee.name}
         showRulesLink={true}
@@ -237,7 +237,6 @@ function EmployeeContent() {
                 className="px-3 py-1 rounded-full bg-purple-100/80 hover:bg-purple-200 text-purple-900 text-xs font-black border border-purple-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
                 title="Bấm để xem thu nhập cá nhân"
               >
-                <span>💰</span>
                 <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Lương'}</span>
               </button>
             </div>
@@ -252,7 +251,7 @@ function EmployeeContent() {
                     : 'text-purple-900 hover:text-purple-700 font-bold'
                 }`}
               >
-                📅 Lịch Phân Công
+                Lịch Phân Công
               </button>
               <button
                 onClick={() => setView('availability')}
@@ -262,7 +261,7 @@ function EmployeeContent() {
                     : 'text-purple-900 hover:text-purple-700 font-bold'
                 }`}
               >
-                ✋ Đăng Ký Làm
+                Đăng Ký Làm
               </button>
             </div>
           </div>

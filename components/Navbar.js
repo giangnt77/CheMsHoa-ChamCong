@@ -55,7 +55,6 @@ export default function Navbar({
                 className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs border border-amber-500/50 no-underline"
                 title="Bấm để xem Nội Quy - Quy Định - Hướng Dẫn Chè Ms Hoa"
               >
-                <span>📜</span>
                 <span className="hidden sm:inline">Nội Quy & Quy Định</span>
                 <span className="inline sm:hidden">Nội Quy</span>
               </a>
