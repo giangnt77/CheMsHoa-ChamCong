@@ -172,6 +172,12 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     const permanentOffList = [];
 
     sortedEmployees.forEach((emp) => {
+      // 0. Nếu nhân viên mới vào làm SAU KHI tuần này đã kết thúc -> Ẩn tên khỏi bảng tuần cũ này!
+      const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
+      if (empStartDate > endDate) {
+        return; // Chưa gia nhập tiệm ở mốc tuần quá khứ này
+      }
+
       // 1. NGHỈ VIỆC / OFF CỐ ĐỊNH (Bảng Đỏ 🔴) -> Chỉ khi trạng thái chính xác là 'off'
       if (emp.status === 'off') {
         permanentOffList.push({
