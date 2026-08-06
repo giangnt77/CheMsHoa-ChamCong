@@ -679,7 +679,7 @@ function AdminContent() {
           {activeTab === 'schedule' && (
             <div className="animate-fade-in">
               {/* Bảng Ma Trận Xếp Lịch Theo Tuần Cho 5 Chi Nhánh Tinh Gọn */}
-              <WeeklyMatrixBoard employees={employees} toast={toast} />
+              <WeeklyMatrixBoard employees={employees} toast={toast} onRefreshEmployees={loadInitialData} />
             </div>
           )}
 

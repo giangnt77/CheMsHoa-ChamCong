@@ -232,10 +232,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       }));
 
       await updateEmployeesSortOrders(orders);
-      if (toast) toast.success('Đã lưu thứ tự', 'Đồng bộ thứ tự bảng thành công cho cả Admin & Nhân Viên!');
-      if (onRefreshEmployees) onRefreshEmployees();
-      loadWeekData();
+      if (onRefreshEmployees) await onRefreshEmployees();
+      await loadWeekData();
       setIsSortMode(false);
+      if (toast) toast.success('Đã lưu thứ tự', 'Đã cập nhật thứ tự mới cho cả Admin & Nhân Viên!');
     } catch (err) {
       console.error('Lỗi lưu thứ tự lên Supabase:', err);
       if (toast) toast.error('Lỗi', 'Không thể lưu thứ tự nhân viên!');
