@@ -293,10 +293,77 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setDraggedIdx(null);
   }
 
+  const [copyingPrevWeek, setCopyingPrevWeek] = useState(false);
+
+  async function handleCopyPrevWeekSchedule() {
+    const [y, m, d] = currentMonday.split('-').map(Number);
+    const prevMondayObj = new Date(y, m - 1, d - 7);
+    const prevSundayObj = new Date(y, m - 1, d - 1);
+    const prevStartDate = formatDateISO(prevMondayObj);
+    const prevEndDate = formatDateISO(prevSundayObj);
+
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn SAO CHÉP toàn bộ ca làm từ tuần trước (${prevStartDate
+          .split('-')
+          .reverse()
+          .slice(0, 2)
+          .join('/')} - ${prevEndDate.split('-').reverse().slice(0, 2).join('/')}) sang tuần hiện tại?`
+      )
+    ) {
+      return;
+    }
+
+    setCopyingPrevWeek(true);
+    try {
+      const prevSchedData = await getScheduleByDateRange(prevStartDate, prevEndDate);
+      if (!prevSchedData || prevSchedData.length === 0) {
+        if (toast) toast.warning('Trống', 'Tuần liền trước chưa có ca làm nào để sao chép!');
+        setCopyingPrevWeek(false);
+        return;
+      }
+
+      let count = 0;
+      for (const item of prevSchedData) {
+        const itemDate = new Date(item.date + 'T00:00:00');
+        const newDateObj = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate() + 7);
+        const newDateStr = formatDateISO(newDateObj);
+
+        await upsertSchedule({
+          employeeId: item.employee_id,
+          branchId: item.branch_id,
+          date: newDateStr,
+          startTime: item.start_time ? item.start_time.slice(0, 5) : '09:00',
+          endTime: item.end_time ? item.end_time.slice(0, 5) : '14:00',
+          hours: item.hours || 5,
+          note: item.note || '',
+        });
+        count++;
+      }
+
+      await loadWeekData();
+      if (toast) toast.success('Đã sao chép!', `Đã sao chép ${count} ca làm từ tuần trước sang tuần này!`);
+    } catch (err) {
+      console.error(err);
+      if (toast) toast.error('Lỗi', 'Không thể sao chép lịch tuần trước');
+    }
+    setCopyingPrevWeek(false);
+  }
+
   async function handleSaveModal(data) {
     try {
-      await upsertSchedule(data);
-      if (toast) toast.success('Thành công', 'Đã lưu phân công ca làm!');
+      if (data.applyWholeWeek) {
+        for (const dayStr of weekDays) {
+          await upsertSchedule({
+            ...data,
+            date: dayStr,
+          });
+        }
+        if (toast) toast.success('Đã nhân bản!', 'Đã áp dụng ca làm này cho tất cả các ngày trong tuần!');
+      } else {
+        await upsertSchedule(data);
+        if (toast) toast.success('Thành công', 'Đã lưu phân công ca làm!');
+      }
       loadWeekData();
     } catch (err) {
       console.error(err);
@@ -365,6 +432,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             >
               Hôm nay
             </button>
+
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={handleCopyPrevWeekSchedule}
+                disabled={copyingPrevWeek}
+                className="px-3 py-1 sm:py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 text-xs font-black border border-amber-500/50 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                title="Sao chép toàn bộ phân công ca làm của tuần trước đè sang tuần hiện tại đang xem"
+              >
+                <span>📋</span>
+                <span>{copyingPrevWeek ? '⏳ Đang copy...' : 'Copy Lịch Tuần Trước'}</span>
+              </button>
+            )}
 
             {!readOnly && (
               <button

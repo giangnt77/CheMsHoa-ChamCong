@@ -355,13 +355,13 @@ export default function ModalXepLichQuick({
             />
           </div>
 
-          {/* Submit & Delete */}
+          {/* Submit & Apply Whole Week & Delete */}
           <div className="pt-2 space-y-2">
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-xl bg-purple-100 text-purple-900 font-black text-xs cursor-pointer border-0"
+                className="py-3 px-3 rounded-xl bg-purple-100 text-purple-900 font-black text-xs cursor-pointer border-0"
               >
                 Hủy
               </button>
@@ -370,7 +370,32 @@ export default function ModalXepLichQuick({
                 disabled={submitting || !selectedEmpId}
                 className="flex-1 py-3 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs cursor-pointer border-0 shadow-2xs"
               >
-                {submitting ? '⏳ Đang lưu...' : isEditing ? '✅ Cập Nhật Giờ' : '✅ Phân Công Ca'}
+                {submitting ? '⏳ Đang lưu...' : isEditing ? '✅ Cập Nhật Giờ' : '✅ Lưu Ngày Này'}
+              </button>
+              <button
+                type="button"
+                disabled={submitting || !selectedEmpId}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (!selectedEmpId) return;
+                  setSubmitting(true);
+                  await onSave({
+                    employeeId: selectedEmpId,
+                    branchId: selectedBranchId,
+                    date,
+                    startTime,
+                    endTime,
+                    hours,
+                    note,
+                    applyWholeWeek: true,
+                  });
+                  setSubmitting(false);
+                  onClose();
+                }}
+                className="py-3 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 font-black text-xs cursor-pointer border border-amber-500/50 shadow-2xs flex items-center gap-1 active:scale-95"
+                title="Sao chép ca làm này cho tất cả các ngày từ T2 đến Chủ Nhật trong tuần của nhân viên này"
+              >
+                <span>📋</span> Copy Cả Tuần
               </button>
             </div>
 
