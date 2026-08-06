@@ -6,6 +6,7 @@ import {
   getScheduleByDateRange,
   getEmployeeRates,
   calculateSalaryFromShifts,
+  updateEmployeesSortOrders,
 } from '@/lib/supabase';
 import {
   formatCurrency,
@@ -109,6 +110,86 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
     });
   }, [employees]);
 
+  const [customSalaryOrder, setCustomSalaryOrder] = useState([]);
+  const [draggedIdx, setDraggedIdx] = useState(null);
+  const [isSortMode, setIsSortMode] = useState(false);
+  const [savingSort, setSavingSort] = useState(false);
+
+  useEffect(() => {
+    if (sortedEmployees && sortedEmployees.length > 0) {
+      setCustomSalaryOrder(sortedEmployees);
+    }
+  }, [sortedEmployees]);
+
+  async function handleFinishSorting() {
+    if (!customSalaryOrder || customSalaryOrder.length === 0) return;
+    setSavingSort(true);
+    try {
+      const orders = customSalaryOrder.map((emp, i) => ({
+        id: emp.id,
+        sort_order: i + 1,
+      }));
+      await updateEmployeesSortOrders(orders);
+      if (toast) toast.success('Đã lưu thứ tự', 'Đồng bộ thứ tự bảng thành công!');
+      loadWeekSalaryData();
+      setIsSortMode(false);
+    } catch (err) {
+      console.error('Lỗi lưu thứ tự lên Supabase:', err);
+      if (toast) toast.error('Lỗi', 'Không thể lưu thứ tự nhân viên!');
+    }
+    setSavingSort(false);
+  }
+
+  function jumpDirectSalaryPosition(fromIndex, toIndex) {
+    if (toIndex < 0 || toIndex >= customSalaryOrder.length || fromIndex === toIndex) return;
+    const newList = [...customSalaryOrder];
+    const [movedEmp] = newList.splice(fromIndex, 1);
+    newList.splice(toIndex, 0, movedEmp);
+    setCustomSalaryOrder(newList);
+  }
+
+  function handleDirectDragStart(e, index) {
+    if (!isSortMode) return;
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDirectDragOver(e, index) {
+    if (!isSortMode) return;
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === index) return;
+    jumpDirectSalaryPosition(draggedIdx, index);
+    setDraggedIdx(index);
+  }
+
+  function handleDirectDragEnd() {
+    setDraggedIdx(null);
+  }
+
+  function handleDirectTouchStart(e, index) {
+    if (!isSortMode) return;
+    setDraggedIdx(index);
+  }
+
+  function handleDirectTouchMove(e) {
+    if (!isSortMode || draggedIdx === null) return;
+    const touch = e.touches[0];
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!targetElement) return;
+    const cellElement = targetElement.closest('[data-sort-index]');
+    if (cellElement) {
+      const targetIdx = Number(cellElement.getAttribute('data-sort-index'));
+      if (!isNaN(targetIdx) && targetIdx !== draggedIdx) {
+        jumpDirectSalaryPosition(draggedIdx, targetIdx);
+        setDraggedIdx(targetIdx);
+      }
+    }
+  }
+
+  function handleDirectTouchEnd() {
+    setDraggedIdx(null);
+  }
+
   // Index map dữ liệu ca làm theo employeeId_date
   const scheduleByEmpAndDate = useMemo(() => {
     const map = {};
@@ -181,6 +262,35 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
             >
               Hôm nay
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (isSortMode) {
+                  handleFinishSorting();
+                } else {
+                  setIsSortMode(true);
+                }
+              }}
+              disabled={savingSort}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 border-0 ${
+                isSortMode
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse shadow-md font-black'
+                  : 'bg-purple-700 hover:bg-purple-800 text-white font-black'
+              }`}
+              title={isSortMode ? 'Bấm để lưu thứ tự mới cho cả Admin & Nhân Viên' : 'Bấm để bật chế độ kéo thả sắp xếp nhân viên'}
+            >
+              {savingSort ? (
+                '⏳ Đang lưu...'
+              ) : isSortMode ? (
+                <>
+                  <span>✓</span> HOÀN THÀNH SẮP XẾP
+                </>
+              ) : (
+                <>
+                  <span>↕️</span> Sắp Xếp NV
+                </>
+              )}
+            </button>
           </div>
 
           {/* Thẻ Thống Kê Tổng Tiền Lương Tuần Toàn Tiệm */}
@@ -199,9 +309,8 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
       <div className="bg-white rounded-3xl p-0 border border-purple-200 shadow-xl overflow-x-auto custom-scrollbar relative">
         <table className="w-full min-w-[1100px] border-collapse text-xs">
           <thead>
-            {/* Header: NHÂN VIÊN + 7 THỨ + TỔNG LƯƠNG TUẦN */}
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-3 px-3 border-r-2 border-purple-300 w-44 sm:w-52 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)]">
+              <th className="py-2.5 px-2 border-r-2 border-purple-300 w-28 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
                 NHÂN VIÊN
               </th>
               {weekDays.map((dStr, idx) => (
@@ -222,7 +331,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                   <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                 </td>
               </tr>
-            ) : sortedEmployees.length === 0 ? (
+            ) : customSalaryOrder.length === 0 ? (
               <tr>
                 <td colSpan={9} className="text-center py-10 text-purple-600 italic font-bold">
                   Không có nhân viên.
@@ -230,7 +339,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
               </tr>
             ) : (
               <>
-                {sortedEmployees.map((emp, idx) => {
+                {customSalaryOrder.map((emp, idx) => {
                   const empRates = ratesMap[emp.id] || [];
                   const defaultRate = emp.hourly_rate || 20000;
                   const currentWeeklyRate = getEffectiveRateForDate(emp, empRates, endDate);
@@ -240,11 +349,35 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
 
                   return (
                     <tr key={emp.id} className={`border-b border-purple-100 transition-all ${rowBgClass} hover:bg-purple-100/70`}>
-                      {/* Tên Nhân Viên Sticky + Mức Lương Thỏa Thuận Áp Dụng Cho Tuần */}
-                      <td className={`py-3 px-3 border-r-2 border-purple-300 font-black text-purple-950 text-sm sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)]`}>
-                        <div className="font-black text-purple-950 truncate text-sm">{emp.name}</div>
-                        <div className="text-[11px] font-extrabold text-purple-700 mt-0.5">
-                          💵 {formatCurrency(currentWeeklyRate)}/h
+                      {/* Tên Nhân Viên Sticky — CHỈ CHO PHÉP KÉO THẢ KHI BẬT isSortMode */}
+                      <td
+                        data-sort-index={idx}
+                        draggable={isSortMode}
+                        onDragStart={(e) => isSortMode && handleDirectDragStart(e, idx)}
+                        onDragOver={(e) => isSortMode && handleDirectDragOver(e, idx)}
+                        onDragEnd={handleDirectDragEnd}
+                        onTouchStart={(e) => isSortMode && handleDirectTouchStart(e, idx)}
+                        onTouchMove={(e) => isSortMode && handleDirectTouchMove(e)}
+                        onTouchEnd={handleDirectTouchEnd}
+                        className={`py-2.5 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sm:text-sm sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-28 sm:w-36 ${
+                          isSortMode
+                            ? 'cursor-grab active:cursor-grabbing bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
+                            : ''
+                        } ${draggedIdx === idx ? 'bg-purple-200/90 opacity-75 border-purple-500 shadow-xl scale-98' : ''}`}
+                        title={isSortMode ? 'Đang bật Sắp Xếp: Chạm/Giữ kéo thả hàng này' : ''}
+                      >
+                        <div className="flex items-center gap-1 truncate">
+                          {isSortMode && (
+                            <span className="text-amber-600 font-black text-sm select-none touch-none animate-pulse" title="Chạm giữ để kéo hàng">
+                              ≡
+                            </span>
+                          )}
+                          <div className="truncate">
+                            <div className="font-black text-purple-950 truncate text-xs sm:text-sm">{emp.name}</div>
+                            <div className="text-[10px] sm:text-[11px] font-extrabold text-purple-700 mt-0.5">
+                              💵 {formatCurrency(currentWeeklyRate)}/h
+                            </div>
+                          </div>
                         </div>
                       </td>
 

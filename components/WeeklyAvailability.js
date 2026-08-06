@@ -151,6 +151,10 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     return `${start.getDate()}/${start.getMonth() + 1} — ${end.getDate()}/${end.getMonth() + 1}/${end.getFullYear()}`;
   }
 
+  const isLocked = useMemo(() => {
+    return Object.keys(initialAvailability).length > 0 && !hasChanges;
+  }, [initialAvailability, hasChanges]);
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl p-6 text-center border border-purple-200 shadow-2xs">
@@ -174,20 +178,22 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
             <button
               type="button"
               onClick={() => setWeekType('this')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${weekType === 'this'
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
+                weekType === 'this'
                   ? 'bg-purple-700 text-white shadow-2xs font-black'
                   : 'text-purple-900 hover:text-purple-700 font-bold'
-                }`}
+              }`}
             >
               ⚡ Tuần Này
             </button>
             <button
               type="button"
               onClick={() => setWeekType('next')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${weekType === 'next'
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
+                weekType === 'next'
                   ? 'bg-purple-700 text-white shadow-2xs font-black'
                   : 'text-purple-900 hover:text-purple-700 font-bold'
-                }`}
+              }`}
             >
               🚀 Tuần Sau
             </button>
@@ -207,14 +213,15 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
           return (
             <div
               key={dateStr}
-              className={`rounded-2xl p-3.5 sm:p-4 border transition-all ${status === 'full'
+              className={`rounded-2xl p-3.5 sm:p-4 border transition-all ${
+                status === 'full'
                   ? 'border-emerald-300 bg-emerald-50/90 shadow-2xs'
                   : status === 'option'
-                    ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
-                    : status === 'off'
-                      ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
-                      : 'border-purple-100 bg-purple-50/30'
-                }`}
+                  ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
+                  : status === 'off'
+                  ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
+                  : 'border-purple-100 bg-purple-50/30'
+              } ${isLocked ? 'opacity-90' : ''}`}
             >
               {/* Day Header */}
               <div className="flex items-center justify-between mb-2.5">
@@ -227,7 +234,8 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                   </span>
                 </div>
                 {status && (
-                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-white text-purple-950 border border-purple-200 shadow-2xs">
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-white text-purple-950 border border-purple-200 shadow-2xs flex items-center gap-1">
+                    {isLocked && <span>🔒</span>}
                     {status === 'full' && '💪 Chọn Cả Ngày'}
                     {status === 'option' && '📝 Chọn Tùy Ca'}
                     {status === 'off' && '🛑 Chọn Xin Nghỉ'}
@@ -235,35 +243,41 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                 )}
               </div>
 
-              {/* 3 Nút chọn lớn rõ ràng */}
+              {/* 3 Nút chọn lớn rõ ràng (Khóa nếu đã chốt) */}
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleSelect(dateStr, 'full')}
-                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm cursor-pointer border transition-all active:scale-95 shadow-2xs ${status === 'full'
+                  disabled={isLocked}
+                  onClick={() => !isLocked && handleSelect(dateStr, 'full')}
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${
+                    status === 'full'
                       ? 'border-emerald-600 bg-emerald-700 text-white font-black'
-                      : 'border-purple-200 bg-white text-purple-950 hover:bg-emerald-50 font-bold'
-                    }`}
+                      : 'border-purple-200 bg-white text-purple-950 font-bold'
+                  } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-emerald-50'}`}
                 >
                   {status === 'full' ? '✅ Cả ngày' : '💪 Cả ngày'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSelect(dateStr, 'option')}
-                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm cursor-pointer border transition-all active:scale-95 shadow-2xs ${status === 'option'
+                  disabled={isLocked}
+                  onClick={() => !isLocked && handleSelect(dateStr, 'option')}
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${
+                    status === 'option'
                       ? 'border-purple-600 bg-purple-700 text-white font-black'
-                      : 'border-purple-200 bg-white text-purple-950 hover:bg-purple-50 font-bold'
-                    }`}
+                      : 'border-purple-200 bg-white text-purple-950 font-bold'
+                  } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-purple-50'}`}
                 >
                   {status === 'option' ? '✅ Tùy ca' : '📝 Tùy ca'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSelect(dateStr, 'off')}
-                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm cursor-pointer border transition-all active:scale-95 shadow-2xs ${status === 'off'
+                  disabled={isLocked}
+                  onClick={() => !isLocked && handleSelect(dateStr, 'off')}
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${
+                    status === 'off'
                       ? 'border-rose-600 bg-rose-600 text-white font-black'
-                      : 'border-purple-200 bg-white text-purple-950 hover:bg-rose-50 font-bold'
-                    }`}
+                      : 'border-purple-200 bg-white text-purple-950 font-bold'
+                  } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-rose-50'}`}
                 >
                   {status === 'off' ? '✅ Xin nghỉ' : '🛑 Xin nghỉ'}
                 </button>
@@ -273,15 +287,18 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
               {(status === 'option' || status === 'off') && (
                 <div className="mt-2.5 animate-fade-in">
                   <textarea
+                    disabled={isLocked}
                     value={noteInputs[dateStr] || ''}
-                    onChange={(e) => handleNoteChange(dateStr, e.target.value)}
+                    onChange={(e) => !isLocked && handleNoteChange(dateStr, e.target.value)}
                     placeholder={
                       status === 'off'
                         ? 'Lý do xin nghỉ (ví dụ: bận việc nhà, thi học kì...)'
                         : 'Ghi chú thời gian làm (ví dụ: rảnh sáng 8-12h, hoặc làm từ 13h...)'
                     }
                     rows={2}
-                    className="w-full px-3.5 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm focus:border-purple-600 outline-none transition-all resize-none placeholder:text-purple-400 font-bold"
+                    className={`w-full px-3.5 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm outline-none transition-all resize-none placeholder:text-purple-400 font-bold ${
+                      isLocked ? 'cursor-not-allowed bg-purple-50/50' : 'focus:border-purple-600'
+                    }`}
                   />
                 </div>
               )}
@@ -290,23 +307,35 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
         })}
       </div>
 
-      {/* Nút XÁC NHẬN ĐĂNG KÝ */}
+      {/* Nút XÁC NHẬN ĐĂNG KÝ HOẶC ĐÃ KHÓA */}
       <div className="pt-2 border-t border-purple-100">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${hasChanges
-              ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+        {isLocked ? (
+          <div className="text-center space-y-2">
+            <div className="w-full py-3.5 px-4 rounded-xl font-black text-xs sm:text-sm border border-emerald-300 bg-emerald-800 text-white flex items-center justify-center gap-2 shadow-xs">
+              <span>🔒</span> ĐÃ CHỐT ĐĂNG KÝ LỊCH (Đã khóa chỉnh sửa)
+            </div>
+            <p className="text-xs text-purple-800 font-extrabold italic">
+              💡 Lịch đã được chốt trên hệ thống. Nếu muốn thay đổi lịch đăng ký, vui lòng liên hệ Admin/Quản lý!
+            </p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${
+              hasChanges
+                ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
-        >
-          {submitting
-            ? '⏳ Đang chốt lịch...'
-            : hasChanges
-              ? '🚀 XÁC NHẬN ĐĂNG KÝ TUẦN SAU'
-              : '✅ ĐÃ CHỐT ĐĂNG KÝ (Bấm để cập nhật)'}
-        </button>
+          >
+            {submitting
+              ? '⏳ Đang chốt lịch...'
+              : hasChanges
+              ? '🚀 XÁC NHẬN CHỐT LỊCH LÀM (Khóa chỉnh sửa)'
+              : '✅ ĐÃ CHỐT ĐĂNG KÝ LỊCH'}
+          </button>
+        )}
       </div>
     </div>
   );

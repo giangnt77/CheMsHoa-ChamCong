@@ -7,6 +7,7 @@ import {
   getScheduleByDateRange,
   upsertSchedule,
   deleteSchedule,
+  updateEmployeesSortOrders,
 } from '@/lib/supabase';
 import { getBranchColorStyle } from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
@@ -205,6 +206,93 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     };
   }, [sortedEmployees, weekDays, availByEmpAndDate, scheduleByEmpAndDate]);
 
+  const [customMatrixOrder, setCustomMatrixOrder] = useState([]);
+  const [draggedIdx, setDraggedIdx] = useState(null);
+  const [isSortMode, setIsSortMode] = useState(false);
+  const [savingSort, setSavingSort] = useState(false);
+
+  useEffect(() => {
+    if (matrixEmployees && matrixEmployees.length > 0) {
+      setCustomMatrixOrder(matrixEmployees);
+    }
+  }, [matrixEmployees]);
+
+  // Khi người dùng bấm "✓ HOÀN THÀNH SẮP XẾP": Lưu 100% lên Supabase và làm mới dữ liệu cho cả Admin & Nhân viên
+  async function handleFinishSorting() {
+    setSavingSort(true);
+    try {
+      const fullList = [
+        ...customMatrixOrder,
+        ...shortLeaveEmployees.map((x) => x.employee),
+        ...permanentOffEmployees.map((x) => x.employee),
+      ];
+      const orders = fullList.map((emp, i) => ({
+        id: emp.id,
+        sort_order: i + 1,
+      }));
+
+      await updateEmployeesSortOrders(orders);
+      if (toast) toast.success('Đã lưu thứ tự', 'Đồng bộ thứ tự bảng thành công cho cả Admin & Nhân Viên!');
+      if (onRefreshEmployees) onRefreshEmployees();
+      loadWeekData();
+      setIsSortMode(false);
+    } catch (err) {
+      console.error('Lỗi lưu thứ tự lên Supabase:', err);
+      if (toast) toast.error('Lỗi', 'Không thể lưu thứ tự nhân viên!');
+    }
+    setSavingSort(false);
+  }
+
+  function jumpDirectMatrixPosition(fromIndex, toIndex) {
+    if (toIndex < 0 || toIndex >= customMatrixOrder.length || fromIndex === toIndex) return;
+    const newMatrix = [...customMatrixOrder];
+    const [movedEmp] = newMatrix.splice(fromIndex, 1);
+    newMatrix.splice(toIndex, 0, movedEmp);
+    setCustomMatrixOrder(newMatrix);
+  }
+
+  function handleDirectDragStart(e, index) {
+    if (!isSortMode) return;
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDirectDragOver(e, index) {
+    if (!isSortMode) return;
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === index) return;
+    jumpDirectMatrixPosition(draggedIdx, index);
+    setDraggedIdx(index);
+  }
+
+  function handleDirectDragEnd() {
+    setDraggedIdx(null);
+  }
+
+  function handleDirectTouchStart(e, index) {
+    if (!isSortMode) return;
+    setDraggedIdx(index);
+  }
+
+  function handleDirectTouchMove(e) {
+    if (!isSortMode || draggedIdx === null) return;
+    const touch = e.touches[0];
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!targetElement) return;
+    const cellElement = targetElement.closest('[data-sort-index]');
+    if (cellElement) {
+      const targetIdx = Number(cellElement.getAttribute('data-sort-index'));
+      if (!isNaN(targetIdx) && targetIdx !== draggedIdx) {
+        jumpDirectMatrixPosition(draggedIdx, targetIdx);
+        setDraggedIdx(targetIdx);
+      }
+    }
+  }
+
+  function handleDirectTouchEnd() {
+    setDraggedIdx(null);
+  }
+
   async function handleSaveModal(data) {
     try {
       await upsertSchedule(data);
@@ -281,11 +369,32 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             {!readOnly && (
               <button
                 type="button"
-                onClick={() => setShowSortModal(true)}
-                className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-purple-700 text-white hover:bg-purple-800 text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ml-1"
-                title="Bấm để sắp xếp thứ tự hiển thị của từng nhân viên"
+                onClick={() => {
+                  if (isSortMode) {
+                    handleFinishSorting();
+                  } else {
+                    setIsSortMode(true);
+                  }
+                }}
+                disabled={savingSort}
+                className={`px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 border-0 ${
+                  isSortMode
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse shadow-md font-black'
+                    : 'bg-purple-700 hover:bg-purple-800 text-white font-black'
+                }`}
+                title={isSortMode ? 'Bấm để lưu thứ tự mới cho cả Admin & Nhân Viên' : 'Bấm để bật chế độ kéo thả sắp xếp nhân viên'}
               >
-                <span>↕️</span> Sắp Xếp NV
+                {savingSort ? (
+                  '⏳ Đang lưu...'
+                ) : isSortMode ? (
+                  <>
+                    <span>✓</span> HOÀN THÀNH SẮP XẾP
+                  </>
+                ) : (
+                  <>
+                    <span>↕️</span> Sắp Xếp NV
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -316,7 +425,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           <thead>
             {/* Hàng 1: Tên Thứ (T2 -> CN) */}
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-3 px-3 border-r-2 border-purple-300 w-36 sm:w-44 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)]">
+              <th className="py-2.5 px-2 border-r-2 border-purple-300 w-28 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
                 NHÂN VIÊN
               </th>
               {weekDays.map((dStr, idx) => (
@@ -334,14 +443,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                 </td>
               </tr>
-            ) : matrixEmployees.length === 0 ? (
+            ) : customMatrixOrder.length === 0 ? (
               <tr>
                 <td colSpan={8} className="text-center py-10 text-purple-600 italic font-bold">
                   Không có nhân viên đi làm tuần này.
                 </td>
               </tr>
             ) : (
-              matrixEmployees.map((emp, idx) => {
+              customMatrixOrder.map((emp, idx) => {
                 const isMe = emp.id === highlightEmployeeId;
 
                 const rowBgClass = isMe
@@ -355,14 +464,33 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     key={emp.id}
                     className={`border-b border-purple-100 transition-all ${rowBgClass} hover:bg-purple-100`}
                   >
-                    {/* Tên Nhân Viên - CHE KHẤT 100% MỌI NỘI DUNG CUỘN PHÍA TRÁI */}
-                    <td className={`py-3 px-3 border-r-2 border-purple-300 font-black text-purple-950 text-sm sm:text-base sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)]`}>
+                    {/* Tên Nhân Viên — CHỈ CHO PHÉP KÉO THẢ KHI BẬT isSortMode */}
+                    <td
+                      data-sort-index={idx}
+                      draggable={!readOnly && isSortMode}
+                      onDragStart={(e) => !readOnly && isSortMode && handleDirectDragStart(e, idx)}
+                      onDragOver={(e) => !readOnly && isSortMode && handleDirectDragOver(e, idx)}
+                      onDragEnd={handleDirectDragEnd}
+                      onTouchStart={(e) => !readOnly && isSortMode && handleDirectTouchStart(e, idx)}
+                      onTouchMove={(e) => !readOnly && isSortMode && handleDirectTouchMove(e)}
+                      onTouchEnd={handleDirectTouchEnd}
+                      className={`py-2.5 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sm:text-sm sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-28 sm:w-36 ${
+                        isSortMode
+                          ? 'cursor-grab active:cursor-grabbing bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
+                          : ''
+                      } ${draggedIdx === idx ? 'bg-purple-200/90 opacity-75 border-purple-500 shadow-xl scale-98' : ''}`}
+                      title={isSortMode ? 'Đang bật Sắp Xếp: Chạm/Giữ kéo thả hàng này' : ''}
+                    >
                       <div className="flex items-center gap-1 truncate">
-                        {isMe && <span className="text-purple-700 text-sm">⭐</span>}
-                        <span className={isMe ? 'text-purple-950 font-black text-sm sm:text-base' : 'text-purple-950 font-extrabold text-sm sm:text-base'}>
+                        {isSortMode && (
+                          <span className="text-amber-600 font-black text-sm select-none touch-none animate-pulse" title="Chạm giữ để kéo hàng">
+                            ≡
+                          </span>
+                        )}
+                        {isMe && <span className="text-purple-700 text-xs" title="Tài khoản của tôi">⭐</span>}
+                        <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'}>
                           {emp.name}
                         </span>
-                        {isMe && <span className="text-[10px] text-purple-950 font-black bg-purple-200 px-1.5 py-0.5 rounded border border-purple-300 ml-0.5">(TÔI)</span>}
                       </div>
                     </td>
 
@@ -546,17 +674,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           initialEmployee={modalState.employee}
         />
       )}
-
-      {/* MODAL SẮP XẾP THỨ TỰ NHÂN VIÊN (CHỈNH TÙY Ý HÀNG LỐI THEO CHI NHÁNH) */}
-      <ModalSortEmployees
-        isOpen={showSortModal}
-        onClose={() => setShowSortModal(false)}
-        employees={employees}
-        onSaveSuccess={() => {
-          if (onRefreshEmployees) onRefreshEmployees();
-          loadWeekData();
-        }}
-      />
     </div>
   );
 }
