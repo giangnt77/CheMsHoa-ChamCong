@@ -326,22 +326,22 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
 
       {/* BẢNG MA TRẬN BÁO CÁO LƯƠNG CHUẨN ĐỒNG BỘ 100% */}
       <div className="bg-white rounded-3xl p-0 border border-purple-200 shadow-xl overflow-x-auto custom-scrollbar relative">
-        <table className="w-full min-w-[1250px] border-collapse text-xs">
+        <table className="w-full min-w-[1020px] border-collapse text-xs">
           <thead>
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-3 px-2 border-r-2 border-purple-300 w-28 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
+              <th className="py-2.5 px-2 border-r-2 border-purple-300 w-28 sm:w-32 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
                 NHÂN VIÊN
               </th>
               {weekDays.map((dStr, idx) => (
-                <th key={dStr} className="py-3 px-2 border-r border-purple-800 text-center font-black uppercase text-amber-300 text-xs sm:text-sm min-w-[105px]">
+                <th key={dStr} className="py-2.5 px-1 border-r border-purple-800 text-center font-black uppercase text-amber-300 text-xs min-w-[85px] sm:min-w-[92px]">
                   <div>{DAY_LABELS[idx]}</div>
-                  <div className="text-[11px] font-extrabold text-purple-200 mt-0.5">{dStr.split('-').reverse().slice(0, 2).join('/')}</div>
+                  <div className="text-[10px] font-extrabold text-purple-200 mt-0.5">{dStr.split('-').reverse().slice(0, 2).join('/')}</div>
                 </th>
               ))}
-              <th className="py-3 px-3 text-center font-black uppercase text-emerald-300 text-xs sm:text-sm bg-purple-950 w-36">
+              <th className="py-2.5 px-2 text-center font-black uppercase text-emerald-300 text-xs bg-purple-950 w-32">
                 💵 LƯƠNG TUẦN
               </th>
-              <th className="py-3 px-3 text-center font-black uppercase text-amber-300 text-xs sm:text-sm bg-purple-950 w-44 border-l-4 border-amber-400">
+              <th className="py-2.5 px-2 text-center font-black uppercase text-amber-300 text-xs bg-purple-950 w-36 border-l-2 border-amber-400">
                 💰 LƯƠNG THÁNG ({selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]})
               </th>
             </tr>
@@ -377,11 +377,11 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                     <tr key={emp.id} className={`border-b border-purple-100 transition-all ${rowBgClass} hover:bg-purple-100/70`}>
                       {/* Tên Nhân Viên Sticky */}
                       <td
-                        className={`py-2.5 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sm:text-sm sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-28 sm:w-36`}
+                        className={`py-2 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-28 sm:w-32`}
                       >
                         <div className="truncate">
-                          <div className="font-black text-purple-950 truncate text-xs sm:text-sm">{emp.name}</div>
-                          <div className="text-[10px] sm:text-[11px] font-extrabold text-purple-700 mt-0.5">
+                          <div className="font-black text-purple-950 truncate text-xs">{emp.name}</div>
+                          <div className="text-[10px] font-extrabold text-purple-700 mt-0.5">
                             💵 {formatCurrency(currentWeeklyRate)}/h
                           </div>
                         </div>
@@ -392,7 +392,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                         const empShifts = scheduleByEmpAndDate[`${emp.id}_${dStr}`] || [];
 
                         return (
-                          <td key={dStr} className="py-2 px-1 border-r border-purple-100 text-center align-middle">
+                          <td key={dStr} className="py-1.5 px-1 border-r border-purple-100 text-center align-middle">
                             {empShifts.length > 0 ? (
                               <div className="space-y-1">
                                 {empShifts.map((shift) => {
@@ -410,18 +410,18 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                                       className="p-1 rounded-xl bg-purple-50/90 border text-center shadow-2xs space-y-0.5"
                                       style={{ borderColor: `${branchStyle.hex}60` }}
                                     >
-                                      <div className="flex items-center justify-center gap-1">
+                                      <div className="flex items-center justify-center gap-0.5">
                                         <span
                                           className="w-2 h-2 rounded-full border border-white flex-shrink-0 shadow-2xs"
                                           style={{ backgroundColor: branchStyle.hex }}
                                           title={`Chi nhánh: ${branchObj?.name || 'Chưa rõ'}`}
                                         />
-                                        <span className="text-[9px] font-black text-purple-950 truncate max-w-[65px]">
+                                        <span className="text-[9px] font-black text-purple-950 truncate max-w-[60px]">
                                           {branchStyle.badgeText || branchObj?.name}
                                         </span>
                                       </div>
-                                      <div className="text-[11px] font-black text-purple-950 tracking-tight">{timeRange}</div>
-                                      <div className="text-[10px] font-black text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded-md border border-emerald-200">
+                                      <div className="text-[10.5px] font-black text-purple-950 tracking-tight">{timeRange}</div>
+                                      <div className="text-[9.5px] font-black text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded-md border border-emerald-200">
                                         {formatCurrency(shiftSalary)}
                                       </div>
                                     </div>
@@ -429,7 +429,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                                 })}
                               </div>
                             ) : (
-                              <span className="text-red-500 font-black text-[10px] uppercase px-1.5 py-0.5 rounded-md bg-red-50 border border-red-200 inline-block shadow-2xs">
+                              <span className="text-red-500 font-black text-[9.5px] uppercase px-1 py-0.5 rounded-md bg-red-50 border border-red-200 inline-block shadow-2xs">
                                 OFF
                               </span>
                             )}
@@ -438,18 +438,18 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                       })}
 
                       {/* Cột TỔNG LƯƠNG TUẦN */}
-                      <td className="py-2 px-2 text-center align-middle bg-purple-100/30">
-                        <div className="p-2 rounded-2xl bg-purple-700 text-white font-black shadow-xs space-y-0.5">
-                          <div className="text-xs sm:text-sm font-black tracking-tight">{formatCurrency(empTotals.grossSalary)}</div>
-                          <div className="text-[10px] font-extrabold text-purple-200">({empTotals.totalHours}h • {empTotals.shiftCount} ca)</div>
+                      <td className="py-2 px-1 text-center align-middle bg-purple-100/30">
+                        <div className="p-1.5 rounded-2xl bg-purple-700 text-white font-black shadow-xs space-y-0.5">
+                          <div className="text-xs font-black tracking-tight">{formatCurrency(empTotals.grossSalary)}</div>
+                          <div className="text-[9.5px] font-extrabold text-purple-200">({empTotals.totalHours}h • {empTotals.shiftCount} ca)</div>
                         </div>
                       </td>
 
-                      {/* CỘT NỔI BẬT LƯƠNG THÁNG CẠNH BÊN: BẢNG VÀNG CAM RỰC RỠ KHÔNG LỆCH HÀNG */}
-                      <td className="py-2 px-2 text-center align-middle bg-amber-50/70 border-l-4 border-amber-400">
-                        <div className="p-2 rounded-2xl bg-amber-500 text-purple-950 font-black shadow-xs space-y-0.5 border border-amber-400">
-                          <div className="text-xs sm:text-sm font-black tracking-tight">{formatCurrency(empMTotal.grossSalary)}</div>
-                          <div className="text-[10px] font-extrabold text-purple-900">({empMTotal.totalHours}h • {empMTotal.shiftCount} ca)</div>
+                      {/* CỘT NỔI BẬT LƯƠNG THÁNG CẠNH BÊN: VỪA VẶN KHÔNG BỊ TRÀN HAY CHE KHUẤT */}
+                      <td className="py-2 px-1 text-center align-middle bg-amber-50/70 border-l-2 border-amber-400">
+                        <div className="p-1.5 rounded-2xl bg-amber-500 text-purple-950 font-black shadow-xs space-y-0.5 border border-amber-400">
+                          <div className="text-xs font-black tracking-tight">{formatCurrency(empMTotal.grossSalary)}</div>
+                          <div className="text-[9.5px] font-extrabold text-purple-900">({empMTotal.totalHours}h • {empMTotal.shiftCount} ca)</div>
                         </div>
                       </td>
                     </tr>

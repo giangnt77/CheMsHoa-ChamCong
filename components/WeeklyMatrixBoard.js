@@ -380,7 +380,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCopyingEmpId(null);
   }
 
-  // 1. Gán / Chỉnh sửa ca làm từ Modal (chỉ cập nhật State Local)
+  // 1. Gán / Chỉnh sửa ca làm từ Modal (chỉ cập nhật State Local & đánh dấu isDirty)
   function handleSaveModal(data) {
     const datesToApply = data.applyWholeWeek ? weekDays : [data.date];
     const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
@@ -400,7 +400,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             hours: data.hours,
             note: data.note || '',
             date: dStr,
-            isDraft: true,
+            isDirty: true,
           };
         } else {
           // Tạo mới item ca làm draft
@@ -415,6 +415,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             hours: data.hours,
             note: data.note || '',
             isDraft: true,
+            isDirty: true,
           };
           updated.push(newDraft);
         }
@@ -450,6 +451,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       hours: sourceShift.hours || 5,
       note: sourceShift.note || '',
       isDraft: true,
+      isDirty: true,
     };
 
     setLocalSchedule((prev) => [...prev, newDraft]);
@@ -457,7 +459,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     if (toast) toast.info('Đã copy ca (Bản thảo)', 'Bấm "LƯU LỊCH PHÂN CÔNG" ở trên khi xếp xong.');
   }
 
-  // 4. LƯU BATCH TẤT CẢ THAY ĐỔI 1 LẦN DUY NHẤT LÊN SUPABASE
+  // 4. LƯU THÔNG MINH: CHỈ LƯU NHỮNG CA BỊ THAY ĐỔI/THÊM MỚI/XÓA (TỐC ĐỘ SIÊU TỐC THẦN TỐC ⚡)
   async function handleSaveAllBatch() {
     setIsBatchSaving(true);
     try {
@@ -468,20 +470,24 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         }
       }
 
-      // 2. Lưu / Cập nhật tất cả ca trong localSchedule
-      for (const item of localSchedule) {
-        await upsertSchedule({
-          employeeId: item.employee_id,
-          branchId: item.branch_id,
-          date: item.date,
-          startTime: item.start_time ? item.start_time.slice(0, 5) : '09:00',
-          endTime: item.end_time ? item.end_time.slice(0, 5) : '14:00',
-          hours: item.hours || 5,
-          note: item.note || '',
-        });
+      // 2. CHỈ LƯU / CẬP NHẬT CÁC CA BỊ THAY ĐỔI HOẶC THÊM MỚI (isDirty || isDraft)
+      const dirtyShifts = localSchedule.filter((item) => item.isDirty || item.isDraft);
+
+      if (dirtyShifts.length > 0) {
+        for (const item of dirtyShifts) {
+          await upsertSchedule({
+            employeeId: item.employee_id,
+            branchId: item.branch_id,
+            date: item.date,
+            startTime: item.start_time ? item.start_time.slice(0, 5) : '09:00',
+            endTime: item.end_time ? item.end_time.slice(0, 5) : '14:00',
+            hours: item.hours || 5,
+            note: item.note || '',
+          });
+        }
       }
 
-      if (toast) toast.success('🚀 THÀNH CÔNG RỰC RỠ!', 'Đã lưu toàn bộ Bảng Xếp Lịch Phân Công Tuần!');
+      if (toast) toast.success('🚀 THÀNH CÔNG RỰC RỠ!', `Đã lưu siêu tốc ${dirtyShifts.length} thay đổi lịch phân công!`);
       await loadWeekData(true);
     } catch (err) {
       console.error('Lỗi khi lưu batch lịch:', err);
@@ -551,29 +557,30 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       )}
 
       {/* Thanh điều hướng Tuần & Chú thích Chi Nhánh - Compact 1-Line Row */}
-      <div className="bg-white rounded-2xl p-2.5 sm:px-4 sm:py-3 border border-purple-200/90 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        {/* Bộ chuyển tuần 1 dòng */}
-        <div className="flex items-center justify-between sm:justify-start gap-2">
-          <button
-            type="button"
-            onClick={prevWeek}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
-            title="Tuần trước"
-          >
-            ◀
-          </button>
+      {/* Thanh điều hướng Tuần & Chú thích Chi Nhánh - Mobile Friendly Compact Row */}
+      <div className="bg-white rounded-2xl p-2 sm:px-4 sm:py-3 border border-purple-200/90 shadow-2xs space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          {/* Bộ chuyển tuần 1 dòng */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={prevWeek}
+              className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+              title="Tuần trước"
+            >
+              ◀
+            </button>
 
-          <div className="text-xs sm:text-base font-black text-purple-950 px-1 text-center">
-            <span className="text-purple-800 font-black">
-              {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().join('/')}
-            </span>
-          </div>
+            <div className="text-xs sm:text-base font-black text-purple-950 px-1 text-center">
+              <span className="text-purple-800 font-black">
+                {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().slice(0, 2).join('/')}
+              </span>
+            </div>
 
-          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={nextWeek}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+              className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
               title="Tuần sau"
             >
               ▶
@@ -582,41 +589,52 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             <button
               type="button"
               onClick={goTodayWeek}
-              className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95"
+              className="px-2.5 py-1 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-[11px] sm:text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95"
             >
               Hôm nay
             </button>
+          </div>
 
-            {!readOnly && (
-              <>
+          {/* Nhóm Nút Thao Tác (Lưu, Hủy, Sắp Xếp) */}
+          {!readOnly && (
+            <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+              <button
+                type="button"
+                onClick={handleSaveAllBatch}
+                disabled={isBatchSaving || !hasUnsavedChanges}
+                className={`px-3 py-1 rounded-xl font-black text-[11px] sm:text-xs border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ${
+                  hasUnsavedChanges
+                    ? 'bg-amber-400 hover:bg-amber-500 text-purple-950 border-amber-500 animate-pulse shadow-md font-black'
+                    : 'bg-emerald-100 text-emerald-950 border-emerald-300 opacity-80'
+                }`}
+                title="Bấm để lưu toàn bộ bảng lịch phân công 1 lần"
+              >
+                <span>💾</span>
+                <span>{isBatchSaving ? 'Đang lưu...' : hasUnsavedChanges ? 'LƯU LỊCH' : 'Đã Lưu'}</span>
+              </button>
+
+              {hasUnsavedChanges && (
                 <button
                   type="button"
-                  onClick={handleSaveAllBatch}
-                  disabled={isBatchSaving || !hasUnsavedChanges}
-                  className={`px-3 py-1 sm:py-1.5 rounded-xl font-black text-xs border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 ${
-                    hasUnsavedChanges
-                      ? 'bg-amber-400 hover:bg-amber-500 text-purple-950 border-amber-500 animate-pulse shadow-md font-black'
-                      : 'bg-emerald-100 text-emerald-950 border-emerald-300 opacity-80'
-                  }`}
-                  title="Bấm để lưu toàn bộ bảng lịch phân công 1 lần"
+                  onClick={handleCancelUnsavedChanges}
+                  disabled={isBatchSaving}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 font-black border border-rose-300 flex items-center justify-center cursor-pointer text-xs shadow-2xs"
+                  title="Hủy bỏ thay đổi chưa lưu"
                 >
-                  <span>💾</span>
-                  <span>{isBatchSaving ? 'Đang lưu...' : hasUnsavedChanges ? 'LƯU PHÂN CÔNG' : 'Đã Lưu'}</span>
+                  🚫
                 </button>
+              )}
 
-                <button
-                  type="button"
-                  onClick={() => setShowBlockOffModal(true)}
-                  className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
-                  title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
-                >
-                  <span>🚫</span>
-                  <span className="hidden sm:inline">Quy Định Cấm Off</span>
-                </button>
-              </>
-            )}
+              <button
+                type="button"
+                onClick={() => setShowBlockOffModal(true)}
+                className="px-2.5 py-1 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 text-[11px] sm:text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
+              >
+                <span>🚫</span>
+                <span className="hidden sm:inline">Cấm Off</span>
+              </button>
 
-            {!readOnly && (
               <button
                 type="button"
                 onClick={() => {
@@ -627,7 +645,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   }
                 }}
                 disabled={savingSort}
-                className={`px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 border-0 ${
+                className={`px-3 py-1 rounded-xl text-[11px] sm:text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 border-0 ${
                   isSortMode
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse shadow-md font-black'
                     : 'bg-purple-700 hover:bg-purple-800 text-white font-black'
@@ -635,19 +653,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                 title={isSortMode ? 'Bấm để lưu thứ tự mới cho cả Admin & Nhân Viên' : 'Bấm để bật chế độ kéo thả sắp xếp nhân viên'}
               >
                 {savingSort ? (
-                  '⏳ Đang lưu...'
+                  '⏳ Lưu...'
                 ) : isSortMode ? (
                   <>
-                    <span>✓</span> HOÀN THÀNH SẮP XẾP
+                    <span>✓</span> XONG
                   </>
                 ) : (
                   <>
-                    <span>↕️</span> Sắp Xếp NV
+                    <span>↕️</span> Sắp Xếp
                   </>
                 )}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Chú thích màu Chi Nhánh - Tự động đồng bộ 100% từ DB */}

@@ -373,16 +373,6 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                                 🟡 Xin nghỉ ngắn ngày
                               </span>
                             )}
-                            {hasSavedPin && (
-                              <button
-                                type="button"
-                                onClick={(e) => handleClearSavedPin(emp.id, e)}
-                                className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 hover:bg-rose-600 hover:text-white text-[10px] font-black border border-rose-300 transition-all cursor-pointer shadow-2xs active:scale-95"
-                                title="Bấm để xóa mật khẩu ghi nhớ PIN trên máy này"
-                              >
-                                🔓 Hủy lưu PIN
-                              </button>
-                            )}
                             {isRecent && !hasSavedPin && (
                               <span className="px-2 py-0.5 rounded-md bg-amber-400 text-purple-950 text-[10px] font-black tracking-tight border border-amber-500/50 shadow-2xs">
                                 ⭐ Đã từng đăng nhập
@@ -393,6 +383,18 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                             {hasSavedPin ? '🔑 Đã ghi nhớ PIN • Bấm để vào thẳng →' : '🔒 Bấm để chọn & nhập PIN xem lịch →'}
                           </span>
                         </div>
+
+                        {/* NÚT HỦY LƯU PIN DỜI RA NGOÀI CÙNG BÊN PHẢI - TRÁNH BẤM NHẦM KHI CHỌN TÊN */}
+                        {hasSavedPin && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleClearSavedPin(emp.id, e)}
+                            className="ml-auto shrink-0 px-2.5 py-1.5 rounded-xl bg-rose-100 text-rose-900 hover:bg-rose-600 hover:text-white text-[11px] font-black border border-rose-300 transition-all cursor-pointer shadow-2xs active:scale-95 z-10"
+                            title="Bấm để xóa mật khẩu ghi nhớ PIN trên máy này"
+                          >
+                            🔓 Hủy lưu PIN
+                          </button>
+                        )}
                       </div>
                     );
                   })}

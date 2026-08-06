@@ -49,13 +49,34 @@ function getNextWeekDays() {
   return days;
 }
 
+function getSpecialMonthDays() {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const daysUntilNextMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+  const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextMonday);
+
+  const days = [];
+  // 4 Tuần = 28 Ngày liên tiếp cho Dịp Đặc Biệt (Tết/Lễ)
+  for (let i = 0; i < 28; i++) {
+    const dayObj = new Date(nextMonday.getFullYear(), nextMonday.getMonth(), nextMonday.getDate() + i);
+    days.push(formatDateISO(dayObj));
+  }
+  return days;
+}
+
 const DAY_NAMES = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
 const DAY_INDEXES = [1, 2, 3, 4, 5, 6, 0];
 
 export default function WeeklyAvailability({ employee, onUpdate }) {
   const toast = useToast();
-  const [weekType, setWeekType] = useState('next'); // 'this' | 'next'
-  const days = useMemo(() => (weekType === 'this' ? getThisWeekDays() : getNextWeekDays()), [weekType]);
+  const [weekType, setWeekType] = useState('next'); // 'this' | 'next' | 'special_month'
+  const [specialEventMode, setSpecialEventMode] = useState(false);
+
+  const days = useMemo(() => {
+    if (weekType === 'this') return getThisWeekDays();
+    if (weekType === 'special_month') return getSpecialMonthDays();
+    return getNextWeekDays();
+  }, [weekType]);
 
   // Selected state: { [dateStr]: 'full' | 'option' | 'off' }
   const [availability, setAvailability] = useState({});
@@ -68,6 +89,11 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   const [blockedOffDays, setBlockedOffDays] = useState([]);
 
   useEffect(() => {
+    const { getSpecialEventMode } = require('@/lib/supabase');
+    getSpecialEventMode().then(setSpecialEventMode);
+  }, []);
+
+  useEffect(() => {
     loadAvailability();
   }, [employee, weekType]);
 
@@ -75,7 +101,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     setLoading(true);
     try {
       const [data, blockedDays] = await Promise.all([
-        getAvailabilityByEmployee(employee.id, days[0], days[6]),
+        getAvailabilityByEmployee(employee.id, days[0], days[days.length - 1]),
         getBlockedOffDays(),
       ]);
       const map = {};
@@ -127,19 +153,33 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   }
 
   async function handleSubmit() {
-    // Đếm số ngày đăng ký xin nghỉ (off) trong tuần
-    const offDays = days.filter((dateStr) => availability[dateStr] === 'off');
+    // Kiểm tra xem nhân viên có đăng ký nghỉ (off) 3 ngày liên tiếp trở lên trong tuần hay không
+    let consecutiveOff = 0;
+    let maxConsecutiveOff = 0;
+    for (const dateStr of days) {
+      if (availability[dateStr] === 'off') {
+        consecutiveOff++;
+        if (consecutiveOff > maxConsecutiveOff) {
+          maxConsecutiveOff = consecutiveOff;
+        }
+      } else {
+        consecutiveOff = 0;
+      }
+    }
 
-    if (offDays.length > 3) {
+    // Khi đăng ký nghỉ từ 3 ngày liên tiếp trở lên thì mới hiện thông báo xác nhận
+    if (maxConsecutiveOff >= 3) {
       // Popup Xác Nhận Lần 1
-      const confirm1 = window.confirm('Thí chủ đã xin phép chị Hoa chưa?');
+      const confirm1 = window.confirm(
+        `Thí chủ đã xin phép Chị Hoa chưa? (Bạn đang đăng ký nghỉ ${maxConsecutiveOff} ngày liên tiếp trong tuần).`
+      );
       if (!confirm1) {
         return; // Thí chủ chưa xin phép -> Dừng không cho gửi
       }
 
       // Popup Xác Nhận Lần 2
       const confirm2 = window.confirm(
-        `Xác nhận lần 2: Thí chủ đã xin phép Chị Hoa thật chưa? (Bạn đang đăng ký nghỉ ${offDays.length} ngày trong tuần). Nếu chưa xin phép sẽ bị xử lý theo nội quy quán!`
+        `Xác nhận lần 2: Thí chủ đã xin phép Chị Hoa thật chưa? (Đăng ký nghỉ ${maxConsecutiveOff} ngày liên tiếp). Nếu chưa xin phép sẽ bị xử lý theo nội quy quán!`
       );
       if (!confirm2) {
         return; // Dừng không cho gửi
@@ -181,29 +221,28 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
 
   function getWeekLabel() {
     const start = new Date(days[0] + 'T00:00:00');
-    const end = new Date(days[6] + 'T00:00:00');
+    const end = new Date(days[days.length - 1] + 'T00:00:00');
     return `${start.getDate()}/${start.getMonth() + 1} — ${end.getDate()}/${end.getMonth() + 1}/${end.getFullYear()}`;
   }
 
   // LOGIC TỰ ĐỘNG KHÓA / MỞ ĐĂNG KÝ:
-  // 1. Lịch "Tuần Này" (weekType === 'this'): KHÓA CỨNG 100% (Do lịch tuần này đã chốt và đang diễn ra)!
-  // 2. Lịch "Tuần Sau" (weekType === 'next'):
-  //    - Từ Thứ 2 đến hết Thứ 7: MỞ KHÓA CHO SỬA CHỮA VÀ ĐĂNG KÝ THOẢI MÁI!
-  //    - Sang Chủ Nhật (dayOfWeek === 0): TỰ ĐỘNG KHÓA CỨNG ĐĂNG KÝ LỊCH!
+  // 1. Lịch "Tuần Này" (weekType === 'this'): KHÓA CỨNG 100%!
+  // 2. Lịch "Tuần Sau" (weekType === 'next') & "Dịp Đặc Biệt":
+  //    - MỞ KHÓA CHO SỬA CHỮA VÀ ĐĂNG KÝ THOẢI MÁI!
   const isLocked = useMemo(() => {
     if (weekType === 'this') {
       return true; // Khóa cứng 100% đối với Tuần Này!
     }
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0: Chủ Nhật, 1: T2, 2: T3, ..., 6: T7
-    return dayOfWeek === 0; // Khóa vào Chủ Nhật đối với Tuần Sau
+    const dayOfWeek = today.getDay(); // 0: Chủ Nhật
+    return dayOfWeek === 0 && weekType === 'next'; // Khóa vào Chủ Nhật đối với Tuần Sau mặc định
   }, [weekType]);
 
   if (loading) {
     return (
       <div className="bg-white rounded-2xl p-6 text-center border border-purple-200 shadow-2xs">
         <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
-        <p className="mt-3 text-sm text-purple-700 font-bold">Đang tải lịch tuần sau...</p>
+        <p className="mt-3 text-sm text-purple-700 font-bold">Đang tải lịch đăng ký...</p>
       </div>
     );
   }
@@ -217,8 +256,8 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
             <span className="text-xl">✋</span> Đăng Ký Lịch Làm
           </h3>
 
-          {/* Tab chọn Tuần Này vs Tuần Sau */}
-          <div className="flex bg-purple-100/70 p-1 rounded-xl border border-purple-200/80 shadow-2xs">
+          {/* Tab chọn Tuần Này vs Tuần Sau vs Dịp Đặc Biệt (1 Tháng) */}
+          <div className="flex bg-purple-100/70 p-1 rounded-xl border border-purple-200/80 shadow-2xs flex-wrap gap-1">
             <button
               type="button"
               onClick={() => setWeekType('this')}
@@ -241,12 +280,43 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
             >
               🚀 Tuần Sau
             </button>
+
+            {/* Nút Đăng Ký Dịp Đặc Biệt (Kéo Dài 1 Tháng) - CHỈ BẬT KHI ADMIN CHO PHÉP ON */}
+            {specialEventMode && (
+              <button
+                type="button"
+                onClick={() => setWeekType('special_month')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all flex items-center gap-1 ${
+                  weekType === 'special_month'
+                    ? 'bg-rose-600 text-white shadow-2xs font-black animate-pulse'
+                    : 'bg-rose-100 text-rose-950 hover:bg-rose-200 font-extrabold border border-rose-300'
+                }`}
+              >
+                <span>🎆</span>
+                <span>Dịp Đặc Biệt (1 Tháng)</span>
+              </button>
+            )}
           </div>
         </div>
 
-        <p className="text-xs sm:text-sm text-purple-800 font-bold">
-          📅 Đăng ký cho tuần: <span className="text-purple-950 font-black">{getWeekLabel()}</span> ({weekType === 'next' ? 'Chốt lịch tuần sau' : 'Bổ sung lịch tuần này'})
-        </p>
+        <div className="flex items-center justify-between gap-2 flex-wrap text-xs sm:text-sm font-extrabold text-purple-700">
+          <p className="flex items-center gap-1.5">
+            <span>📅</span>
+            <span>
+              {weekType === 'special_month'
+                ? `Đăng ký Dịp Đặc Biệt (4 Tuần / 1 Tháng): `
+                : weekType === 'next'
+                ? `Đăng ký cho tuần: `
+                : `Lịch tuần hiện tại: `}
+              <span className="font-black text-purple-950">{getWeekLabel()}</span>
+            </span>
+          </p>
+          {weekType === 'special_month' && (
+            <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-900 border border-rose-300 text-xs font-black animate-pulse">
+              🔥 Chế độ Dịp Đặc Biệt (Tết/Lễ) - Đăng ký kéo dài 1 Tháng
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Days Grid */}

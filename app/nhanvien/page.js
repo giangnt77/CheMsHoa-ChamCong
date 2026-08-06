@@ -54,16 +54,21 @@ function EmployeeContent() {
         if (text) setNoticeText(text);
       });
 
-      const snooze = localStorage.getItem('chems_employee_notice_snooze');
+      const snoozeKey = `chems_employee_notice_snooze_${employee.id}`;
+      const snooze = localStorage.getItem(snoozeKey);
       if (!snooze || Date.now() > Number(snooze)) {
         setShowNoticeModal(true);
+      } else {
+        setShowNoticeModal(false);
       }
     }
   }, [employee]);
 
   function handleSnoozeEmployeeNotice4Hours() {
+    if (!employee) return;
     const snoozeTime = Date.now() + 4 * 60 * 60 * 1000; // 4 tiếng
-    localStorage.setItem('chems_employee_notice_snooze', String(snoozeTime));
+    const snoozeKey = `chems_employee_notice_snooze_${employee.id}`;
+    localStorage.setItem(snoozeKey, String(snoozeTime));
     setShowNoticeModal(false);
     toast.info('Đã ẩn thông báo', 'Thông báo từ Chủ Quán sẽ được tạm ẩn trong 4 giờ!');
   }

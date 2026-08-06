@@ -35,6 +35,8 @@ import {
   updateEmployeeContactInfo,
   getAnnouncementNotice,
   saveAnnouncementNotice,
+  getSpecialEventMode,
+  saveSpecialEventMode,
 } from '@/lib/supabase';
 import {
   getCurrentMonth,
@@ -58,6 +60,7 @@ function AdminContent() {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [showSortEmpModal, setShowSortEmpModal] = useState(false);
+  const [specialEventMode, setSpecialEventMode] = useState(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'employees' | 'salary' | 'penalty'
@@ -70,12 +73,13 @@ function AdminContent() {
   const [editingNoticeText, setEditingNoticeText] = useState('');
   const [isEditingNotice, setIsEditingNotice] = useState(false);
 
-  // Tải nội dung thông báo quan trọng từ Supabase DB
+  // Tải nội dung thông báo quan trọng & Chế độ Dịp Đặc Biệt từ Supabase DB
   useEffect(() => {
     if (isUnlocked) {
       getAnnouncementNotice().then((text) => {
         if (text) setNoticeText(text);
       });
+      getSpecialEventMode().then(setSpecialEventMode);
     }
   }, [isUnlocked]);
 
@@ -701,65 +705,76 @@ function AdminContent() {
 
       <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-4 sm:py-6">
         <div className="max-w-6xl mx-auto space-y-4">
-          {/* Header Bar */}
-          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-            <h1 className="text-xl md:text-2xl font-black text-purple-950 tracking-tight">
+          {/* Header Bar Mobile Friendly */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-black text-purple-950 tracking-tight">
               <span className="text-purple-700 font-black">Quản Lý</span> Xếp Lịch & Chấm Công
             </h1>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              {/* Nút Bật / Tắt Chế Độ Dịp Đặc Biệt (Đăng ký Tết / 1 Tháng) */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const nextState = !specialEventMode;
+                  setSpecialEventMode(nextState);
+                  await saveSpecialEventMode(nextState);
+                  if (nextState) {
+                    toast.success('ĐÃ BẬT DỊP ĐẶC BIỆT!', 'Nhân viên nay có thể đăng ký rảnh trọn 1 Tháng (Tết/Lễ)');
+                  } else {
+                    toast.info('Đã tắt Dịp Đặc Biệt', 'Hệ thống quay về đăng ký theo tuần mặc định');
+                  }
+                }}
+                className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-black border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ${
+                  specialEventMode
+                    ? 'bg-rose-600 text-white border-rose-700 animate-pulse'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                }`}
+                title="Bấm để BẬT/TẮT cho nhân viên đăng ký 1 Tháng (Tết/Lễ)"
+              >
+                <span>🎆</span>
+                <span>{specialEventMode ? 'Dịp Đặc Biệt: ON' : 'Dịp Đặc Biệt: OFF'}</span>
+              </button>
+
               {/* Nút Bật & Sửa Thông Báo Quan Trọng */}
               <button
                 type="button"
                 onClick={() => setShowNoticeModal(true)}
-                className="px-3 py-1 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-xs font-black border border-amber-500 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                className="px-2.5 sm:px-3 py-1 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-[11px] sm:text-xs font-black border border-amber-500 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
                 title="Bấm để xem & sửa Thông Báo Quan Trọng"
               >
                 <span>🔔</span>
-                <span>Thông Báo Quan Trọng</span>
-              </button>
-              <span className={`px-3 py-1 rounded-full text-xs font-black border ${
-                adminRole === 'manager'
-                  ? 'bg-amber-100 text-amber-950 border-amber-300'
-                  : 'bg-purple-100 text-purple-950 border-purple-300'
-              }`}>
-                {adminRole === 'manager' ? '🛡️ Quyền Quản Lý (Chỉ Xếp Lịch)' : '👑 Quyền Chủ Quán (Full Access)'}
-              </span>
-              <button
-                type="button"
-                onClick={handleAdminLogout}
-                className="px-3 py-1 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-900 text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
-                title="Bấm để đăng xuất tài khoản Admin"
-              >
-                <span>🚪</span>
-                <span>Đăng Xuất</span>
+                <span className="hidden xs:inline">Thông Báo Quan Trọng</span>
+                <span className="xs:hidden">Thông Báo</span>
               </button>
             </div>
           </div>
 
-          {/* Segmented Control Navigation Tabs - Purple Brand Bar */}
-          <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 max-w-4xl mx-auto animate-fade-in shadow-2xs">
+          {/* Segmented Control Navigation Tabs - Vuốt Ngang Mượt Mà Trên Mobile */}
+          <div className="flex gap-1.5 bg-purple-100/80 rounded-2xl p-1.5 border border-purple-200/90 mb-4 overflow-x-auto custom-scrollbar whitespace-nowrap shadow-2xs">
             {[
-              { id: 'schedule', label: 'Xếp Lịch' },
-              { id: 'salary_report', label: 'QL Tính Lương' },
-              { id: 'employees', label: 'QL Nhân Viên' },
-              { id: 'penalty', label: 'Thưởng & Phạt' },
-              { id: 'branches', label: 'Chi Nhánh' },
+              { id: 'schedule', label: 'Xếp Lịch', icon: '📅' },
+              { id: 'salary', label: 'QL Tính Lương', icon: '💰' },
+              { id: 'employees', label: 'QL Nhân Viên', icon: '👥' },
+              { id: 'penalty', label: 'Thưởng & Phạt', icon: '🎁' },
+              { id: 'branches', label: 'Chi Nhánh', icon: '🏪' },
             ].map((tab) => {
               const isRestricted = adminRole === 'manager' && tab.id !== 'schedule';
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black cursor-pointer border transition-all ${
+                  className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     activeTab === tab.id
-                      ? 'bg-purple-700 text-white border-purple-700 shadow-xs font-black'
+                      ? 'bg-purple-700 text-white shadow-xs font-black'
                       : isRestricted
-                      ? 'bg-purple-50/50 text-purple-400 border-transparent hover:text-purple-600'
-                      : 'bg-transparent text-purple-900 border-transparent hover:text-purple-700 font-bold'
+                      ? 'bg-purple-50/50 text-purple-400 font-bold'
+                      : 'text-purple-950 hover:bg-purple-200/60 font-bold'
                   }`}
                   title={isRestricted ? 'Quyền Quản Lý bị hạn chế tính năng này' : ''}
                 >
-                  {isRestricted ? `🔒 ${tab.label}` : tab.label}
+                  <span>{isRestricted ? '🔒' : tab.icon}</span>
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
@@ -796,7 +811,7 @@ function AdminContent() {
           )}
 
           {/* CHỈ RENDER CÁC TAB NÀY KHI CÓ QUYỀN CHỦ QUÁN (adminRole === 'owner') */}
-          {adminRole === 'owner' && activeTab === 'salary_report' && (
+          {adminRole === 'owner' && activeTab === 'salary' && (
             <div className="animate-fade-in">
               <WeeklySalaryReportBoard employees={employees} toast={toast} />
             </div>
