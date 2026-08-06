@@ -60,6 +60,30 @@ function AdminContent() {
   // Tab state
   const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'employees' | 'salary' | 'penalty'
 
+  // State Thông Báo Quan Trọng Admin
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [noticeText, setNoticeText] = useState(
+    '📌 LƯU Ý QUAN TRỌNG CHO QUẢN LÝ / CHỦ QUÁN:\n- Hãy kiểm tra và chốt lịch phân công tuần mới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra danh sách các ngày Cao Điểm cấm Off trước khi duyệt ca nghỉ cho nhân viên!'
+  );
+  const [editingNoticeText, setEditingNoticeText] = useState('');
+  const [isEditingNotice, setIsEditingNotice] = useState(false);
+
+  // Tải nội dung thông báo quan trọng đã lưu
+  useEffect(() => {
+    if (isUnlocked) {
+      const savedNotice = localStorage.getItem('chems_admin_notice_content');
+      if (savedNotice) setNoticeText(savedNotice);
+    }
+  }, [isUnlocked]);
+
+  function handleSaveNoticeContent() {
+    if (!editingNoticeText.trim()) return;
+    setNoticeText(editingNoticeText.trim());
+    localStorage.setItem('chems_admin_notice_content', editingNoticeText.trim());
+    setIsEditingNotice(false);
+    toast.success('Đã cập nhật', 'Nội dung thông báo quan trọng đã được lưu!');
+  }
+
   // Data
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -243,7 +267,7 @@ function AdminContent() {
   const staffEmployees = useMemo(() => {
     if (!employees) return [];
     return employees.filter(
-      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý Tiệm')
+      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý')
     );
   }, [employees]);
 
@@ -665,7 +689,17 @@ function AdminContent() {
             <h1 className="text-xl md:text-2xl font-black text-purple-950 tracking-tight">
               <span className="text-purple-700 font-black">Quản Lý</span> Xếp Lịch & Chấm Công
             </h1>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Nút Bật & Sửa Thông Báo Quan Trọng */}
+              <button
+                type="button"
+                onClick={() => setShowNoticeModal(true)}
+                className="px-3 py-1 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-xs font-black border border-amber-500 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                title="Bấm để xem & sửa Thông Báo Quan Trọng"
+              >
+                <span>🔔</span>
+                <span>Thông Báo Quan Trọng</span>
+              </button>
               <span className={`px-3 py-1 rounded-full text-xs font-black border ${
                 adminRole === 'manager'
                   ? 'bg-amber-100 text-amber-950 border-amber-300'
@@ -1764,6 +1798,101 @@ function AdminContent() {
                 <div className="overflow-auto flex-1 flex items-center justify-center p-1 w-full max-h-[82vh]">
                   <img src={previewCccdUrl} alt="CCCD Phóng To" className="max-h-[80vh] max-w-full w-auto h-auto rounded-2xl object-contain shadow-xl border border-purple-200" />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+             POPUP THÔNG BÁO QUAN TRỌNG ADMIN (CÓ NÚT ẨN TRONG 4 GIỜ)
+             ========================================================================= */}
+          {showNoticeModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+              <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
+                {/* Header Popup */}
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-xl font-black shadow-2xs">
+                      🔔
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base sm:text-lg text-purple-950">
+                        Thông Báo Quan Trọng
+                      </h3>
+                      <p className="text-[11px] text-purple-700 font-extrabold">
+                        Hệ thống thông báo Chè Ms Hoa
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNoticeModal(false)}
+                    className="w-8 h-8 rounded-full bg-purple-50 text-purple-700 hover:bg-purple-100 flex items-center justify-center border-0 cursor-pointer text-sm font-black"
+                    title="Đóng"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Nội dung Thông báo */}
+                {isEditingNotice ? (
+                  <div className="space-y-3">
+                    <label className="block text-xs font-black text-purple-950 uppercase">
+                      ✏️ Soạn nội dung thông báo quan trọng:
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={editingNoticeText}
+                      onChange={(e) => setEditingNoticeText(e.target.value)}
+                      className="w-full p-3 bg-purple-50 border border-purple-300 rounded-2xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600 custom-scrollbar"
+                      placeholder="Nhập thông báo quan trọng..."
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingNotice(false)}
+                        className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 font-bold text-xs border-0 cursor-pointer"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveNoticeContent}
+                        className="px-4 py-1.5 rounded-xl bg-purple-700 text-white font-black text-xs border-0 cursor-pointer shadow-2xs"
+                      >
+                        🚀 Lưu Thay Đổi
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300/90 text-purple-950 text-xs sm:text-sm font-extrabold whitespace-pre-wrap leading-relaxed shadow-2xs">
+                      {noticeText}
+                    </div>
+
+                    {/* Nút bấm tác vụ phía Admin */}
+                    <div className="flex gap-2 pt-1">
+                      {adminRole === 'owner' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingNoticeText(noticeText);
+                            setIsEditingNotice(true);
+                          }}
+                          className="flex-1 py-2.5 rounded-xl text-xs font-black bg-amber-400 hover:bg-amber-500 text-purple-950 border border-amber-500 cursor-pointer shadow-2xs"
+                        >
+                          ✏️ Sửa Thông Báo
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowNoticeModal(false)}
+                        className="flex-1 py-2.5 rounded-xl text-xs font-black bg-purple-700 hover:bg-purple-800 text-white border-0 cursor-pointer shadow-2xs"
+                      >
+                        Đã Hiểu / Đóng
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

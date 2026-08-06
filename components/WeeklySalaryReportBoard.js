@@ -106,7 +106,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
     return [...employees]
       .filter((emp) => {
         // Lọc bỏ tài khoản Chủ Quán & Quản Lý
-        if (emp.role === 'owner' || emp.role === 'manager' || emp.name.includes('Chủ Quán') || emp.name.includes('Quản Lý Tiệm')) {
+        if (emp.role === 'owner' || emp.role === 'manager' || emp.name.includes('Chủ Quán') || emp.name.includes('Quản Lý')) {
           return false;
         }
         const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
@@ -201,7 +201,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
           {/* Thẻ Thống Kê Tổng Tiền Lương Tuần Toàn Tiệm */}
           <div className="flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-200 shadow-2xs">
             <div>
-              <div className="text-[10px] text-emerald-800 font-black uppercase">💰 TỔNG LƯƠNG TUẦN NÀY (TOÀN TIỆM)</div>
+              <div className="text-[10px] text-emerald-800 font-black uppercase">💰 TỔNG LƯƠNG TUẦN NÀY (TẤT CẢ NHÂN VIÊN)</div>
               <div className="text-base sm:text-lg font-black text-emerald-700">
                 {formatCurrency(grandTotalSalary)} <span className="text-xs font-extrabold text-emerald-600">({grandTotalHours}h)</span>
               </div>
@@ -334,8 +334,8 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
 
                 {/* HÀNG CỘNG TỔNG TOÀN TIỆM CUỐI BẢNG */}
                 <tr className="bg-purple-950 text-white font-black border-t-2 border-purple-800">
-                  <td className="py-3.5 px-3 border-r-2 border-purple-300 sticky left-0 z-20 bg-purple-950 text-amber-300 text-sm uppercase shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)]">
-                    👑 TỔNG CỘNG TIỆM
+                  <td className="py-3 px-2 font-black text-purple-950 text-xs sm:text-sm sticky left-0 z-20 bg-purple-200/90 shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] uppercase">
+                    👑 TỔNG CỘNG TOÀN BỘ CA LÀM
                   </td>
                   {weekDays.map((dStr) => {
                     const dayShifts = schedule.filter((s) => s.date === dStr);

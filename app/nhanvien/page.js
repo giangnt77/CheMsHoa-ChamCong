@@ -41,6 +41,31 @@ function EmployeeContent() {
   const [empRates, setEmpRates] = useState([]);
   const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
 
+  // State Thông Báo Quan Trọng Dành Cho Nhân Viên
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [noticeText, setNoticeText] = useState(
+    '📌 THÔNG BÁO TỪ CHỦ QUÁN (CHỊ HOA):\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!'
+  );
+
+  useEffect(() => {
+    if (employee) {
+      const savedNotice = localStorage.getItem('chems_admin_notice_content');
+      if (savedNotice) setNoticeText(savedNotice);
+
+      const snooze = localStorage.getItem('chems_employee_notice_snooze');
+      if (!snooze || Date.now() > Number(snooze)) {
+        setShowNoticeModal(true);
+      }
+    }
+  }, [employee]);
+
+  function handleSnoozeEmployeeNotice4Hours() {
+    const snoozeTime = Date.now() + 4 * 60 * 60 * 1000; // 4 tiếng
+    localStorage.setItem('chems_employee_notice_snooze', String(snoozeTime));
+    setShowNoticeModal(false);
+    toast.info('Đã ẩn thông báo', 'Thông báo từ Chủ Quán sẽ được tạm ẩn trong 4 giờ!');
+  }
+
   // Luôn bắt đầu từ Màn Hình Chọn Nhân Viên (Không tự động nhảy thẳng vào app qua cache)
   useEffect(() => {
     setInitialLoading(false);
@@ -223,10 +248,19 @@ function EmployeeContent() {
         <div className="max-w-7xl mx-auto space-y-3">
           {/* Top Header Row: Greeting & Action Controls - Purple Brand Style */}
           <div className="flex items-center justify-between flex-wrap gap-2 py-1">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-black text-purple-950 tracking-tight">
                 Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>! 👋
               </h1>
+              <button
+                type="button"
+                onClick={() => setShowNoticeModal(true)}
+                className="px-3.5 py-1.5 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-xs sm:text-sm font-black border border-amber-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                title="Bấm để xem Thông Báo Quan Trọng Từ Chủ Quán"
+              >
+                <span>🔔</span>
+                <span>Thông Báo</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
@@ -309,6 +343,66 @@ function EmployeeContent() {
           {view === 'availability' && (
             <div className="animate-fade-in">
               <WeeklyAvailability employee={employee} />
+            </div>
+          )}
+
+          {/* =========================================================================
+             POPUP THÔNG BÁO QUAN TRỌNG DÀNH CHO NHÂN VIÊN (TỪ CHỦ QUÁN / ADMIN)
+             ========================================================================= */}
+          {showNoticeModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+              <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
+                {/* Header Popup */}
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-xl font-black shadow-2xs">
+                      🔔
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base sm:text-lg text-purple-950">
+                        Thông Báo Từ Chủ Quán
+                      </h3>
+                      <p className="text-[11px] text-purple-700 font-extrabold">
+                        Quán Chè Ms Hoa thông báo
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNoticeModal(false)}
+                    className="w-8 h-8 rounded-full bg-purple-50 text-purple-700 hover:bg-purple-100 flex items-center justify-center border-0 cursor-pointer text-sm font-black"
+                    title="Đóng"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Nội dung Thông báo */}
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300/90 text-purple-950 text-xs sm:text-sm font-extrabold whitespace-pre-wrap leading-relaxed shadow-2xs">
+                    {noticeText}
+                  </div>
+
+                  {/* Nút bấm tác vụ */}
+                  <div className="space-y-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleSnoozeEmployeeNotice4Hours}
+                      className="w-full py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm bg-purple-100 hover:bg-purple-200 text-purple-950 border border-purple-300 cursor-pointer transition-all shadow-2xs flex items-center justify-center gap-2 active:scale-95"
+                    >
+                      <span>⏱</span> Ẩn thông báo này trong 4 giờ
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowNoticeModal(false)}
+                      className="w-full py-2.5 rounded-xl text-xs sm:text-sm font-black bg-purple-700 hover:bg-purple-800 text-white border-0 cursor-pointer shadow-2xs"
+                    >
+                      Đã Hiểu / Đóng
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

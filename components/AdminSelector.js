@@ -32,14 +32,14 @@ export default function AdminSelector({ onSelect }) {
         // Fallback tài khoản mặc định nếu DB chưa phân role
         setAdminAccounts([
           { id: 'admin-owner', name: 'Chủ Quán (Chị Hoa)', role: 'owner', pin: '888888' },
-          { id: 'admin-manager', name: 'Quản Lý Tiệm', role: 'manager', pin: '666666' },
+          { id: 'admin-manager', name: 'Quản Lý', role: 'manager', pin: '666666' },
         ]);
       }
     } catch (err) {
       console.error(err);
       setAdminAccounts([
         { id: 'admin-owner', name: 'Chủ Quán (Chị Hoa)', role: 'owner', pin: '888888' },
-        { id: 'admin-manager', name: 'Quản Lý Tiệm', role: 'manager', pin: '666666' },
+        { id: 'admin-manager', name: 'Quản Lý', role: 'manager', pin: '666666' },
       ]);
     }
     setLoading(false);

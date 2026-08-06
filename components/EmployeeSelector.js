@@ -23,6 +23,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
+  const [rememberPin, setRememberPin] = useState(true); // Checkbox Ghi nhớ mật khẩu
 
   useEffect(() => {
     loadEmployees();
@@ -54,6 +55,16 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     setSelectedEmp(emp);
     setPinInput('');
     setPinError(false);
+    setRememberPin(true);
+  }
+
+  // Hủy ghi nhớ PIN trên máy này đối với nhân viên mượn thiết bị
+  function handleClearSavedPin(empId, e) {
+    e.stopPropagation();
+    localStorage.removeItem(`chemshoa_saved_pin_${empId}`);
+    toast.info('Đã xóa ghi nhớ', 'Đã xóa mật khẩu ghi nhớ trên thiết bị này!');
+    // Render lại giao diện
+    setEmployees([...employees]);
   }
 
   // Bàn phím bấm số PIN 6 số
@@ -77,7 +88,11 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
   function verifyPin(inputPin) {
     const correctPin = selectedEmp.pin || '123456';
     if (inputPin === correctPin) {
-      localStorage.setItem(`chemshoa_saved_pin_${selectedEmp.id}`, correctPin);
+      if (rememberPin) {
+        localStorage.setItem(`chemshoa_saved_pin_${selectedEmp.id}`, correctPin);
+      } else {
+        localStorage.removeItem(`chemshoa_saved_pin_${selectedEmp.id}`);
+      }
       toast.success('Thành công', `Xin chào ${selectedEmp.name}!`);
       onSelect(selectedEmp.name, false);
     } else {
@@ -196,6 +211,24 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                     ❌ Mã PIN không đúng! Vui lòng thử lại.
                   </p>
                 )}
+
+                {/* Checkbox Tùy Chọn Ghi Nhớ Mật Khẩu PIN */}
+                <div className="mt-3.5 p-2.5 rounded-xl bg-purple-50 border border-purple-200/80">
+                  <label className="flex items-center justify-center gap-2 cursor-pointer text-xs font-black text-purple-950 select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberPin}
+                      onChange={(e) => setRememberPin(e.target.checked)}
+                      className="w-4 h-4 rounded text-purple-700 focus:ring-purple-500 cursor-pointer accent-purple-700"
+                    />
+                    <span>Ghi nhớ mật khẩu PIN trên máy này</span>
+                  </label>
+                  <p className="text-[10px] text-purple-700 font-bold mt-1 text-center">
+                    {rememberPin
+                      ? '💡 Lần sau bấm vào tên bạn sẽ vào thẳng không cần nhập PIN.'
+                      : '⚠️ Bỏ tích nếu đang mượn máy người khác để tránh lưu PIN!'}
+                  </p>
+                </div>
               </div>
 
               {/* Bàn Phím Số 0-9 */}
@@ -306,6 +339,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                   {sortedFiltered.map((emp, idx) => {
                     const isRecent = recentIds.includes(emp.id);
                     const isShortLeave = emp.status === 'leave';
+                    const hasSavedPin = typeof window !== 'undefined' && !!localStorage.getItem(`chemshoa_saved_pin_${emp.id}`);
                     const badgeBgs = [
                       'bg-purple-700 text-white',
                       'bg-amber-600 text-white',
@@ -316,11 +350,9 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                     const badgeBg = badgeBgs[idx % badgeBgs.length];
 
                     return (
-                      <button
+                      <div
                         key={emp.id}
-                        type="button"
                         onClick={() => handleSelectEmployeeCard(emp)}
-                        disabled={parentLoading}
                         className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer border transition-all text-left group shadow-2xs ${
                           isRecent
                             ? 'bg-amber-50/90 hover:bg-amber-100/90 border-amber-300 shadow-xs'
@@ -341,17 +373,27 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                                 🟡 Xin nghỉ ngắn ngày
                               </span>
                             )}
-                            {isRecent && (
+                            {hasSavedPin && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleClearSavedPin(emp.id, e)}
+                                className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 hover:bg-rose-600 hover:text-white text-[10px] font-black border border-rose-300 transition-all cursor-pointer shadow-2xs active:scale-95"
+                                title="Bấm để xóa mật khẩu ghi nhớ PIN trên máy này"
+                              >
+                                🔓 Hủy lưu PIN
+                              </button>
+                            )}
+                            {isRecent && !hasSavedPin && (
                               <span className="px-2 py-0.5 rounded-md bg-amber-400 text-purple-950 text-[10px] font-black tracking-tight border border-amber-500/50 shadow-2xs">
                                 ⭐ Đã từng đăng nhập
                               </span>
                             )}
                           </div>
                           <span className="text-xs text-purple-700 font-extrabold block mt-0.5">
-                            {isRecent ? '🔑 Đã ghi nhớ mật khẩu • Bấm để đăng nhập →' : '🔒 Bấm để chọn & xem lịch →'}
+                            {hasSavedPin ? '🔑 Đã ghi nhớ PIN • Bấm để vào thẳng →' : '🔒 Bấm để chọn & nhập PIN xem lịch →'}
                           </span>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

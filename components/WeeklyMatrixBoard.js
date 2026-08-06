@@ -135,7 +135,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const staffEmployees = useMemo(() => {
     if (!employees || employees.length === 0) return [];
     return employees.filter(
-      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý Tiệm')
+      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý')
     );
   }, [employees]);
 
