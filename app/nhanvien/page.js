@@ -254,8 +254,8 @@ function EmployeeContent() {
                 onClick={() => setView('availability')}
                 className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all ${
                   view === 'availability'
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-black scale-[1.02] border border-amber-400'
-                    : 'bg-amber-100/90 text-amber-950 border border-amber-300/90 hover:bg-amber-200 font-black shadow-2xs'
+                    ? 'bg-orange-600 text-white shadow-md font-black scale-[1.02] border border-orange-700'
+                    : 'bg-orange-600/90 hover:bg-orange-600 text-white font-black border border-orange-700 shadow-2xs opacity-90'
                 }`}
               >
                 📝 Đăng Ký Làm
