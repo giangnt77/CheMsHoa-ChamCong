@@ -249,57 +249,68 @@ function EmployeeContent() {
         icon="🍵"
         employeeName={employee.name}
         showRulesLink={true}
+        onBackClick={handleLogout}
+        homeIcon="🚪"
+        homeTitle="Đăng Xuất"
       />
 
       <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
         <div className="max-w-7xl mx-auto space-y-3">
-          {/* Top Header Row: Greeting & Action Controls - Purple Brand Style */}
-          <div className="flex items-center justify-between flex-wrap gap-2 py-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-black text-purple-950 tracking-tight">
+          {/* Top Header Row: Greeting & Clean Navigation Bar */}
+          <div className="space-y-2.5 py-1">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-2xl font-black text-purple-950 tracking-tight">
                 Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>! 👋
               </h1>
-              <button
-                type="button"
-                onClick={() => setShowNoticeModal(true)}
-                className="px-3.5 py-1.5 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-xs sm:text-sm font-black border border-amber-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
-                title="Bấm để xem Thông Báo Quan Trọng Từ Chủ Quán"
-              >
-                <span>🔔</span>
-                <span>Thông Báo</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
-                className="px-4 py-1.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-black border border-purple-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-xs"
-                title="Bấm để xem thu nhập cá nhân"
-              >
-                <span>💰</span>
-                <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
-              </button>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setShowNoticeModal(true)}
+                  className="px-2.5 sm:px-3 py-1 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-xs font-black border border-amber-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                  title="Bấm để xem Thông Báo Quan Trọng"
+                >
+                  <span>🔔</span>
+                  <span>Thông Báo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
+                  className="px-2.5 sm:px-3 py-1 rounded-full bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border border-purple-800 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                  title="Bấm để xem thu nhập cá nhân"
+                >
+                  <span>💰</span>
+                  <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
+                </button>
+              </div>
             </div>
 
-            {/* Segmented Control Switcher (Lịch Phân Công / Đăng Ký Làm) - Nút Đăng Ký Làm Nổi Bật Rực Rỡ */}
-            <div className="flex bg-purple-100 p-1.5 rounded-2xl w-full sm:w-auto border border-purple-200 shadow-2xs gap-1.5">
+            {/* Segmented Tab Switcher (Lịch Phân Công / Đăng Ký Làm) - Thiết Kế Siêu To Dễ Bấm Cho Nhân Viên */}
+            <div className="flex bg-purple-100/90 p-1.5 rounded-2xl border border-purple-200 shadow-xs gap-2 mt-1">
               <button
+                type="button"
                 onClick={() => setView('schedule')}
-                className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all ${
+                className={`flex-1 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
                   view === 'schedule'
-                    ? 'bg-purple-700 text-white shadow-md font-black scale-[1.02]'
-                    : 'bg-white/60 text-purple-950 hover:bg-white font-extrabold border border-purple-200/50'
+                    ? 'bg-purple-700 text-white shadow-md font-black scale-[1.01]'
+                    : 'bg-white/80 text-purple-950 hover:bg-white font-extrabold border border-purple-200/60'
                 }`}
               >
-                📅 Lịch Phân Công
+                <span className="text-base sm:text-lg">📅</span>
+                <span className="tracking-tight">Lịch Phân Công</span>
               </button>
               <button
+                type="button"
                 onClick={() => setView('availability')}
-                className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all ${
+                className={`flex-1 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
                   view === 'availability'
-                    ? 'bg-orange-600 text-white shadow-md font-black scale-[1.02] border border-orange-700'
-                    : 'bg-orange-600/90 hover:bg-orange-600 text-white font-black border border-orange-700 shadow-2xs opacity-90'
+                    ? 'bg-orange-600 text-white shadow-md font-black scale-[1.01] border border-orange-700'
+                    : 'bg-orange-500 text-white font-black hover:bg-orange-600 border border-orange-600 shadow-2xs'
                 }`}
               >
-                📝 Đăng Ký Làm
+                <span className="text-base sm:text-lg">📝</span>
+                <span className="tracking-tight">Đăng Ký Làm</span>
               </button>
             </div>
           </div>

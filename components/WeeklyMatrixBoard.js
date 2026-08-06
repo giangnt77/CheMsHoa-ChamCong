@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   getBranches,
   getAvailabilityByDateRange,
@@ -9,7 +9,7 @@ import {
   deleteSchedule,
   updateEmployeesSortOrders,
 } from '@/lib/supabase';
-import { getBranchColorStyle } from '@/lib/utils';
+import { getBranchColorStyle, getToday } from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
 
 /**
@@ -85,9 +85,28 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const startDate = weekDays[0];
   const endDate = weekDays[6];
 
+  const tableContainerRef = useRef(null);
+
   useEffect(() => {
     loadWeekData();
   }, [currentMonday]);
+
+  // CHỈ BÊN NHÂN VIÊN ĐĂNG NHẬP (readOnly === true): TỰ ĐỘNG CUỘN NGANG ĐẾN CỘT "HÔM NAY" ĐỂ XEM LỊCH NHANH ⚡
+  useEffect(() => {
+    if (readOnly && !loading && tableContainerRef.current) {
+      const todayStr = getToday();
+      const todayIdx = weekDays.indexOf(todayStr);
+      if (todayIdx >= 0) {
+        requestAnimationFrame(() => {
+          const todayTh = tableContainerRef.current?.querySelector(`[data-date="${todayStr}"]`);
+          if (todayTh) {
+            const scrollLeft = todayTh.offsetLeft - 140;
+            tableContainerRef.current.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+          }
+        });
+      }
+    }
+  }, [readOnly, loading, weekDays]);
 
   async function loadWeekData(isSilent = false) {
     const savedScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
@@ -686,9 +705,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       </div>
 
       {/* =========================================================================
-         BẢNG MA TRẬN PHÂN CÔNG CHÈ Ms HOA • HEADER 1 DÒNG TỐI ƯU • CỐ ĐỊNH CỘT TÊN CHE KHẤT 100%
+         BẢNG MA TRẬN PHÂN CÔNG CHÈ Ms HOA • HEADER 1 DÒNG TỐI ƯU • TỰ ĐỘNG CUỘN TỚI HÔM NAY
          ========================================================================= */}
-      <div className="bg-white rounded-3xl p-0 border border-purple-200 shadow-xl overflow-x-auto custom-scrollbar relative">
+      <div ref={tableContainerRef} className="bg-white rounded-3xl p-0 border border-purple-200 shadow-xl overflow-x-auto custom-scrollbar relative">
         <table className="w-full min-w-[980px] border-collapse text-xs">
           <thead>
             {/* Hàng 1: Tên Thứ (T2 -> CN) */}
@@ -696,12 +715,32 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               <th className="py-2.5 px-2 border-r-2 border-purple-300 w-28 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
                 NHÂN VIÊN
               </th>
-              {weekDays.map((dStr, idx) => (
-                <th key={dStr} className="py-2.5 px-2 border-r border-purple-800 text-center font-black uppercase text-amber-300 text-xs sm:text-sm">
-                  <div>{DAY_LABELS[idx]}</div>
-                  <div className="text-[11px] font-extrabold text-purple-200 mt-0.5">{dStr.split('-').reverse().slice(0, 2).join('/')}</div>
-                </th>
-              ))}
+              {weekDays.map((dStr, idx) => {
+                const isToday = dStr === getToday();
+                return (
+                  <th
+                    key={dStr}
+                    data-date={dStr}
+                    className={`py-2.5 px-2 border-r border-purple-800 text-center font-black uppercase text-xs sm:text-sm transition-all ${
+                      isToday
+                        ? 'bg-amber-400 text-purple-950 font-black border-x-2 border-amber-500 shadow-inner'
+                        : 'text-amber-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>{DAY_LABELS[idx]}</span>
+                      {isToday && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-black animate-pulse">
+                          HÔM NAY
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-[11px] font-extrabold mt-0.5 ${isToday ? 'text-purple-950' : 'text-purple-200'}`}>
+                      {dStr.split('-').reverse().slice(0, 2).join('/')}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
