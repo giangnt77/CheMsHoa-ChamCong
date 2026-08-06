@@ -83,8 +83,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     loadWeekData();
   }, [currentMonday]);
 
-  async function loadWeekData() {
-    setLoading(true);
+  async function loadWeekData(isSilent = false) {
+    const savedScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+    if (!isSilent) {
+      setLoading(true);
+    }
     try {
       const [branchData, schedData, availData] = await Promise.all([
         getBranches(),
@@ -98,7 +101,16 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       console.error(err);
       if (toast) toast.error('Lỗi', 'Không thể tải lịch tuần');
     }
-    setLoading(false);
+    if (!isSilent) {
+      setLoading(false);
+    }
+
+    // Tự động giữ nguyên vị trí cuộn màn hình hiện tại của Admin
+    if (typeof window !== 'undefined' && savedScrollY > 0) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+      });
+    }
   }
 
   function prevWeek() {
@@ -117,7 +129,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
-  // Sắp xếp danh sách nhân viên: Đẩy nhân viên OFF xuống cuối cùng, ưu tiên sort_order
+  // Sắp xếp danh sách nhân viên: Theo sort_order do Admin sắp xếp
   const sortedEmployees = useMemo(() => {
     if (!employees || employees.length === 0) return [];
 
@@ -126,10 +138,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         if (a.id === highlightEmployeeId) return -1;
         if (b.id === highlightEmployeeId) return 1;
       }
-
-      const isOffA = a.status === 'off';
-      const isOffB = b.status === 'off';
-      if (isOffA !== isOffB) return isOffA ? 1 : -1;
 
       const orderA = a.sort_order ?? 999;
       const orderB = b.sort_order ?? 999;
@@ -162,8 +170,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
   // Phân loại danh sách nhân viên thành 3 nhóm độc lập:
   // 1. matrixEmployees: Nhân viên đi làm -> Hiện trong bảng ma trận xếp lịch chính
-  // 2. shortLeaveEmployees: BẢNG VÀNG 🟡 -> Danh sách Nhân viên xin nghỉ vài ngày / nghỉ ngắn ngày
-  // 3. permanentOffEmployees: BẢNG ĐỎ 🔴 -> Danh sách Nhân viên Off luôn / nghỉ việc cố định
+  // 2. shortLeaveEmployees: BẢNG VÀNG 🟡 -> Danh sách Nhân viên xin nghỉ cả tuần (7/7 ngày) hoặc trạng thái 'leave'
+  // 3. permanentOffEmployees: BẢNG ĐỎ 🔴 -> Danh sách Nhân viên Off luôn / nghỉ việc cố định ('off')
   const { matrixEmployees, shortLeaveEmployees, permanentOffEmployees } = useMemo(() => {
     if (!sortedEmployees) return { matrixEmployees: [], shortLeaveEmployees: [], permanentOffEmployees: [] };
 
@@ -187,21 +195,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         return;
       }
 
-      // Đếm số ngày đăng ký xin nghỉ trong tuần này
-      const empOffDays = weekDays.filter((dStr) => availByEmpAndDate[`${emp.id}_${dStr}`]?.type === 'off');
-      const empWeekShifts = weekDays.flatMap((dStr) => scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
-
-      // 2. XIN NGHỈ NGẮN NGÀY / NGHỈ VÀI NGÀY (BẢNG VÀNG 🟡) -> Khi status là 'leave' hoặc đăng ký xin nghỉ trong tuần
-      if (emp.status === 'leave' || (empOffDays.length > 0 && empWeekShifts.length === 0)) {
+      // 2. CHỈ KHI CHỦ QUÁN ĐẶT TRẠNG THÁI LÀ 'leave' (Xin nghỉ) -> MỚI ĐƯA VÀO BẢNG VÀNG 🟡
+      if (emp.status === 'leave') {
+        const empOffDays = weekDays.filter((dStr) => availByEmpAndDate[`${emp.id}_${dStr}`]?.type === 'off');
         shortLeaveList.push({
           employee: emp,
-          reason: emp.status === 'leave' ? 'Xin nghỉ ngắn ngày' : `Xin nghỉ ${empOffDays.length}/7 ngày tuần này`,
+          reason: 'Xin nghỉ ngắn ngày (Chủ duyệt)',
           offDaysCount: empOffDays.length,
         });
         return;
       }
 
-      // 3. Nhân viên đi làm bình thường -> Hiện ở bảng xếp lịch chính
+      // 3. TẤT CẢ NHÂN VIÊN CÒN LẠI (KỂ CẢ ĐĂNG KÝ XIN NGHỈ TRÊN WEB) -> LUÔN LUÔN HIỂN THỊ TRÊN BẢNG MA TRẬN CHÍNH
       matrix.push(emp);
     });
 
@@ -349,7 +354,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         count++;
       }
 
-      await loadWeekData();
+      await loadWeekData(true);
       if (toast) toast.success('Đã sao chép!', `Đã sao chép ${count} ca làm tuần trước cho ${emp.name}!`);
     } catch (err) {
       console.error(err);
@@ -370,7 +375,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         note: sourceShift.note || '',
       });
       if (toast) toast.success('Đã sao chép ca!', 'Đã copy ca làm ngày hôm trước sang hôm nay!');
-      await loadWeekData();
+      await loadWeekData(true);
     } catch (err) {
       console.error(err);
       if (toast) toast.error('Lỗi', 'Không thể sao chép ca làm');
@@ -391,7 +396,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         await upsertSchedule(data);
         if (toast) toast.success('Thành công', 'Đã lưu phân công ca làm!');
       }
-      loadWeekData();
+      await loadWeekData(true);
     } catch (err) {
       console.error(err);
       if (toast) toast.error('Lỗi', 'Không thể lưu phân công');
@@ -402,7 +407,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     try {
       await deleteSchedule(itemId);
       if (toast) toast.info('Đã xóa', 'Đã chuyển ca về trạng thái OFF');
-      loadWeekData();
+      await loadWeekData(true);
     } catch (err) {
       console.error(err);
       if (toast) toast.error('Lỗi', 'Không thể xóa ca làm');

@@ -112,6 +112,25 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   }
 
   async function handleSubmit() {
+    // Đếm số ngày đăng ký xin nghỉ (off) trong tuần
+    const offDays = days.filter((dateStr) => availability[dateStr] === 'off');
+
+    if (offDays.length > 3) {
+      // Popup Xác Nhận Lần 1
+      const confirm1 = window.confirm('Thí chủ đã xin phép chị Hoa chưa?');
+      if (!confirm1) {
+        return; // Thí chủ chưa xin phép -> Dừng không cho gửi
+      }
+
+      // Popup Xác Nhận Lần 2
+      const confirm2 = window.confirm(
+        `Xác nhận lần 2: Thí chủ đã xin phép Chị Hoa thật chưa? (Bạn đang đăng ký nghỉ ${offDays.length} ngày trong tuần). Nếu chưa xin phép sẽ bị xử lý theo nội quy quán!`
+      );
+      if (!confirm2) {
+        return; // Dừng không cho gửi
+      }
+    }
+
     setSubmitting(true);
     try {
       // Xử lý từng ngày trong tuần sau
@@ -151,9 +170,14 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     return `${start.getDate()}/${start.getMonth() + 1} — ${end.getDate()}/${end.getMonth() + 1}/${end.getFullYear()}`;
   }
 
+  // LOGIC TỰ ĐỘNG KHÓA / MỞ ĐĂNG KÝ:
+  // - Từ Thứ 2 đến hết Thứ 7: MỞ KHÓA CHO SỬA CHỮA VÀ ĐĂNG KÝ THOẢI MÁI!
+  // - Sang Chủ Nhật (dayOfWeek === 0): TỰ ĐỘNG KHÓA CỨNG ĐĂNG KÝ LỊCH!
   const isLocked = useMemo(() => {
-    return Object.keys(initialAvailability).length > 0 && !hasChanges;
-  }, [initialAvailability, hasChanges]);
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0: Chủ Nhật, 1: T2, 2: T3, ..., 6: T7
+    return dayOfWeek === 0; // Khóa vào Chủ Nhật
+  }, []);
 
   if (loading) {
     return (
@@ -307,34 +331,39 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
         })}
       </div>
 
-      {/* Nút XÁC NHẬN ĐĂNG KÝ HOẶC ĐÃ KHÓA */}
+      {/* Nút XÁC NHẬN ĐĂNG KÝ HOẶC ĐÃ KHÓA THEO CHU KỲ */}
       <div className="pt-2 border-t border-purple-100">
         {isLocked ? (
           <div className="text-center space-y-2">
-            <div className="w-full py-3.5 px-4 rounded-xl font-black text-xs sm:text-sm border border-emerald-300 bg-emerald-800 text-white flex items-center justify-center gap-2 shadow-xs">
-              <span>🔒</span> ĐÃ CHỐT ĐĂNG KÝ LỊCH (Đã khóa chỉnh sửa)
+            <div className="w-full py-3.5 px-4 rounded-xl font-black text-xs sm:text-sm border border-rose-300 bg-rose-700 text-white flex items-center justify-center gap-2 shadow-xs">
+              <span>🔒</span> ĐÃ HẾT HẠN ĐĂNG KÝ (Đã tự động khóa vào Chủ Nhật)
             </div>
             <p className="text-xs text-purple-800 font-extrabold italic">
-              💡 Lịch đã được chốt trên hệ thống. Nếu muốn thay đổi lịch đăng ký, vui lòng liên hệ Admin/Quản lý!
+              💡 Đã hết hạn đăng ký tuần này. Lịch sẽ tự động mở lại vào Thứ 2 tuần tới! Nếu cần điều chỉnh gấp, vui lòng liên hệ Chị Hoa.
             </p>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${
-              hasChanges
-                ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-            }`}
-          >
-            {submitting
-              ? '⏳ Đang chốt lịch...'
-              : hasChanges
-              ? '🚀 XÁC NHẬN CHỐT LỊCH LÀM (Khóa chỉnh sửa)'
-              : '✅ ĐÃ CHỐT ĐĂNG KÝ LỊCH'}
-          </button>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${
+                hasChanges
+                  ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              {submitting
+                ? '⏳ Đang lưu lịch...'
+                : hasChanges
+                ? '🚀 CẬP NHẬT & CHỐT LỊCH ĐĂNG KÝ'
+                : '✅ ĐÃ CHỐT ĐĂNG KÝ LỊCH (Bấm để cập nhật lại)'}
+            </button>
+            <p className="text-[11px] sm:text-xs text-center text-purple-700 font-extrabold">
+              💡 Hạn sửa chữa & chốt lịch: Mở tự do từ <span className="text-purple-950 font-black">Thứ 2 đến hết Thứ 7</span>. Hệ thống sẽ tự động khóa chốt lịch vào Chủ Nhật!
+            </p>
+          </div>
         )}
       </div>
     </div>
