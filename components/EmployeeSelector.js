@@ -264,11 +264,28 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
             )}
 
             {(() => {
-              const filtered = employees.filter((e) =>
-                e.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-              );
+              let recentIds = [];
+              try {
+                recentIds = JSON.parse(localStorage.getItem('chemshoa_recent_logins') || '[]');
+              } catch (e) {}
 
-              if (filtered.length === 0) {
+              // Lọc bỏ tài khoản Admin & lọc theo ô tìm kiếm (vẫn giữ nguyên nhân viên xin nghỉ ngắn ngày status === 'leave')
+              const filtered = employees.filter((e) => {
+                if (e.role === 'owner' || e.role === 'manager') return false;
+                return e.name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+              });
+
+              // Sắp xếp: Ưu tiên tài khoản ĐÃ TỪNG ĐĂNG NHẬP LÊN ĐẦU DANH SÁCH!
+              const sortedFiltered = [...filtered].sort((a, b) => {
+                const idxA = recentIds.indexOf(a.id);
+                const idxB = recentIds.indexOf(b.id);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return 0;
+              });
+
+              if (sortedFiltered.length === 0) {
                 return (
                   <div className="text-center py-8 bg-white rounded-2xl border border-purple-200 text-purple-600">
                     <div className="text-3xl mb-2">🔍</div>
@@ -286,7 +303,9 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
 
               return (
                 <div className="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
-                  {filtered.map((emp, idx) => {
+                  {sortedFiltered.map((emp, idx) => {
+                    const isRecent = recentIds.includes(emp.id);
+                    const isShortLeave = emp.status === 'leave';
                     const badgeBgs = [
                       'bg-purple-700 text-white',
                       'bg-amber-600 text-white',
@@ -302,18 +321,34 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
                         type="button"
                         onClick={() => handleSelectEmployeeCard(emp)}
                         disabled={parentLoading}
-                        className="w-full flex items-center gap-3.5 p-3.5 bg-white hover:bg-purple-50/70 rounded-2xl cursor-pointer border border-purple-200/90 hover:border-purple-500 active:scale-98 transition-all text-left group shadow-2xs"
+                        className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer border transition-all text-left group shadow-2xs ${
+                          isRecent
+                            ? 'bg-amber-50/90 hover:bg-amber-100/90 border-amber-300 shadow-xs'
+                            : 'bg-white hover:bg-purple-50/70 border-purple-200/90 hover:border-purple-500'
+                        }`}
                       >
                         <div className={`w-12 h-12 rounded-xl ${badgeBg} flex items-center justify-center font-black text-base flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform`}>
                           {getInitials(emp.name)}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <span className="text-base sm:text-lg font-black text-purple-950 block truncate">
-                            {emp.name}
-                          </span>
-                          <span className="text-xs text-purple-700 font-extrabold block">
-                            🔒 Bấm để chọn & xem lịch →
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base sm:text-lg font-black text-purple-950 truncate">
+                              {emp.name}
+                            </span>
+                            {isShortLeave && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-950 text-[10px] font-black border border-amber-300">
+                                🟡 Xin nghỉ ngắn ngày
+                              </span>
+                            )}
+                            {isRecent && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-400 text-purple-950 text-[10px] font-black tracking-tight border border-amber-500/50 shadow-2xs">
+                                ⭐ Đã từng đăng nhập
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-purple-700 font-extrabold block mt-0.5">
+                            {isRecent ? '🔑 Đã ghi nhớ mật khẩu • Bấm để đăng nhập →' : '🔒 Bấm để chọn & xem lịch →'}
                           </span>
                         </div>
                       </button>

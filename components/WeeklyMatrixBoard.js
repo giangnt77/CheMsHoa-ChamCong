@@ -55,6 +55,7 @@ function formatBranchDisplayName(name = '') {
 }
 
 import ModalSortEmployees from './ModalSortEmployees';
+import ModalBlockOffDays from './ModalBlockOffDays';
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -65,6 +66,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSortModal, setShowSortModal] = useState(false);
+  const [showBlockOffModal, setShowBlockOffModal] = useState(false);
 
   // Modal State
   const [modalState, setModalState] = useState({
@@ -129,11 +131,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
+  // Lọc bỏ tài khoản Chủ Quán & Quản Lý ra khỏi Bảng Xếp Lịch Nhân Viên
+  const staffEmployees = useMemo(() => {
+    if (!employees || employees.length === 0) return [];
+    return employees.filter(
+      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý Tiệm')
+    );
+  }, [employees]);
+
   // Sắp xếp danh sách nhân viên: Theo sort_order do Admin sắp xếp
   const sortedEmployees = useMemo(() => {
-    if (!employees || employees.length === 0) return [];
+    if (!staffEmployees || staffEmployees.length === 0) return [];
 
-    return [...employees].sort((a, b) => {
+    return [...staffEmployees].sort((a, b) => {
       if (highlightEmployeeId) {
         if (a.id === highlightEmployeeId) return -1;
         if (b.id === highlightEmployeeId) return 1;
@@ -145,7 +155,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
       return a.name.localeCompare(b.name);
     });
-  }, [employees, highlightEmployeeId]);
+  }, [staffEmployees, highlightEmployeeId]);
 
   // Index map dữ liệu ca làm theo employeeId_date
   const scheduleByEmpAndDate = useMemo(() => {
@@ -464,6 +474,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             >
               Hôm nay
             </button>
+
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setShowBlockOffModal(true)}
+                className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
+              >
+                <span>🚫</span>
+                <span className="hidden sm:inline">Quy Định Cấm Off</span>
+              </button>
+            )}
 
             {!readOnly && (
               <button
@@ -792,6 +814,15 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           onDelete={handleDeleteScheduleItem}
           editItem={modalState.editItem}
           initialEmployee={modalState.employee}
+        />
+      )}
+
+      {/* MODAL CẤU HÌNH CẤM XIN NGHỈ CHO ADMIN */}
+      {showBlockOffModal && (
+        <ModalBlockOffDays
+          isOpen={showBlockOffModal}
+          onClose={() => setShowBlockOffModal(false)}
+          toast={toast}
         />
       )}
     </div>

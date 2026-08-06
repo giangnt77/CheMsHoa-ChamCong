@@ -41,23 +41,9 @@ function EmployeeContent() {
   const [empRates, setEmpRates] = useState([]);
   const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
 
-  // Check localStorage for remembered name
+  // Luôn bắt đầu từ Màn Hình Chọn Nhân Viên (Không tự động nhảy thẳng vào app qua cache)
   useEffect(() => {
-    const saved = localStorage.getItem('chemshoa_employee_name');
-    if (saved) {
-      handleLogin(saved, false);
-    } else {
-      // Dọn sạch toàn bộ chìa khóa cũ còn tồn đọng nếu không có tài khoản hợp lệ
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('chemshoa_')) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach((k) => localStorage.removeItem(k));
-      setInitialLoading(false);
-    }
+    setInitialLoading(false);
   }, []);
 
   // Load employee monthly hours whenever employee or selectedMonth changes
@@ -158,7 +144,17 @@ function EmployeeContent() {
           toast.warning('Mã PIN thay đổi', 'Admin đã thay đổi mã PIN của bạn. Vui lòng nhập mã PIN mới!');
         } else {
           setEmployee(emp);
+          const todayStr = new Date().toISOString().slice(0, 10);
           localStorage.setItem('chemshoa_employee_name', emp.name);
+          localStorage.setItem('chemshoa_login_date', todayStr);
+
+          // Cập nhật mảng Lịch Sử Đăng Nhập lên thiết bị này (Đưa ID vừa đăng nhập lên vị trí ĐẦU TIÊN)
+          try {
+            let recent = JSON.parse(localStorage.getItem('chemshoa_recent_logins') || '[]');
+            recent = [emp.id, ...recent.filter((id) => id !== emp.id)].slice(0, 6);
+            localStorage.setItem('chemshoa_recent_logins', JSON.stringify(recent));
+          } catch (e) {}
+
           if (showToast) toast.success('Đăng nhập', `Xin chào ${emp.name}!`);
         }
       }
@@ -179,7 +175,7 @@ function EmployeeContent() {
 
   function handleLogout() {
     setEmployee(null);
-    localStorage.clear();
+    localStorage.removeItem('chemshoa_employee_name');
   }
 
   // Mức lương hiệu lực hiện tại (tính tới ngày hôm nay)
@@ -227,41 +223,42 @@ function EmployeeContent() {
         <div className="max-w-7xl mx-auto space-y-3">
           {/* Top Header Row: Greeting & Action Controls - Purple Brand Style */}
           <div className="flex items-center justify-between flex-wrap gap-2 py-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-black text-purple-950 tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-black text-purple-950 tracking-tight">
                 Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>! 👋
               </h1>
               <button
                 type="button"
                 onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
-                className="px-3 py-1 rounded-full bg-purple-100/80 hover:bg-purple-200 text-purple-900 text-xs font-black border border-purple-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                className="px-4 py-1.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-black border border-purple-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-xs"
                 title="Bấm để xem thu nhập cá nhân"
               >
-                <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Lương'}</span>
+                <span>💰</span>
+                <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
               </button>
             </div>
 
-            {/* Segmented Control Switcher (Lịch Phân Công / Đăng Ký Làm) */}
-            <div className="flex bg-purple-100/70 p-1 rounded-xl w-full sm:w-auto border border-purple-200/80 shadow-2xs">
+            {/* Segmented Control Switcher (Lịch Phân Công / Đăng Ký Làm) - Nút Đăng Ký Làm Nổi Bật Rực Rỡ */}
+            <div className="flex bg-purple-100 p-1.5 rounded-2xl w-full sm:w-auto border border-purple-200 shadow-2xs gap-1.5">
               <button
                 onClick={() => setView('schedule')}
-                className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
+                className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all ${
                   view === 'schedule'
-                    ? 'bg-purple-700 text-white shadow-xs font-black'
-                    : 'text-purple-900 hover:text-purple-700 font-bold'
+                    ? 'bg-purple-700 text-white shadow-md font-black scale-[1.02]'
+                    : 'bg-white/60 text-purple-950 hover:bg-white font-extrabold border border-purple-200/50'
                 }`}
               >
-                Lịch Phân Công
+                📅 Lịch Phân Công
               </button>
               <button
                 onClick={() => setView('availability')}
-                className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
+                className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all ${
                   view === 'availability'
-                    ? 'bg-purple-700 text-white shadow-xs font-black'
-                    : 'text-purple-900 hover:text-purple-700 font-bold'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-black scale-[1.02] border border-amber-400'
+                    : 'bg-amber-100/90 text-amber-950 border border-amber-300/90 hover:bg-amber-200 font-black shadow-2xs'
                 }`}
               >
-                Đăng Ký Làm
+                📝 Đăng Ký Làm
               </button>
             </div>
           </div>

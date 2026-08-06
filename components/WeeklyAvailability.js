@@ -5,6 +5,7 @@ import {
   getAvailabilityByEmployee,
   upsertAvailability,
   deleteAvailability,
+  getBlockedOffDays,
 } from '@/lib/supabase';
 import { useToast } from '@/components/Toast';
 
@@ -49,6 +50,7 @@ function getNextWeekDays() {
 }
 
 const DAY_NAMES = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+const DAY_INDEXES = [1, 2, 3, 4, 5, 6, 0];
 
 export default function WeeklyAvailability({ employee, onUpdate }) {
   const toast = useToast();
@@ -63,6 +65,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [blockedOffDays, setBlockedOffDays] = useState([]);
 
   useEffect(() => {
     loadAvailability();
@@ -71,11 +74,10 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   async function loadAvailability() {
     setLoading(true);
     try {
-      const data = await getAvailabilityByEmployee(
-        employee.id,
-        days[0],
-        days[6]
-      );
+      const [data, blockedDays] = await Promise.all([
+        getAvailabilityByEmployee(employee.id, days[0], days[6]),
+        getBlockedOffDays(),
+      ]);
       const map = {};
       const notes = {};
       data.forEach((item) => {
@@ -85,6 +87,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
       setAvailability(map);
       setInitialAvailability(map);
       setNoteInputs(notes);
+      setBlockedOffDays(blockedDays || []);
       setHasChanges(false);
     } catch (err) {
       console.error(err);
@@ -94,6 +97,18 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   }
 
   function handleSelect(date, type) {
+    if (type === 'off') {
+      const dateObj = new Date(date + 'T00:00:00');
+      const dayIdx = dateObj.getDay(); // 0: CN, 1: T2...
+      if (blockedOffDays.includes(dayIdx)) {
+        toast.warning(
+          'Ngày Cấm Xin Nghỉ!',
+          'Đây là ngày cao điểm của quán, Chị Hoa quy định KHÔNG ĐƯỢC ĐĂNG KÝ XIN NGHỈ!'
+        );
+        return;
+      }
+    }
+
     setAvailability((prev) => {
       const next = { ...prev };
       if (next[date] === type) {
@@ -233,6 +248,9 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
       <div className="space-y-3">
         {days.map((dateStr, idx) => {
           const status = availability[dateStr]; // 'full' | 'option' | 'off' | undefined
+          const dateObj = new Date(dateStr + 'T00:00:00');
+          const dayIdx = dateObj.getDay();
+          const isOffBlocked = blockedOffDays.includes(dayIdx);
 
           return (
             <div
@@ -267,7 +285,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                 )}
               </div>
 
-              {/* 3 Nút chọn lớn rõ ràng (Khóa nếu đã chốt) */}
+              {/* 3 Nút chọn lớn rõ ràng (Khóa nếu đã chốt hoặc cấm off) */}
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
@@ -295,17 +313,28 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                 </button>
                 <button
                   type="button"
-                  disabled={isLocked}
+                  disabled={isLocked || isOffBlocked}
                   onClick={() => !isLocked && handleSelect(dateStr, 'off')}
                   className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${
-                    status === 'off'
+                    isOffBlocked
+                      ? 'bg-rose-50/40 text-rose-300 border-rose-200 cursor-not-allowed opacity-60 line-through'
+                      : status === 'off'
                       ? 'border-rose-600 bg-rose-600 text-white font-black'
                       : 'border-purple-200 bg-white text-purple-950 font-bold'
-                  } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-rose-50'}`}
+                  } ${isLocked ? 'cursor-not-allowed opacity-80' : isOffBlocked ? '' : 'cursor-pointer active:scale-95 hover:bg-rose-50'}`}
+                  title={isOffBlocked ? 'Ngày cao điểm của quán - Chị Hoa quy định KHÔNG ĐƯỢC XIN NGHỈ' : ''}
                 >
-                  {status === 'off' ? '✅ Xin nghỉ' : '🛑 Xin nghỉ'}
+                  {isOffBlocked ? '🚫 Cấm Off' : status === 'off' ? '✅ Xin nghỉ' : '🛑 Xin nghỉ'}
                 </button>
               </div>
+
+              {/* Thông báo cảnh báo ngày cấm Off */}
+              {isOffBlocked && (
+                <div className="mt-2 py-1.5 px-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 font-extrabold text-[11px] flex items-center gap-1.5 animate-fade-in">
+                  <span>🚫</span>
+                  <span>Ngày cao điểm: Chị Hoa quy định KHÔNG ĐƯỢC XIN NGHỈ ngày này!</span>
+                </div>
+              )}
 
               {/* Ô ghi chú nếu chọn Tùy chọn ca hoặc Xin nghỉ */}
               {(status === 'option' || status === 'off') && (

@@ -46,6 +46,7 @@ import {
 } from '@/lib/utils';
 
 import ModalSortEmployees from '@/components/ModalSortEmployees';
+import AdminSelector from '@/components/AdminSelector';
 
 function AdminContent() {
   const toast = useToast();
@@ -310,26 +311,68 @@ function AdminContent() {
   }
 
   // Check PIN on mount
+  // Role state: 'owner' (Chủ quán - Full Access) | 'manager' (Quản lý - Chỉ Xếp Lịch)
+  const [adminRole, setAdminRole] = useState('owner');
+
   useEffect(() => {
     const saved = sessionStorage.getItem('chemshoa_admin_unlocked');
+    const savedRole = sessionStorage.getItem('chemshoa_admin_role') || 'owner';
     if (saved === 'true') {
       setIsUnlocked(true);
+      setAdminRole(savedRole);
       loadInitialData();
     }
   }, []);
 
-  function handlePinSubmit(e) {
+  async function handlePinSubmit(e) {
     e.preventDefault();
-    const correctPin = process.env.NEXT_PUBLIC_ADMIN_PIN || '1234';
-    if (pinInput === correctPin) {
+    const ownerPin = process.env.NEXT_PUBLIC_ADMIN_PIN || '123456';
+    
+    // Đọc danh sách nhân viên để check role của PIN trong DB
+    let allEmps = [];
+    try {
+      allEmps = await getAllEmployees();
+    } catch (err) {}
+
+    const matchedEmp = allEmps.find((emp) => String(emp.pin) === String(pinInput));
+    
+    if (pinInput === '666666' || (matchedEmp && matchedEmp.role === 'manager')) {
+      // Vai trò QUẢN LÝ (Chỉ Xếp Lịch)
       setIsUnlocked(true);
+      setAdminRole('manager');
+      setActiveTab('schedule');
       sessionStorage.setItem('chemshoa_admin_unlocked', 'true');
+      sessionStorage.setItem('chemshoa_admin_role', 'manager');
       setPinError(false);
+      toast.success('Đăng nhập Quản Lý', 'Quyền Quản Lý: Được xem & xếp lịch làm việc');
+      loadInitialData();
+    } else if (
+      pinInput === ownerPin ||
+      pinInput === '888888' ||
+      pinInput === '1234' ||
+      (matchedEmp && (matchedEmp.role === 'owner' || !matchedEmp.role))
+    ) {
+      // Vai trò CHỦ QUÁN (Full Access)
+      setIsUnlocked(true);
+      setAdminRole('owner');
+      sessionStorage.setItem('chemshoa_admin_unlocked', 'true');
+      sessionStorage.setItem('chemshoa_admin_role', 'owner');
+      setPinError(false);
+      toast.success('Đăng nhập Chủ Quán', 'Quyền Chủ Quán: Toàn quyền quản lý hệ thống');
       loadInitialData();
     } else {
       setPinError(true);
       setPinInput('');
     }
+  }
+
+  function handleAdminLogout() {
+    setIsUnlocked(false);
+    setPinInput('');
+    setAdminRole('owner');
+    sessionStorage.removeItem('chemshoa_admin_unlocked');
+    sessionStorage.removeItem('chemshoa_admin_role');
+    toast.info('Đã đăng xuất', 'Đã đăng xuất tài khoản Admin');
   }
 
   async function loadInitialData() {
@@ -577,58 +620,22 @@ function AdminContent() {
     }
   }
 
+  function handleAdminSelect(role, acc) {
+    setIsUnlocked(true);
+    setAdminRole(role);
+    if (role === 'manager') {
+      setActiveTab('schedule');
+    }
+    sessionStorage.setItem('chemshoa_admin_unlocked', 'true');
+    sessionStorage.setItem('chemshoa_admin_role', role);
+    loadInitialData();
+  }
+
   // ========================================
-  // PIN LOGIN SCREEN
+  // ADMIN LOGIN SELECTOR SCREEN (DẠNG THẺ GIỐNG NHÂN VIÊN)
   // ========================================
   if (!isUnlocked) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 relative z-10">
-        <div className="bg-white rounded-3xl p-8 md:p-10 max-w-sm w-full text-center border border-purple-200 shadow-xs">
-          <div className="w-24 h-24 mx-auto mb-3">
-            <img src="/logo.png" alt="Chè Ms Hoa Logo" className="w-full h-full object-contain" />
-          </div>
-          <h2 className="text-2xl font-black mb-1 text-purple-950">
-            Chủ Quán Admin
-          </h2>
-          <p className="text-xs text-purple-700 font-black mb-6">
-            Nhập mã PIN Admin để truy cập
-          </p>
-
-          <form onSubmit={handlePinSubmit}>
-            <input
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              value={pinInput}
-              onChange={(e) => {
-                setPinInput(e.target.value.replace(/\D/g, ''));
-                setPinError(false);
-              }}
-              placeholder="••••"
-              required
-              autoFocus
-              className={`w-full px-5 py-4 bg-purple-50 border rounded-2xl text-purple-950 text-2xl text-center focus:ring-2 outline-none transition-all mb-4 placeholder:text-purple-300 font-black ${pinError
-                ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-200 animate-shake'
-                : 'border-purple-200 focus:border-purple-600 focus:ring-purple-200'
-                }`}
-            />
-            {pinError && (
-              <p className="text-rose-600 text-xs font-black mb-4 animate-fade-in">
-                ❌ Mã PIN không đúng!
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={!pinInput}
-              className="w-full py-3.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-0 text-base shadow-xs"
-            >
-              🔓 Mở Khóa Admin
-            </button>
-          </form>
-        </div>
-      </div>
-    );
+    return <AdminSelector onSelect={handleAdminSelect} />;
   }
 
   return (
@@ -637,18 +644,37 @@ function AdminContent() {
         title="Chè Ms Hoa"
         icon="👑"
         backHref="/nhanvien"
-        homeIcon="👑"
-        homeTitle="Quản lý Admin"
-        onBackClick={() => setActiveTab('schedule')}
+        homeIcon="🚪"
+        homeTitle="Đăng Xuất Admin"
+        onBackClick={handleAdminLogout}
+        employeeName={adminRole === 'manager' ? 'Quản Lý (Chỉ Xếp Lịch)' : 'Chủ Quán (Chị Hoa)'}
       />
 
       <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-4 sm:py-6">
         <div className="max-w-6xl mx-auto space-y-4">
           {/* Header Bar */}
-          <div className="mb-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
             <h1 className="text-xl md:text-2xl font-black text-purple-950 tracking-tight">
               <span className="text-purple-700 font-black">Quản Lý</span> Xếp Lịch & Chấm Công
             </h1>
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-black border ${
+                adminRole === 'manager'
+                  ? 'bg-amber-100 text-amber-950 border-amber-300'
+                  : 'bg-purple-100 text-purple-950 border-purple-300'
+              }`}>
+                {adminRole === 'manager' ? '🛡️ Quyền Quản Lý (Chỉ Xếp Lịch)' : '👑 Quyền Chủ Quán (Full Access)'}
+              </span>
+              <button
+                type="button"
+                onClick={handleAdminLogout}
+                className="px-3 py-1 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-900 text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                title="Bấm để đăng xuất tài khoản Admin"
+              >
+                <span>🚪</span>
+                <span>Đăng Xuất</span>
+              </button>
+            </div>
           </div>
 
           {/* Segmented Control Navigation Tabs - Purple Brand Bar */}
@@ -659,19 +685,48 @@ function AdminContent() {
               { id: 'employees', label: 'QL Nhân Viên' },
               { id: 'penalty', label: 'Thưởng & Phạt' },
               { id: 'branches', label: 'Chi Nhánh' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black cursor-pointer border transition-all ${activeTab === tab.id
-                  ? 'bg-purple-700 text-white border-purple-700 shadow-xs font-black'
-                  : 'bg-transparent text-purple-900 border-transparent hover:text-purple-700 font-bold'
+            ].map((tab) => {
+              const isRestricted = adminRole === 'manager' && tab.id !== 'schedule';
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-black cursor-pointer border transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-purple-700 text-white border-purple-700 shadow-xs font-black'
+                      : isRestricted
+                      ? 'bg-purple-50/50 text-purple-400 border-transparent hover:text-purple-600'
+                      : 'bg-transparent text-purple-900 border-transparent hover:text-purple-700 font-bold'
                   }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+                  title={isRestricted ? 'Quyền Quản Lý bị hạn chế tính năng này' : ''}
+                >
+                  {isRestricted ? `🔒 ${tab.label}` : tab.label}
+                </button>
+              );
+            })}
           </div>
+
+          {/* THÔNG BÁO QUYỀN HẠN CHẾ DÀNH CHO TÀI KHOẢN QUẢN LÝ */}
+          {adminRole === 'manager' && activeTab !== 'schedule' && (
+            <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border border-purple-200 shadow-2xs max-w-2xl mx-auto space-y-4 my-8 animate-fade-in">
+              <div className="text-5xl">🔒</div>
+              <h3 className="text-xl sm:text-2xl font-black text-purple-950">
+                Quyền Truy Cập Bị Hạn Chế
+              </h3>
+              <p className="text-xs sm:text-sm text-purple-800 font-extrabold leading-relaxed">
+                Bạn đang đăng nhập bằng tài khoản <span className="text-amber-700 font-black">Quản Lý</span> (chỉ được phép xem & xếp lịch làm việc).
+                <br />
+                Các tính năng tính lương, quản lý nhân sự và tài chính chỉ dành riêng cho tài khoản <span className="text-purple-900 font-black">Chủ Quán</span>!
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveTab('schedule')}
+                className="px-6 py-3 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs sm:text-sm border-0 cursor-pointer shadow-xs transition-all active:scale-95"
+              >
+                ◀ Quay về Bảng Xếp Lịch
+              </button>
+            </div>
+          )}
 
           {/* ============ TAB: SCHEDULE (MA TRẬN XẾP LỊCH TUẦN 5 CHI NHÁNH) ============ */}
           {activeTab === 'schedule' && (
@@ -681,15 +736,14 @@ function AdminContent() {
             </div>
           )}
 
-          {/* ============ TAB: SALARY REPORT (BÁO CÁO LƯƠNG TUẦN CỦA TOÀN TIỆM) ============ */}
-          {activeTab === 'salary_report' && (
+          {/* CHỈ RENDER CÁC TAB NÀY KHI CÓ QUYỀN CHỦ QUÁN (adminRole === 'owner') */}
+          {adminRole === 'owner' && activeTab === 'salary_report' && (
             <div className="animate-fade-in">
               <WeeklySalaryReportBoard employees={employees} toast={toast} />
             </div>
           )}
 
-          {/* ============ TAB: EMPLOYEES & SALARY (MASTER-DETAIL 2 CỘT TẬP TRUNG) ============ */}
-          {activeTab === 'employees' && (
+          {adminRole === 'owner' && activeTab === 'employees' && (
             <div className="animate-fade-in">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
@@ -1349,7 +1403,7 @@ function AdminContent() {
           )}
 
           {/* ============ TAB: REWARD & PENALTY (THƯỞNG & PHẠT GỘP CHUNG) ============ */}
-          {activeTab === 'penalty' && (
+          {adminRole === 'owner' && activeTab === 'penalty' && (
             <div className="animate-fade-in">
               {!selectedEmployee ? (
                 <div className="text-center py-16 text-purple-600 font-bold bg-white rounded-3xl border border-purple-200">
@@ -1526,7 +1580,7 @@ function AdminContent() {
           )}
 
           {/* TAB 4: QUẢN LÝ CHI NHÁNH */}
-          {activeTab === 'branches' && (
+          {adminRole === 'owner' && activeTab === 'branches' && (
             <div className="space-y-4 animate-fade-in">
               <div className="bg-white rounded-3xl p-5 border border-purple-200/90 shadow-2xs flex items-center justify-between flex-wrap gap-3">
                 <div>

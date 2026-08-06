@@ -100,6 +100,10 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
     if (!employees) return [];
     return [...employees]
       .filter((emp) => {
+        // Lọc bỏ tài khoản Chủ Quán & Quản Lý
+        if (emp.role === 'owner' || emp.role === 'manager' || emp.name.includes('Chủ Quán') || emp.name.includes('Quản Lý Tiệm')) {
+          return false;
+        }
         const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
         return empStartDate <= endDate; // Chỉ hiển thị nhân viên đã vào làm mốc tuần này
       })
