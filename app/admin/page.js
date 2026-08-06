@@ -239,6 +239,14 @@ function AdminContent() {
     setAddEmpPin(pin);
   }
 
+  // Lọc danh sách NHÂN VIÊN PHỤC VỤ & BẾP (loại bỏ hoàn toàn tài khoản Chủ Quán & Quản Lý)
+  const staffEmployees = useMemo(() => {
+    if (!employees) return [];
+    return employees.filter(
+      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý Tiệm')
+    );
+  }, [employees]);
+
   async function handleCreateNewEmployee(e) {
     e.preventDefault();
     if (!addEmpName.trim()) return;
@@ -751,7 +759,7 @@ function AdminContent() {
                 <div className="lg:col-span-4 bg-white rounded-3xl p-5 border border-purple-200/90 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between gap-2 border-b border-purple-100 pb-3">
                     <h3 className="font-black text-base text-purple-950 flex items-center gap-2">
-                      <span>👥</span> Nhân Viên ({employees.length})
+                      <span>👥</span> Nhân Viên ({staffEmployees.length})
                     </h3>
                     <button
                       type="button"
@@ -886,11 +894,11 @@ function AdminContent() {
                     <div className="text-center py-8">
                       <div className="inline-block w-6 h-6 border-2 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                     </div>
-                  ) : employees.length === 0 ? (
+                  ) : staffEmployees.length === 0 ? (
                     <p className="text-xs text-purple-600 font-bold text-center py-6">Chưa có nhân viên</p>
                   ) : (
                     <div className="space-y-1.5 max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
-                      {employees
+                      {staffEmployees
                         .filter((e) => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()))
                         .map((emp) => {
                           const isSelected = selectedEmployee?.id === emp.id;

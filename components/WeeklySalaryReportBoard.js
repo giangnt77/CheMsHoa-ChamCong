@@ -45,6 +45,7 @@ function getEffectiveRateForDate(emp, ratesList, dateStr) {
 export default function WeeklySalaryReportBoard({ employees = [], toast }) {
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
   const [schedule, setSchedule] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [ratesMap, setRatesMap] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -59,8 +60,12 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
   async function loadWeekSalaryData() {
     setLoading(true);
     try {
-      const schedData = await getScheduleByDateRange(startDate, endDate);
+      const [schedData, branchData] = await Promise.all([
+        getScheduleByDateRange(startDate, endDate),
+        getBranches(),
+      ]);
       setSchedule(schedData);
+      setBranches(branchData || []);
 
       // Tải mốc tăng lương cho tất cả nhân viên
       const ratesPromises = employees.map((emp) =>
@@ -275,14 +280,30 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                                   const timeRange = `${startTimeStr}-${endTimeStr}`;
                                   const hours = shift.hours || 5;
 
+                                  // Lấy chi nhánh của ca làm
+                                  const branchObj = branches.find((b) => b.id === shift.branch_id) || shift.branches;
+                                  const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
+
                                   // Tính tiền ca này theo mốc lương
                                   const { grossSalary: shiftSalary } = calculateSalaryFromShifts([shift], empRates, defaultRate);
 
                                   return (
                                     <div
                                       key={shift.id}
-                                      className="p-1.5 rounded-xl bg-purple-50 border border-purple-200/90 text-center shadow-2xs space-y-0.5"
+                                      className="p-1.5 rounded-xl bg-purple-50/90 border text-center shadow-2xs space-y-0.5"
+                                      style={{ borderColor: `${branchStyle.hex}60` }}
                                     >
+                                      {/* Chấm tròn màu Chi Nhánh + Tên Chi Nhánh */}
+                                      <div className="flex items-center justify-center gap-1">
+                                        <span
+                                          className="w-2.5 h-2.5 rounded-full border border-white flex-shrink-0 shadow-2xs"
+                                          style={{ backgroundColor: branchStyle.hex }}
+                                          title={`Chi nhánh: ${branchObj?.name || 'Chưa rõ'}`}
+                                        />
+                                        <span className="text-[10px] font-black text-purple-950 truncate max-w-[70px]">
+                                          {branchStyle.badgeText || branchObj?.name}
+                                        </span>
+                                      </div>
                                       <div className="text-xs font-black text-purple-950 tracking-tight">{timeRange}</div>
                                       <div className="text-[11px] font-black text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded-md border border-emerald-200">
                                         {formatCurrency(shiftSalary)}

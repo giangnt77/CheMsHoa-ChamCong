@@ -186,13 +186,18 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   }
 
   // LOGIC TỰ ĐỘNG KHÓA / MỞ ĐĂNG KÝ:
-  // - Từ Thứ 2 đến hết Thứ 7: MỞ KHÓA CHO SỬA CHỮA VÀ ĐĂNG KÝ THOẢI MÁI!
-  // - Sang Chủ Nhật (dayOfWeek === 0): TỰ ĐỘNG KHÓA CỨNG ĐĂNG KÝ LỊCH!
+  // 1. Lịch "Tuần Này" (weekType === 'this'): KHÓA CỨNG 100% (Do lịch tuần này đã chốt và đang diễn ra)!
+  // 2. Lịch "Tuần Sau" (weekType === 'next'):
+  //    - Từ Thứ 2 đến hết Thứ 7: MỞ KHÓA CHO SỬA CHỮA VÀ ĐĂNG KÝ THOẢI MÁI!
+  //    - Sang Chủ Nhật (dayOfWeek === 0): TỰ ĐỘNG KHÓA CỨNG ĐĂNG KÝ LỊCH!
   const isLocked = useMemo(() => {
+    if (weekType === 'this') {
+      return true; // Khóa cứng 100% đối với Tuần Này!
+    }
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0: Chủ Nhật, 1: T2, 2: T3, ..., 6: T7
-    return dayOfWeek === 0; // Khóa vào Chủ Nhật
-  }, []);
+    return dayOfWeek === 0; // Khóa vào Chủ Nhật đối với Tuần Sau
+  }, [weekType]);
 
   if (loading) {
     return (
@@ -365,10 +370,12 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
         {isLocked ? (
           <div className="text-center space-y-2">
             <div className="w-full py-3.5 px-4 rounded-xl font-black text-xs sm:text-sm border border-rose-300 bg-rose-700 text-white flex items-center justify-center gap-2 shadow-xs">
-              <span>🔒</span> ĐÃ HẾT HẠN ĐĂNG KÝ (Đã tự động khóa vào Chủ Nhật)
+              <span>🔒</span> {weekType === 'this' ? 'LỊCH "TUẦN NÀY" ĐÃ KHÓA (Đang diễn ra)' : 'ĐÃ HẾT HẠN ĐĂNG KÝ (Đã tự động khóa vào Chủ Nhật)'}
             </div>
             <p className="text-xs text-purple-800 font-extrabold italic">
-              💡 Đã hết hạn đăng ký tuần này. Lịch sẽ tự động mở lại vào Thứ 2 tuần tới! Nếu cần điều chỉnh gấp, vui lòng liên hệ Chị Hoa.
+              {weekType === 'this'
+                ? '💡 Lịch phân công "Tuần Này" đã được chốt và đang chạy. Bạn hãy bấm chọn tab "🚀 Tuần Sau" ở trên để đăng ký lịch tuần tới nhé!'
+                : '💡 Đã hết hạn đăng ký tuần này. Lịch sẽ tự động mở lại vào Thứ 2 tuần tới! Nếu cần điều chỉnh gấp, vui lòng liên hệ Chị Hoa.'}
             </p>
           </div>
         ) : (

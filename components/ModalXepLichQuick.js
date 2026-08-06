@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getBranchColorStyle } from '@/lib/utils';
 
 /**
  * ModalXepLichQuick — Pop-up gán/chỉnh sửa giờ làm cho nhân viên trực tiếp và tiện lợi.
@@ -111,24 +112,46 @@ export default function ModalXepLichQuick({
 
         {/* Nội dung cuộn mượt không bao giờ tràn màn hình */}
         <form onSubmit={handleSubmit} className="overflow-y-auto p-4 sm:p-5 flex-1 space-y-4 custom-scrollbar">
-          {/* Chọn chi nhánh */}
+          {/* Chọn chi nhánh — CÁC Ô TÍCH CHỌN NHANH 1-CHẠM */}
           {branches.length > 0 && (
             <div>
-              <label className="block text-xs font-black text-purple-900 uppercase mb-1.5">
-                🏢 Chi Nhánh Phân Công
+              <label className="block text-xs font-black text-purple-950 uppercase mb-2 flex items-center justify-between">
+                <span>🏢 Chi Nhánh Phân Công (Bấm chọn nhanh):</span>
+                <span className="text-[11px] text-purple-700 font-extrabold">
+                  Đã chọn: {branches.find((b) => b.id === selectedBranchId)?.name || ''}
+                </span>
               </label>
-              <select
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                required
-                className="w-full px-3.5 py-2.5 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none focus:border-purple-600 cursor-pointer shadow-2xs"
-              >
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id} className="text-purple-950 font-bold bg-white">
-                    🏢 CHI NHÁNH {b.name}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {branches.map((b) => {
+                  const isSelected = selectedBranchId === b.id;
+                  const style = getBranchColorStyle(b.name, b.color);
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setSelectedBranchId(b.id)}
+                      className={`py-2.5 px-3 rounded-2xl font-black text-xs border transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-1.5 active:scale-95 ${
+                        isSelected
+                          ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400 scale-[1.02]'
+                          : 'bg-purple-50/80 hover:bg-purple-100 text-purple-950 border-purple-200 font-bold'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-white/50 flex-shrink-0 shadow-2xs"
+                          style={{ backgroundColor: style.hex }}
+                        />
+                        <span className="truncate">{b.name}</span>
+                      </div>
+                      {isSelected ? (
+                        <span className="text-amber-300 text-xs">✅</span>
+                      ) : (
+                        <span className="opacity-0">✓</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
