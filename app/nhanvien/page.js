@@ -47,6 +47,15 @@ function EmployeeContent() {
     if (saved) {
       handleLogin(saved, false);
     } else {
+      // Dọn sạch toàn bộ chìa khóa cũ còn tồn đọng nếu không có tài khoản hợp lệ
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('chemshoa_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
       setInitialLoading(false);
     }
   }, []);
