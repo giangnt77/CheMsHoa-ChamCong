@@ -14,6 +14,7 @@ import {
   updateEmployeeRate,
   getEmployeeRates,
   calculateSalaryFromShifts,
+  getAnnouncementNotice,
 } from '@/lib/supabase';
 import { getCurrentMonth, formatCurrency, getToday } from '@/lib/utils';
 
@@ -49,8 +50,9 @@ function EmployeeContent() {
 
   useEffect(() => {
     if (employee) {
-      const savedNotice = localStorage.getItem('chems_admin_notice_content');
-      if (savedNotice) setNoticeText(savedNotice);
+      getAnnouncementNotice().then((text) => {
+        if (text) setNoticeText(text);
+      });
 
       const snooze = localStorage.getItem('chems_employee_notice_snooze');
       if (!snooze || Date.now() > Number(snooze)) {

@@ -33,6 +33,8 @@ import {
   deleteEmployeeRate,
   calculateSalaryFromShifts,
   updateEmployeeContactInfo,
+  getAnnouncementNotice,
+  saveAnnouncementNotice,
 } from '@/lib/supabase';
 import {
   getCurrentMonth,
@@ -68,20 +70,22 @@ function AdminContent() {
   const [editingNoticeText, setEditingNoticeText] = useState('');
   const [isEditingNotice, setIsEditingNotice] = useState(false);
 
-  // Tải nội dung thông báo quan trọng đã lưu
+  // Tải nội dung thông báo quan trọng từ Supabase DB
   useEffect(() => {
     if (isUnlocked) {
-      const savedNotice = localStorage.getItem('chems_admin_notice_content');
-      if (savedNotice) setNoticeText(savedNotice);
+      getAnnouncementNotice().then((text) => {
+        if (text) setNoticeText(text);
+      });
     }
   }, [isUnlocked]);
 
-  function handleSaveNoticeContent() {
+  async function handleSaveNoticeContent() {
     if (!editingNoticeText.trim()) return;
-    setNoticeText(editingNoticeText.trim());
-    localStorage.setItem('chems_admin_notice_content', editingNoticeText.trim());
+    const newText = editingNoticeText.trim();
+    setNoticeText(newText);
     setIsEditingNotice(false);
-    toast.success('Đã cập nhật', 'Nội dung thông báo quan trọng đã được lưu!');
+    await saveAnnouncementNotice(newText);
+    toast.success('Đã cập nhật', 'Nội dung thông báo quan trọng đã được lưu đồng bộ toàn hệ thống!');
   }
 
   // Data
