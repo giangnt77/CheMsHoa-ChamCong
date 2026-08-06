@@ -42,9 +42,18 @@ function getEffectiveRateForDate(emp, ratesList, dateStr) {
   return active ? active.hourly_rate : defaultRate;
 }
 
+function getCurrentMonthStr() {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
 export default function WeeklySalaryReportBoard({ employees = [], toast }) {
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthStr());
   const [schedule, setSchedule] = useState([]);
+  const [monthSchedule, setMonthSchedule] = useState([]);
   const [branches, setBranches] = useState([]);
   const [ratesMap, setRatesMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -53,18 +62,29 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
   const startDate = weekDays[0];
   const endDate = weekDays[6];
 
+  const { monthStartDate, monthEndDate } = useMemo(() => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return {
+      monthStartDate: `${y}-${String(m).padStart(2, '0')}-01`,
+      monthEndDate: `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
+    };
+  }, [selectedMonth]);
+
   useEffect(() => {
     loadWeekSalaryData();
-  }, [currentMonday, employees]);
+  }, [currentMonday, selectedMonth, employees]);
 
   async function loadWeekSalaryData() {
     setLoading(true);
     try {
-      const [schedData, branchData] = await Promise.all([
+      const [schedData, monthSchedData, branchData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
+        getScheduleByDateRange(monthStartDate, monthEndDate),
         getBranches(),
       ]);
       setSchedule(schedData);
+      setMonthSchedule(monthSchedData || []);
       setBranches(branchData || []);
 
       // Tải mốc tăng lương cho tất cả nhân viên
@@ -100,6 +120,22 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
+  function prevMonth() {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const newMonthStr = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+    setSelectedMonth(newMonthStr);
+  }
+
+  function nextMonth() {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const newMonthStr = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+    setSelectedMonth(newMonthStr);
+  }
+
+  function goCurrentMonth() {
+    setSelectedMonth(getCurrentMonthStr());
+  }
+
   // Sắp xếp danh sách nhân viên y chang Bảng Ma Trận Lịch Tuần (Đẩy OFF xuống cuối cùng)
   const sortedEmployees = useMemo(() => {
     if (!employees) return [];
@@ -123,6 +159,62 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
         return a.name.localeCompare(b.name);
       });
   }, [employees, endDate]);
+
+  // Index map dữ liệu ca làm tháng theo employeeId_date (chỉ lọc các ca đúng thuộc selectedMonth)
+  const monthScheduleByEmpAndDate = useMemo(() => {
+    const map = {};
+    (monthSchedule || []).forEach((item) => {
+      if (item.date && item.date.startsWith(selectedMonth)) {
+        const key = `${item.employee_id}_${item.date}`;
+        if (!map[key]) map[key] = [];
+        map[key].push(item);
+      }
+    });
+    return map;
+  }, [monthSchedule, selectedMonth]);
+
+  // Tính tổng lương tháng cho từng nhân viên & toàn bộ nhân viên
+  const { empMonthlyTotals, grandTotalMonthlySalary, grandTotalMonthlyHours } = useMemo(() => {
+    const empTotals = {};
+    let totalSal = 0;
+    let totalHrs = 0;
+
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    const mStr = String(m).padStart(2, '0');
+
+    const allDaysInMonth = [];
+    for (let i = 1; i <= lastDay; i++) {
+      allDaysInMonth.push(`${y}-${mStr}-${String(i).padStart(2, '0')}`);
+    }
+
+    sortedEmployees.forEach((emp) => {
+      const empShifts = allDaysInMonth.flatMap((dStr) => monthScheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
+      const empRates = ratesMap[emp.id] || [];
+      const defaultRate = emp.hourly_rate || 20000;
+
+      const { totalHours, grossSalary } = calculateSalaryFromShifts(
+        empShifts,
+        empRates,
+        defaultRate
+      );
+
+      empTotals[emp.id] = {
+        totalHours,
+        grossSalary,
+        shiftCount: empShifts.length,
+      };
+
+      totalSal += grossSalary;
+      totalHrs += totalHours;
+    });
+
+    return {
+      empMonthlyTotals: empTotals,
+      grandTotalMonthlySalary: totalSal,
+      grandTotalMonthlyHours: totalHrs,
+    };
+  }, [sortedEmployees, monthScheduleByEmpAndDate, ratesMap, selectedMonth]);
 
   // Index map dữ liệu ca làm theo employeeId_date
   const scheduleByEmpAndDate = useMemo(() => {
@@ -165,92 +257,121 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
 
   return (
     <div className="space-y-3 animate-fade-in">
-      {/* Header điều hướng tuần + Thống kê tổng tiền chi trả lương tuần */}
-      <div className="bg-white rounded-3xl p-4 border border-purple-200/90 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          {/* Tuần Selector */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={prevWeek}
-              className="w-9 h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
-            >
-              ◀
-            </button>
-            <div className="px-3 py-1.5 bg-purple-100/70 border border-purple-300 rounded-xl text-center">
-              <span className="text-xs sm:text-sm font-black text-purple-950">
-                Tuần: {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().slice(0, 2).join('/')}/{endDate.split('-')[0]}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={nextWeek}
-              className="w-9 h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
-            >
-              ▶
-            </button>
-            <button
-              type="button"
-              onClick={goTodayWeek}
-              className="px-3 py-1.5 rounded-xl bg-purple-700 text-white hover:bg-purple-800 text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95"
-            >
-              Hôm nay
-            </button>
+      {/* Header điều hướng Tháng & Tuần gọn gàng 1 hàng (Bên Trái: Tuần - Bên Phải: Tháng) */}
+      <div className="bg-white rounded-3xl p-3 sm:p-4 border border-purple-200 shadow-2xs flex items-center justify-between flex-wrap gap-3">
+        {/* Cụm Bên Trái: Tuần Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-purple-900 uppercase">⚡ Báo Cáo Lương Tuần:</span>
+          <button
+            type="button"
+            onClick={prevWeek}
+            className="w-8 h-8 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+            title="Tuần trước"
+          >
+            ◀
+          </button>
+          <div className="px-3.5 py-1.5 bg-purple-100/70 border border-purple-300 rounded-xl text-center">
+            <span className="text-xs sm:text-sm font-black text-purple-950">
+              Tuần: {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().slice(0, 2).join('/')}/{endDate.split('-')[0]}
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={nextWeek}
+            className="w-8 h-8 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+            title="Tuần sau"
+          >
+            ▶
+          </button>
+          <button
+            type="button"
+            onClick={goTodayWeek}
+            className="px-3 py-1.5 rounded-xl bg-purple-700 text-white hover:bg-purple-800 text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95"
+          >
+            Tuần Này
+          </button>
+        </div>
 
-          {/* Thẻ Thống Kê Tổng Tiền Lương Tuần Toàn Tiệm */}
-          <div className="flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-200 shadow-2xs">
-            <div>
-              <div className="text-[10px] text-emerald-800 font-black uppercase">💰 TỔNG LƯƠNG TUẦN NÀY (TẤT CẢ NHÂN VIÊN)</div>
-              <div className="text-base sm:text-lg font-black text-emerald-700">
-                {formatCurrency(grandTotalSalary)} <span className="text-xs font-extrabold text-emerald-600">({grandTotalHours}h)</span>
-              </div>
-            </div>
+        {/* Cụm Bên Phải: Tháng Selector (Kéo sang vị trí cũ của 2 thẻ vừa bỏ) */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-amber-950 uppercase">📅 Lương Tháng:</span>
+          <button
+            type="button"
+            onClick={prevMonth}
+            className="w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-black border border-amber-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+            title="Tháng trước"
+          >
+            ◀
+          </button>
+          <div className="px-3.5 py-1.5 bg-amber-500 text-purple-950 rounded-xl text-center font-black text-xs sm:text-sm shadow-2xs">
+            Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
           </div>
+          <button
+            type="button"
+            onClick={nextMonth}
+            className="w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-black border border-amber-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+            title="Tháng sau"
+          >
+            ▶
+          </button>
+          <button
+            type="button"
+            onClick={goCurrentMonth}
+            className="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-purple-950 text-xs font-black border border-amber-300 cursor-pointer shadow-2xs transition-all active:scale-95"
+          >
+            Tháng Hiện Tại
+          </button>
         </div>
       </div>
 
-      {/* BẢNG MA TRẬN BÁO CÁO LƯƠNG TUẦN */}
+      {/* BẢNG MA TRẬN BÁO CÁO LƯƠNG CHUẨN ĐỒNG BỘ 100% */}
       <div className="bg-white rounded-3xl p-0 border border-purple-200 shadow-xl overflow-x-auto custom-scrollbar relative">
-        <table className="w-full min-w-[1100px] border-collapse text-xs">
+        <table className="w-full min-w-[1250px] border-collapse text-xs">
           <thead>
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-2.5 px-2 border-r-2 border-purple-300 w-28 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
+              <th className="py-3 px-2 border-r-2 border-purple-300 w-28 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
                 NHÂN VIÊN
               </th>
               {weekDays.map((dStr, idx) => (
-                <th key={dStr} className="py-2.5 px-2 border-r border-purple-800 text-center font-black uppercase text-amber-300 text-xs sm:text-sm min-w-[115px]">
+                <th key={dStr} className="py-3 px-2 border-r border-purple-800 text-center font-black uppercase text-amber-300 text-xs sm:text-sm min-w-[105px]">
                   <div>{DAY_LABELS[idx]}</div>
                   <div className="text-[11px] font-extrabold text-purple-200 mt-0.5">{dStr.split('-').reverse().slice(0, 2).join('/')}</div>
                 </th>
               ))}
-              <th className="py-3 px-3 text-center font-black uppercase text-emerald-300 text-xs sm:text-sm bg-purple-950 w-40">
-                💵 TỔNG LƯƠNG TUẦN
+              <th className="py-3 px-3 text-center font-black uppercase text-emerald-300 text-xs sm:text-sm bg-purple-950 w-36">
+                💵 LƯƠNG TUẦN
+              </th>
+              <th className="py-3 px-3 text-center font-black uppercase text-amber-300 text-xs sm:text-sm bg-purple-950 w-44 border-l-4 border-amber-400">
+                💰 LƯƠNG THÁNG ({selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]})
               </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="text-center py-12">
+                <td colSpan={10} className="text-center py-12">
                   <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                 </td>
               </tr>
             ) : sortedEmployees.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center py-10 text-purple-600 italic font-bold">
+                <td colSpan={10} className="text-center py-10 text-purple-600 italic font-bold">
                   Không có nhân viên.
                 </td>
               </tr>
             ) : (
               <>
-                {sortedEmployees.map((emp, idx) => {
+                {sortedEmployees.map((emp) => {
+                  const empShiftsThisWeek = weekDays.flatMap((dStr) => scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
                   const empRates = ratesMap[emp.id] || [];
                   const defaultRate = emp.hourly_rate || 20000;
                   const currentWeeklyRate = getEffectiveRateForDate(emp, empRates, endDate);
-                  const empTotals = empWeeklyTotals[emp.id] || { totalHours: 0, grossSalary: 0, shiftCount: 0 };
 
-                  const rowBgClass = idx % 2 === 0 ? 'bg-white' : 'bg-purple-50/60';
+                  const empTotals = empWeeklyTotals[emp.id] || { totalHours: 0, grossSalary: 0, shiftCount: 0 };
+                  const empMTotal = empMonthlyTotals[emp.id] || { totalHours: 0, grossSalary: 0, shiftCount: 0 };
+
+                  const isOffWeek = empShiftsThisWeek.length === 0;
+                  const rowBgClass = isOffWeek ? 'bg-rose-50/40' : 'bg-white';
 
                   return (
                     <tr key={emp.id} className={`border-b border-purple-100 transition-all ${rowBgClass} hover:bg-purple-100/70`}>
@@ -271,41 +392,36 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                         const empShifts = scheduleByEmpAndDate[`${emp.id}_${dStr}`] || [];
 
                         return (
-                          <td key={dStr} className="py-2 px-1.5 border-r border-purple-100 text-center align-middle">
+                          <td key={dStr} className="py-2 px-1 border-r border-purple-100 text-center align-middle">
                             {empShifts.length > 0 ? (
                               <div className="space-y-1">
                                 {empShifts.map((shift) => {
                                   const startTimeStr = shift.start_time ? shift.start_time.slice(0, 5) : '09:00';
                                   const endTimeStr = shift.end_time ? shift.end_time.slice(0, 5) : '14:00';
                                   const timeRange = `${startTimeStr}-${endTimeStr}`;
-                                  const hours = shift.hours || 5;
 
-                                  // Lấy chi nhánh của ca làm
                                   const branchObj = branches.find((b) => b.id === shift.branch_id) || shift.branches;
                                   const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
-
-                                  // Tính tiền ca này theo mốc lương
                                   const { grossSalary: shiftSalary } = calculateSalaryFromShifts([shift], empRates, defaultRate);
 
                                   return (
                                     <div
                                       key={shift.id}
-                                      className="p-1.5 rounded-xl bg-purple-50/90 border text-center shadow-2xs space-y-0.5"
+                                      className="p-1 rounded-xl bg-purple-50/90 border text-center shadow-2xs space-y-0.5"
                                       style={{ borderColor: `${branchStyle.hex}60` }}
                                     >
-                                      {/* Chấm tròn màu Chi Nhánh + Tên Chi Nhánh */}
                                       <div className="flex items-center justify-center gap-1">
                                         <span
-                                          className="w-2.5 h-2.5 rounded-full border border-white flex-shrink-0 shadow-2xs"
+                                          className="w-2 h-2 rounded-full border border-white flex-shrink-0 shadow-2xs"
                                           style={{ backgroundColor: branchStyle.hex }}
                                           title={`Chi nhánh: ${branchObj?.name || 'Chưa rõ'}`}
                                         />
-                                        <span className="text-[10px] font-black text-purple-950 truncate max-w-[70px]">
+                                        <span className="text-[9px] font-black text-purple-950 truncate max-w-[65px]">
                                           {branchStyle.badgeText || branchObj?.name}
                                         </span>
                                       </div>
-                                      <div className="text-xs font-black text-purple-950 tracking-tight">{timeRange}</div>
-                                      <div className="text-[11px] font-black text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded-md border border-emerald-200">
+                                      <div className="text-[11px] font-black text-purple-950 tracking-tight">{timeRange}</div>
+                                      <div className="text-[10px] font-black text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded-md border border-emerald-200">
                                         {formatCurrency(shiftSalary)}
                                       </div>
                                     </div>
@@ -313,7 +429,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                                 })}
                               </div>
                             ) : (
-                              <span className="text-red-500 font-black text-[11px] uppercase px-2 py-0.5 rounded-md bg-red-50 border border-red-200 inline-block shadow-2xs">
+                              <span className="text-red-500 font-black text-[10px] uppercase px-1.5 py-0.5 rounded-md bg-red-50 border border-red-200 inline-block shadow-2xs">
                                 OFF
                               </span>
                             )}
@@ -321,21 +437,29 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                         );
                       })}
 
-                      {/* Cột TỔNG LƯƠNG TUẦN của Nhân Viên */}
-                      <td className="py-2 px-3 text-center align-middle bg-purple-100/50">
+                      {/* Cột TỔNG LƯƠNG TUẦN */}
+                      <td className="py-2 px-2 text-center align-middle bg-purple-100/30">
                         <div className="p-2 rounded-2xl bg-purple-700 text-white font-black shadow-xs space-y-0.5">
                           <div className="text-xs sm:text-sm font-black tracking-tight">{formatCurrency(empTotals.grossSalary)}</div>
                           <div className="text-[10px] font-extrabold text-purple-200">({empTotals.totalHours}h • {empTotals.shiftCount} ca)</div>
+                        </div>
+                      </td>
+
+                      {/* CỘT NỔI BẬT LƯƠNG THÁNG CẠNH BÊN: BẢNG VÀNG CAM RỰC RỠ KHÔNG LỆCH HÀNG */}
+                      <td className="py-2 px-2 text-center align-middle bg-amber-50/70 border-l-4 border-amber-400">
+                        <div className="p-2 rounded-2xl bg-amber-500 text-purple-950 font-black shadow-xs space-y-0.5 border border-amber-400">
+                          <div className="text-xs sm:text-sm font-black tracking-tight">{formatCurrency(empMTotal.grossSalary)}</div>
+                          <div className="text-[10px] font-extrabold text-purple-900">({empMTotal.totalHours}h • {empMTotal.shiftCount} ca)</div>
                         </div>
                       </td>
                     </tr>
                   );
                 })}
 
-                {/* HÀNG CỘNG TỔNG TOÀN TIỆM CUỐI BẢNG */}
+                {/* HÀNG CỘNG TỔNG TOÀN BỘ CA LÀM VÀ LƯƠNG THÁNG CUỐI BẢNG */}
                 <tr className="bg-purple-950 text-white font-black border-t-2 border-purple-800">
                   <td className="py-3 px-2 font-black text-purple-950 text-xs sm:text-sm sticky left-0 z-20 bg-purple-200/90 shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] uppercase">
-                    👑 TỔNG CỘNG TOÀN BỘ CA LÀM
+                    👑 TỔNG CỘNG LƯƠNG
                   </td>
                   {weekDays.map((dStr) => {
                     const dayShifts = schedule.filter((s) => s.date === dStr);
@@ -359,8 +483,12 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                     );
                   })}
                   <td className="py-3 px-3 text-center bg-purple-900">
-                    <div className="text-sm font-black text-amber-300">{formatCurrency(grandTotalSalary)}</div>
+                    <div className="text-xs sm:text-sm font-black text-emerald-300">{formatCurrency(grandTotalSalary)}</div>
                     <div className="text-[10px] font-extrabold text-purple-200">({grandTotalHours}h)</div>
+                  </td>
+                  <td className="py-3 px-3 text-center bg-amber-600 border-l-4 border-amber-400">
+                    <div className="text-xs sm:text-sm font-black text-white">{formatCurrency(grandTotalMonthlySalary)}</div>
+                    <div className="text-[10px] font-extrabold text-amber-100">({grandTotalMonthlyHours}h)</div>
                   </td>
                 </tr>
               </>

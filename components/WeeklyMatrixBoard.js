@@ -63,6 +63,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
   const [branches, setBranches] = useState([]);
   const [schedule, setSchedule] = useState([]);
+  const [localSchedule, setLocalSchedule] = useState([]);
+  const [deletedShiftIds, setDeletedShiftIds] = useState([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSortModal, setShowSortModal] = useState(false);
@@ -98,6 +102,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       ]);
       setBranches(branchData);
       setSchedule(schedData);
+      setLocalSchedule(schedData);
+      setDeletedShiftIds([]);
+      setHasUnsavedChanges(false);
       setAvailability(availData);
     } catch (err) {
       console.error(err);
@@ -160,13 +167,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   // Index map dữ liệu ca làm theo employeeId_date
   const scheduleByEmpAndDate = useMemo(() => {
     const map = {};
-    schedule.forEach((item) => {
+    localSchedule.forEach((item) => {
       const key = `${item.employee_id}_${item.date}`;
       if (!map[key]) map[key] = [];
       map[key].push(item);
     });
     return map;
-  }, [schedule]);
+  }, [localSchedule]);
 
   // Index map lịch rảnh theo employeeId_date
   const availByEmpAndDate = useMemo(() => {
@@ -373,54 +380,123 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCopyingEmpId(null);
   }
 
-  async function handleCopyShiftFromPrevDay(employeeId, sourceShift, targetDateStr) {
-    try {
-      await upsertSchedule({
-        employeeId: employeeId,
-        branchId: sourceShift.branch_id,
-        date: targetDateStr,
-        startTime: sourceShift.start_time ? sourceShift.start_time.slice(0, 5) : '09:00',
-        endTime: sourceShift.end_time ? sourceShift.end_time.slice(0, 5) : '14:00',
-        hours: sourceShift.hours || 5,
-        note: sourceShift.note || '',
-      });
-      if (toast) toast.success('Đã sao chép ca!', 'Đã copy ca làm ngày hôm trước sang hôm nay!');
-      await loadWeekData(true);
-    } catch (err) {
-      console.error(err);
-      if (toast) toast.error('Lỗi', 'Không thể sao chép ca làm');
-    }
-  }
+  // 1. Gán / Chỉnh sửa ca làm từ Modal (chỉ cập nhật State Local)
+  function handleSaveModal(data) {
+    const datesToApply = data.applyWholeWeek ? weekDays : [data.date];
+    const targetBranch = branches.find((b) => b.id === data.branchId) || branches[0];
 
-  async function handleSaveModal(data) {
-    try {
-      if (data.applyWholeWeek) {
-        for (const dayStr of weekDays) {
-          await upsertSchedule({
-            ...data,
-            date: dayStr,
-          });
+    setLocalSchedule((prev) => {
+      let updated = [...prev];
+      datesToApply.forEach((dStr) => {
+        // Nếu là ca chỉnh sửa đã có ID
+        const existingIdx = updated.findIndex((s) => s.id && s.id === data.editId);
+        if (existingIdx !== -1) {
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            branch_id: data.branchId,
+            branches: targetBranch,
+            start_time: data.startTime,
+            end_time: data.endTime,
+            hours: data.hours,
+            note: data.note || '',
+            date: dStr,
+            isDraft: true,
+          };
+        } else {
+          // Tạo mới item ca làm draft
+          const newDraft = {
+            id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            employee_id: data.employeeId,
+            branch_id: data.branchId,
+            branches: targetBranch,
+            date: dStr,
+            start_time: data.startTime,
+            end_time: data.endTime,
+            hours: data.hours,
+            note: data.note || '',
+            isDraft: true,
+          };
+          updated.push(newDraft);
         }
-        if (toast) toast.success('Đã nhân bản!', 'Đã áp dụng ca làm này cho tất cả các ngày trong tuần!');
-      } else {
-        await upsertSchedule(data);
-        if (toast) toast.success('Thành công', 'Đã lưu phân công ca làm!');
-      }
-      await loadWeekData(true);
-    } catch (err) {
-      console.error(err);
-      if (toast) toast.error('Lỗi', 'Không thể lưu phân công');
-    }
+      });
+      return updated;
+    });
+
+    setHasUnsavedChanges(true);
+    if (toast) toast.info('Đã gán ca (Bản thảo)', 'Thay đổi đã được cập nhật! Bấm "LƯU LỊCH PHÂN CÔNG" ở trên khi xếp xong.');
   }
 
-  async function handleDeleteScheduleItem(itemId) {
+  // 2. Xóa ca làm (chỉ cập nhật State Local)
+  function handleDeleteScheduleItem(itemId) {
+    if (itemId && !String(itemId).startsWith('draft_')) {
+      setDeletedShiftIds((prev) => [...prev, itemId]);
+    }
+    setLocalSchedule((prev) => prev.filter((s) => s.id !== itemId));
+    setHasUnsavedChanges(true);
+    if (toast) toast.info('Đã bỏ ca (Bản thảo)', 'Đã xóa ca trên bản thảo. Bấm "LƯU LỊCH PHÂN CÔNG" để lưu chính thức!');
+  }
+
+  // 3. Sao chép ca từ hôm trước (chỉ cập nhật State Local)
+  function handleCopyShiftFromPrevDay(employeeId, sourceShift, targetDateStr) {
+    const targetBranch = branches.find((b) => b.id === sourceShift.branch_id) || sourceShift.branches || branches[0];
+    const newDraft = {
+      id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      employee_id: employeeId,
+      branch_id: sourceShift.branch_id,
+      branches: targetBranch,
+      date: targetDateStr,
+      start_time: sourceShift.start_time ? sourceShift.start_time.slice(0, 5) : '09:00',
+      end_time: sourceShift.end_time ? sourceShift.end_time.slice(0, 5) : '14:00',
+      hours: sourceShift.hours || 5,
+      note: sourceShift.note || '',
+      isDraft: true,
+    };
+
+    setLocalSchedule((prev) => [...prev, newDraft]);
+    setHasUnsavedChanges(true);
+    if (toast) toast.info('Đã copy ca (Bản thảo)', 'Bấm "LƯU LỊCH PHÂN CÔNG" ở trên khi xếp xong.');
+  }
+
+  // 4. LƯU BATCH TẤT CẢ THAY ĐỔI 1 LẦN DUY NHẤT LÊN SUPABASE
+  async function handleSaveAllBatch() {
+    setIsBatchSaving(true);
     try {
-      await deleteSchedule(itemId);
-      if (toast) toast.info('Đã xóa', 'Đã chuyển ca về trạng thái OFF');
+      // 1. Xóa các ca đã bấm xóa
+      if (deletedShiftIds.length > 0) {
+        for (const delId of deletedShiftIds) {
+          await deleteSchedule(delId);
+        }
+      }
+
+      // 2. Lưu / Cập nhật tất cả ca trong localSchedule
+      for (const item of localSchedule) {
+        await upsertSchedule({
+          employeeId: item.employee_id,
+          branchId: item.branch_id,
+          date: item.date,
+          startTime: item.start_time ? item.start_time.slice(0, 5) : '09:00',
+          endTime: item.end_time ? item.end_time.slice(0, 5) : '14:00',
+          hours: item.hours || 5,
+          note: item.note || '',
+        });
+      }
+
+      if (toast) toast.success('🚀 THÀNH CÔNG RỰC RỠ!', 'Đã lưu toàn bộ Bảng Xếp Lịch Phân Công Tuần!');
       await loadWeekData(true);
     } catch (err) {
-      console.error(err);
-      if (toast) toast.error('Lỗi', 'Không thể xóa ca làm');
+      console.error('Lỗi khi lưu batch lịch:', err);
+      if (toast) toast.error('Lỗi', 'Không thể lưu bảng lịch phân công!');
+    }
+    setIsBatchSaving(false);
+  }
+
+  // Hủy thay đổi chưa lưu
+  function handleCancelUnsavedChanges() {
+    if (confirm('Bạn có chắc chắn muốn HỦY BỎ toàn bộ thay đổi chưa lưu trên bảng xếp lịch tuần này không?')) {
+      setLocalSchedule(schedule);
+      setDeletedShiftIds([]);
+      setHasUnsavedChanges(false);
+      if (toast) toast.info('Đã hủy', 'Đã khôi phục lại bảng xếp lịch ban đầu.');
     }
   }
 
@@ -438,6 +514,42 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
   return (
     <div className="space-y-2.5">
+      {/* THANH CẢNH BÁO THAY ĐỔI CHƯA LƯU & NÚT LƯU BATCH 1 LẦN */}
+      {!readOnly && hasUnsavedChanges && (
+        <div className="sticky top-2 z-40 p-3 sm:p-4 rounded-2xl bg-amber-500 text-purple-950 shadow-xl border-2 border-amber-300 flex items-center justify-between flex-wrap gap-3 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">⚠️</span>
+            <div>
+              <div className="font-black text-sm sm:text-base text-purple-950">
+                Có thay đổi chưa lưu trên Bảng Phân Công!
+              </div>
+              <p className="text-xs text-purple-900 font-extrabold">
+                Bấm nút bên phải sau khi xếp ca xong để lưu chính thức 1 lần duy nhất.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={handleCancelUnsavedChanges}
+              disabled={isBatchSaving}
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-purple-950/20 hover:bg-purple-950/30 text-purple-950 text-xs font-black border border-purple-950/30 cursor-pointer"
+            >
+              ↺ Hủy Bỏ
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveAllBatch}
+              disabled={isBatchSaving}
+              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-purple-900 hover:bg-purple-950 text-white font-black text-xs sm:text-sm border border-purple-800 cursor-pointer shadow-md active:scale-95 transition-all"
+            >
+              {isBatchSaving ? '⏳ Đang lưu toàn bộ...' : '💾 LƯU LỊCH PHÂN CÔNG (1 Bấm)'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Thanh điều hướng Tuần & Chú thích Chi Nhánh - Compact 1-Line Row */}
       <div className="bg-white rounded-2xl p-2.5 sm:px-4 sm:py-3 border border-purple-200/90 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         {/* Bộ chuyển tuần 1 dòng */}
@@ -476,15 +588,32 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             </button>
 
             {!readOnly && (
-              <button
-                type="button"
-                onClick={() => setShowBlockOffModal(true)}
-                className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
-                title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
-              >
-                <span>🚫</span>
-                <span className="hidden sm:inline">Quy Định Cấm Off</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleSaveAllBatch}
+                  disabled={isBatchSaving || !hasUnsavedChanges}
+                  className={`px-3 py-1 sm:py-1.5 rounded-xl font-black text-xs border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 ${
+                    hasUnsavedChanges
+                      ? 'bg-amber-400 hover:bg-amber-500 text-purple-950 border-amber-500 animate-pulse shadow-md font-black'
+                      : 'bg-emerald-100 text-emerald-950 border-emerald-300 opacity-80'
+                  }`}
+                  title="Bấm để lưu toàn bộ bảng lịch phân công 1 lần"
+                >
+                  <span>💾</span>
+                  <span>{isBatchSaving ? 'Đang lưu...' : hasUnsavedChanges ? 'LƯU PHÂN CÔNG' : 'Đã Lưu'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBlockOffModal(true)}
+                  className="px-2.5 py-1 sm:py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                  title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
+                >
+                  <span>🚫</span>
+                  <span className="hidden sm:inline">Quy Định Cấm Off</span>
+                </button>
+              </>
             )}
 
             {!readOnly && (

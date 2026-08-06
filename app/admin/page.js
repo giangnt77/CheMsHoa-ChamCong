@@ -553,8 +553,21 @@ function AdminContent() {
   }
 
   async function handleAddPenalty() {
-    const amount = parseInt(penaltyAmount);
-    if (!amount || !penaltyReason.trim() || !selectedEmployee) return;
+    const rawAmount = Number(penaltyAmount);
+    if (!penaltyAmount || isNaN(rawAmount) || rawAmount <= 0) {
+      toast.warning('Cảnh báo', 'Vui lòng nhập số tiền lớn hơn 0đ!');
+      return;
+    }
+    if (rawAmount > 1000000000) {
+      toast.warning('Số tiền quá lớn', 'Số tiền thưởng/phạt 1 lần tối đa là 1.000.000.000đ (1 Tỷ)!');
+      return;
+    }
+    if (!penaltyReason.trim() || !selectedEmployee) {
+      toast.warning('Thiếu thông tin', 'Vui lòng chọn nhân viên và nhập lý do!');
+      return;
+    }
+
+    const amount = Math.min(Math.round(rawAmount), 1000000000);
     try {
       const isBonus = recordType === 'bonus';
       const cleanReason = penaltyReason.trim();
