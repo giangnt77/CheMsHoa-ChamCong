@@ -293,9 +293,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setDraggedIdx(null);
   }
 
-  const [copyingPrevWeek, setCopyingPrevWeek] = useState(false);
+  const [copyingEmpId, setCopyingEmpId] = useState(null);
 
-  async function handleCopyPrevWeekSchedule() {
+  async function handleCopyEmployeePrevWeek(emp) {
     const [y, m, d] = currentMonday.split('-').map(Number);
     const prevMondayObj = new Date(y, m - 1, d - 7);
     const prevSundayObj = new Date(y, m - 1, d - 1);
@@ -304,27 +304,29 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
     if (
       !confirm(
-        `Bạn có chắc chắn muốn SAO CHÉP toàn bộ ca làm từ tuần trước (${prevStartDate
+        `Bạn có muốn SAO CHÉP toàn bộ ca làm tuần trước (${prevStartDate
           .split('-')
           .reverse()
           .slice(0, 2)
-          .join('/')} - ${prevEndDate.split('-').reverse().slice(0, 2).join('/')}) sang tuần hiện tại?`
+          .join('/')} - ${prevEndDate.split('-').reverse().slice(0, 2).join('/')}) của nhân viên "${emp.name}" sang tuần này không?`
       )
     ) {
       return;
     }
 
-    setCopyingPrevWeek(true);
+    setCopyingEmpId(emp.id);
     try {
       const prevSchedData = await getScheduleByDateRange(prevStartDate, prevEndDate);
-      if (!prevSchedData || prevSchedData.length === 0) {
-        if (toast) toast.warning('Trống', 'Tuần liền trước chưa có ca làm nào để sao chép!');
-        setCopyingPrevWeek(false);
+      const empPrevShifts = prevSchedData.filter((s) => s.employee_id === emp.id);
+
+      if (!empPrevShifts || empPrevShifts.length === 0) {
+        if (toast) toast.warning('Trống', `Tuần trước nhân viên ${emp.name} chưa có ca làm nào!`);
+        setCopyingEmpId(null);
         return;
       }
 
       let count = 0;
-      for (const item of prevSchedData) {
+      for (const item of empPrevShifts) {
         const itemDate = new Date(item.date + 'T00:00:00');
         const newDateObj = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate() + 7);
         const newDateStr = formatDateISO(newDateObj);
@@ -342,12 +344,12 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       }
 
       await loadWeekData();
-      if (toast) toast.success('Đã sao chép!', `Đã sao chép ${count} ca làm từ tuần trước sang tuần này!`);
+      if (toast) toast.success('Đã sao chép!', `Đã sao chép ${count} ca làm tuần trước cho ${emp.name}!`);
     } catch (err) {
       console.error(err);
-      if (toast) toast.error('Lỗi', 'Không thể sao chép lịch tuần trước');
+      if (toast) toast.error('Lỗi', `Không thể sao chép lịch cho ${emp.name}`);
     }
-    setCopyingPrevWeek(false);
+    setCopyingEmpId(null);
   }
 
   async function handleSaveModal(data) {
@@ -432,19 +434,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             >
               Hôm nay
             </button>
-
-            {!readOnly && (
-              <button
-                type="button"
-                onClick={handleCopyPrevWeekSchedule}
-                disabled={copyingPrevWeek}
-                className="px-3 py-1 sm:py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 text-xs font-black border border-amber-500/50 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
-                title="Sao chép toàn bộ phân công ca làm của tuần trước đè sang tuần hiện tại đang xem"
-              >
-                <span>📋</span>
-                <span>{copyingPrevWeek ? '⏳ Đang copy...' : 'Copy Lịch Tuần Trước'}</span>
-              </button>
-            )}
 
             {!readOnly && (
               <button
@@ -561,16 +550,34 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                       } ${draggedIdx === idx ? 'bg-purple-200/90 opacity-75 border-purple-500 shadow-xl scale-98' : ''}`}
                       title={isSortMode ? 'Đang bật Sắp Xếp: Chạm/Giữ kéo thả hàng này' : ''}
                     >
-                      <div className="flex items-center gap-1 truncate">
-                        {isSortMode && (
-                          <span className="text-amber-600 font-black text-sm select-none touch-none animate-pulse" title="Chạm giữ để kéo hàng">
-                            ≡
+                      <div className="flex items-center justify-between gap-1 min-w-0">
+                        <div className="flex items-center gap-1 truncate min-w-0 flex-1">
+                          {isSortMode && (
+                            <span className="text-amber-600 font-black text-sm select-none touch-none animate-pulse" title="Chạm giữ để kéo hàng">
+                              ≡
+                            </span>
+                          )}
+                          {isMe && <span className="text-purple-700 text-xs" title="Tài khoản của tôi">⭐</span>}
+                          <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'}>
+                            {emp.name}
                           </span>
+                        </div>
+
+                        {!readOnly && !isSortMode && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyEmployeePrevWeek(emp);
+                            }}
+                            disabled={copyingEmpId === emp.id}
+                            className="px-1.5 py-0.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-purple-950 font-black text-[10px] border border-amber-500/50 cursor-pointer shadow-2xs flex-shrink-0 transition-all active:scale-95 flex items-center gap-0.5"
+                            title={`Sao chép toàn bộ ca làm tuần trước của ${emp.name} sang tuần này`}
+                          >
+                            <span>📋</span>
+                            <span className="hidden sm:inline">{copyingEmpId === emp.id ? '⏳' : 'Copy'}</span>
+                          </button>
                         )}
-                        {isMe && <span className="text-purple-700 text-xs" title="Tài khoản của tôi">⭐</span>}
-                        <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'}>
-                          {emp.name}
-                        </span>
                       </div>
                     </td>
 
