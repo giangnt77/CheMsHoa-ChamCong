@@ -94,10 +94,14 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
-  // Sắp xếp danh sách nhân viên y chang Bảng Ma Trận Lịch Tuần
+  // Sắp xếp danh sách nhân viên y chang Bảng Ma Trận Lịch Tuần (Đẩy OFF xuống cuối cùng)
   const sortedEmployees = useMemo(() => {
     if (!employees) return [];
     return [...employees].sort((a, b) => {
+      const isOffA = a.status === 'off';
+      const isOffB = b.status === 'off';
+      if (isOffA !== isOffB) return isOffA ? 1 : -1;
+
       const orderA = a.sort_order ?? 999;
       const orderB = b.sort_order ?? 999;
       if (orderA !== orderB) return orderA - orderB;

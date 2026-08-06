@@ -116,7 +116,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
-  // Sắp xếp danh sách nhân viên: Ưu tiên sort_order từ Supabase Database 100%
+  // Sắp xếp danh sách nhân viên: Đẩy nhân viên OFF xuống cuối cùng, ưu tiên sort_order
   const sortedEmployees = useMemo(() => {
     if (!employees || employees.length === 0) return [];
 
@@ -125,6 +125,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         if (a.id === highlightEmployeeId) return -1;
         if (b.id === highlightEmployeeId) return 1;
       }
+
+      const isOffA = a.status === 'off';
+      const isOffB = b.status === 'off';
+      if (isOffA !== isOffB) return isOffA ? 1 : -1;
 
       const orderA = a.sort_order ?? 999;
       const orderB = b.sort_order ?? 999;
