@@ -144,7 +144,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     if (type === 'off') {
       const dateObj = new Date(date + 'T00:00:00');
       const dayIdx = dateObj.getDay(); // 0: CN, 1: T2...
-      if (blockedOffDays.includes(dayIdx)) {
+      if (blockedMap[dayIdx] !== undefined) {
         toast.warning(
           'Ngày Cấm Xin Nghỉ!',
           'Đây là ngày cao điểm của quán, Chị Hoa quy định KHÔNG ĐƯỢC ĐĂNG KÝ XIN NGHỈ!'
