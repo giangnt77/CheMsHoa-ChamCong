@@ -216,33 +216,67 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     const permanentOffList = [];
 
     sortedEmployees.forEach((emp) => {
-      // 0. Nếu nhân viên mới vào làm SAU KHI tuần này đã kết thúc -> Ẩn tên khỏi bảng tuần cũ này!
+      // 0. Kiểm tra xem nhân viên có ca phân công nào trong tuần này không (dù 1 ca cũng tính)
+      const hasShiftsInThisWeek = weekDays.some(
+        (dStr) => (scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []).length > 0
+      );
+
+      // QUY TẮC ƯU TIÊN SỐ 1: Bất kỳ tuần nào có ca phân công -> LUÔN HIỆN TRÊN BẢNG MA TRẬN CHÍNH
+      if (hasShiftsInThisWeek) {
+        matrix.push(emp);
+        return;
+      }
+
+      // 0.1 Nếu nhân viên mới vào làm SAU KHI tuần này đã kết thúc -> Ẩn tên khỏi bảng tuần cũ này
       const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
       if (empStartDate > endDate) {
-        return; // Chưa gia nhập tiệm ở mốc tuần quá khứ này
-      }
-
-      // 1. NGHỈ VIỆC / OFF CỐ ĐỊNH (Bảng Đỏ 🔴) -> Chỉ khi trạng thái chính xác là 'off'
-      if (emp.status === 'off') {
-        permanentOffList.push({
-          employee: emp,
-          reason: 'Off / Nghỉ việc cố định',
-        });
         return;
       }
 
-      // 2. CHỈ KHI CHỦ QUÁN ĐẶT TRẠNG THÁI LÀ 'leave' (Xin nghỉ) -> MỚI ĐƯA VÀO BẢNG VÀNG 🟡
+      // 1. NGHỈ VIỆC / OFF CỐ ĐỊNH ('off')
+      if (emp.status === 'off' || emp.is_active === false) {
+        const resignedDate = emp.resigned_at || emp.off_date || (emp.updated_at ? emp.updated_at.slice(0, 10) : '2099-12-31');
+        if (resignedDate >= startDate) {
+          matrix.push(emp);
+        } else {
+          permanentOffList.push({
+            employee: emp,
+            reason: `Đã nghỉ việc từ ${resignedDate.split('-').reverse().join('/')}`,
+          });
+        }
+        return;
+      }
+
+      // 2. XIN OFF TẠM THỜI ('leave')
       if (emp.status === 'leave') {
-        const empOffDays = weekDays.filter((dStr) => availByEmpAndDate[`${emp.id}_${dStr}`]?.type === 'off');
-        shortLeaveList.push({
-          employee: emp,
-          reason: 'Xin nghỉ ngắn ngày (Chủ duyệt)',
-          offDaysCount: empOffDays.length,
-        });
+        const offStart = emp.off_start_date || (emp.updated_at ? emp.updated_at.slice(0, 10) : startDate);
+        const offEnd = emp.off_end_date || offStart;
+
+        // Nếu tuần đang xem nằm trước offStart hoặc nằm sau offEnd -> Hiện tên trên bảng chính
+        if (endDate < offStart || startDate > offEnd) {
+          matrix.push(emp);
+          return;
+        }
+
+        // Tính số ngày trong tuần này bị trùng khoảng off [offStart -> offEnd]
+        const daysInOffPeriod = weekDays.filter((dStr) => dStr >= offStart && dStr <= offEnd);
+
+        // Nếu OFF TOÀN BỘ 7 NGÀY TRONG TUẦN VÀ KHÔNG CÓ CA NÀO -> Mới đưa vào BẢNG VÀNG 🟡
+        if (daysInOffPeriod.length >= 7) {
+          shortLeaveList.push({
+            employee: emp,
+            reason: `Off từ ${offStart.split('-').reverse().slice(0, 2).join('/')} đến ${offEnd.split('-').reverse().slice(0, 2).join('/')}`,
+            offDaysCount: daysInOffPeriod.length,
+          });
+          return;
+        }
+
+        // Nếu off vài ngày trong tuần (ví dụ off từ Chủ Nhật) -> VẪN GIỮ NGHUYÊN TRÊN BẢNG MA TRẬN CHÍNH!
+        matrix.push(emp);
         return;
       }
 
-      // 3. TẤT CẢ NHÂN VIÊN CÒN LẠI (KỂ CẢ ĐĂNG KÝ XIN NGHỈ TRÊN WEB) -> LUÔN LUÔN HIỂN THỊ TRÊN BẢNG MA TRẬN CHÍNH
+      // 3. TẤT CẢ NHÂN VIÊN ĐANG LÀM ('active') -> LUÔN HIỆN TRÊN BẢNG MA TRẬN CHÍNH
       matrix.push(emp);
     });
 

@@ -280,6 +280,19 @@ function AdminContent() {
     );
   }, [employees]);
 
+  // Phân chia nhân viên thành 2 nhóm độc lập: Đang Làm & Đã Nghỉ Việc
+  const [showResignedGroup, setShowResignedGroup] = useState(false);
+
+  const activeStaffEmployees = useMemo(() => {
+    if (!staffEmployees) return [];
+    return staffEmployees.filter((e) => e.status !== 'off');
+  }, [staffEmployees]);
+
+  const resignedStaffEmployees = useMemo(() => {
+    if (!staffEmployees) return [];
+    return staffEmployees.filter((e) => e.status === 'off');
+  }, [staffEmployees]);
+
   async function handleCreateNewEmployee(e) {
     e.preventDefault();
     if (!addEmpName.trim()) return;
@@ -332,17 +345,39 @@ function AdminContent() {
     }
   }
 
-  async function handleUpdateStatus(status) {
+  // State Cấu Hình Thời Gian Off / Nghỉ Việc Dành Cho Nhân Viên
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState('');
+  const [offStartDateInput, setOffStartDateInput] = useState(getToday());
+  const [offEndDateInput, setOffEndDateInput] = useState(getToday());
+  const [resignedDateInput, setResignedDateInput] = useState(getToday());
+
+  function handleSelectStatusChange(newStatus) {
+    if (!selectedEmployee) return;
+    if (newStatus === 'active') {
+      executeSaveStatus('active', {});
+    } else {
+      setPendingStatus(newStatus);
+      setOffStartDateInput(selectedEmployee.off_start_date || getToday());
+      setOffEndDateInput(selectedEmployee.off_end_date || getToday());
+      setResignedDateInput(selectedEmployee.resigned_at || getToday());
+      setShowStatusModal(true);
+    }
+  }
+
+  async function executeSaveStatus(status, extraData = {}) {
     if (!selectedEmployee) return;
     try {
-      const updated = await updateEmployeeStatus(selectedEmployee.id, status);
+      const updated = await updateEmployeeStatus(selectedEmployee.id, status, extraData);
       setSelectedEmployee(updated);
+      setShowStatusModal(false);
+
       if (status === 'active') {
         toast.success('Cập nhật trạng thái', `${updated.name}: 🟢 Đang làm (Hiển thị trong bảng xếp lịch)`);
       } else if (status === 'leave') {
-        toast.warning('Cập nhật trạng thái', `${updated.name}: 🟡 Xin off (Tạm nghỉ vài ngày)`);
+        toast.warning('Cập nhật trạng thái', `${updated.name}: 🟡 Xin off (${extraData.off_start_date} ➔ ${extraData.off_end_date})`);
       } else {
-        toast.error('Cập nhật trạng thái', `${updated.name}: 🔴 Nghỉ việc (Ngừng xếp lịch làm)`);
+        toast.error('Cập nhật trạng thái', `${updated.name}: 🔴 Nghỉ việc từ ngày ${extraData.resigned_at}`);
       }
       loadInitialData();
     } catch (err) {
@@ -957,7 +992,7 @@ function AdminContent() {
                     </div>
                   )}
 
-                  {/* Danh sách nhân viên cuộn mượt */}
+                  {/* Danh sách nhân viên phân thành 2 khu vực: Đang Làm & Đã Nghỉ Việc */}
                   {loading ? (
                     <div className="text-center py-8">
                       <div className="inline-block w-6 h-6 border-2 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
@@ -965,131 +1000,289 @@ function AdminContent() {
                   ) : staffEmployees.length === 0 ? (
                     <p className="text-xs text-purple-600 font-bold text-center py-6">Chưa có nhân viên</p>
                   ) : (
-                    <div className="space-y-1.5 max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
-                      {staffEmployees
-                        .filter((e) => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()))
-                        .map((emp) => {
-                          const isSelected = selectedEmployee?.id === emp.id;
-                          return (
-                              <div
-                                key={emp.id}
-                                className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all ${
-                                  isSelected
-                                    ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50'
-                                    : 'bg-white text-purple-950 border-purple-200/90 hover:bg-purple-50'
-                                }`}
-                                onClick={() => setSelectedEmployee(emp)}
-                              >
-                                {/* Hàng 1: Avatar + Tên + Trạng Thái + Nút Thao Tác */}
-                                <div className="flex items-center justify-between gap-1.5">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <div
-                                      className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                                        isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-purple-700 text-white'
-                                      }`}
-                                    >
-                                      {getInitials(emp.name)}
-                                    </div>
-                                    <span className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
-                                      {emp.name}
-                                    </span>
-                                    {emp.status === 'leave' ? (
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300 flex-shrink-0">🟡 Off</span>
-                                    ) : (emp.status === 'off' || emp.is_active === false) ? (
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300 flex-shrink-0">🔴 Nghỉ</span>
-                                    ) : (
-                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-900 font-black border border-emerald-300 flex-shrink-0">🟢 Làm</span>
-                                    )}
-                                  </div>
+                    <div className="space-y-4">
+                      {/* KHU VỰC 1: NHÂN VIÊN ĐANG LÀM VIỆC (🟢 Active) */}
+                      <div className="space-y-1.5">
+                        <div className="text-[11px] font-black text-emerald-900 uppercase tracking-wider flex items-center justify-between bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                          <span className="flex items-center gap-1.5">
+                            <span>🟢</span>
+                            <span>Đang Làm Việc ({activeStaffEmployees.length})</span>
+                          </span>
+                        </div>
 
-                                  {/* Action buttons (🔑 Đổi PIN & 🗑️ Xóa) */}
-                                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                    {editingPinEmpId === emp.id ? (
-                                      <div className="flex items-center gap-1">
-                                        <input
-                                          type="text"
-                                          maxLength={6}
-                                          value={newPinInput}
-                                          onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
-                                          className="w-14 px-1 py-0.5 bg-white border border-purple-500 rounded text-purple-950 text-xs font-black text-center outline-none"
-                                          autoFocus
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            if (!newPinInput.trim()) return;
-                                            try {
-                                              await updateEmployeePin(emp.id, newPinInput.trim());
-                                              toast.success('Đã lưu PIN', `PIN mới của ${emp.name}: ${newPinInput.trim()}`);
-                                              setEditingPinEmpId(null);
-                                              setNewPinInput('');
-                                              loadInitialData();
-                                            } catch (err) {
-                                              console.error(err);
-                                              toast.error('Lỗi', 'Không thể đổi PIN');
-                                            }
-                                          }}
-                                          className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black border-0 cursor-pointer"
+                        {activeStaffEmployees.length === 0 ? (
+                          <p className="text-xs text-purple-600 font-bold text-center py-4">Không có nhân viên đang làm</p>
+                        ) : (
+                          <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                            {activeStaffEmployees
+                              .filter((e) => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()))
+                              .map((emp) => {
+                                const isSelected = selectedEmployee?.id === emp.id;
+                                return (
+                                  <div
+                                    key={emp.id}
+                                    className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all ${
+                                      isSelected
+                                        ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50'
+                                        : 'bg-white text-purple-950 border-purple-200/90 hover:bg-purple-50'
+                                    }`}
+                                    onClick={() => setSelectedEmployee(emp)}
+                                  >
+                                    {/* Hàng 1: Avatar + Tên + Trạng Thái + Nút Thao Tác */}
+                                    <div className="flex items-center justify-between gap-1.5">
+                                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <div
+                                          className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
+                                            isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-purple-700 text-white'
+                                          }`}
                                         >
-                                          ✓
-                                        </button>
+                                          {getInitials(emp.name)}
+                                        </div>
+                                        <span className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
+                                          {emp.name}
+                                        </span>
+                                        {emp.status === 'leave' ? (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300 flex-shrink-0">🟡 Off</span>
+                                        ) : (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-900 font-black border border-emerald-300 flex-shrink-0">🟢 Làm</span>
+                                        )}
                                       </div>
-                                    ) : (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setEditingPinEmpId(emp.id);
-                                            setNewPinInput(emp.pin || '123456');
-                                          }}
-                                          className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
-                                            isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                                          }`}
-                                          title="Đổi PIN nhân viên"
-                                        >
-                                          🔑
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}"?`)) {
-                                              try {
-                                                await deleteEmployee(emp.id);
-                                                toast.success('Đã xóa', `Đã xóa ${emp.name}`);
-                                                if (selectedEmployee?.id === emp.id) setSelectedEmployee(null);
-                                                loadInitialData();
-                                              } catch (err) {
-                                                console.error(err);
-                                                toast.error('Lỗi', 'Không thể xóa');
-                                              }
-                                            }
-                                          }}
-                                          className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
-                                            isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                                          }`}
-                                          title="Xóa nhân viên"
-                                        >
-                                          🗑️
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
 
-                                {/* Hàng 2: Lương • Ngày Làm • PIN */}
-                                <div className="flex items-center justify-between text-[11px] font-bold mt-1 pt-1 border-t border-purple-100/30">
-                                  <div className={`truncate ${isSelected ? 'text-purple-200' : 'text-purple-700'}`}>
-                                    💰 {formatCurrency(emp.hourly_rate || 20000)}/h • Làm từ {formatDateFull(emp.created_at)}
+                                      {/* Action buttons (🔑 Đổi PIN & 🗑️ Xóa) */}
+                                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                        {editingPinEmpId === emp.id ? (
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="text"
+                                              maxLength={6}
+                                              value={newPinInput}
+                                              onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                                              className="w-14 px-1 py-0.5 bg-white border border-purple-500 rounded text-purple-950 text-xs font-black text-center outline-none"
+                                              autoFocus
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={async () => {
+                                                if (!newPinInput.trim()) return;
+                                                try {
+                                                  await updateEmployeePin(emp.id, newPinInput.trim());
+                                                  toast.success('Đã lưu PIN', `PIN mới của ${emp.name}: ${newPinInput.trim()}`);
+                                                  setEditingPinEmpId(null);
+                                                  setNewPinInput('');
+                                                  loadInitialData();
+                                                } catch (err) {
+                                                  console.error(err);
+                                                  toast.error('Lỗi', 'Không thể đổi PIN');
+                                                }
+                                              }}
+                                              className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black border-0 cursor-pointer"
+                                            >
+                                              ✓
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setEditingPinEmpId(emp.id);
+                                                setNewPinInput(emp.pin || '123456');
+                                              }}
+                                              className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
+                                                isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                              }`}
+                                              title="Đổi PIN nhân viên"
+                                            >
+                                              🔑
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={async () => {
+                                                if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}"?`)) {
+                                                  try {
+                                                    await deleteEmployee(emp.id);
+                                                    toast.success('Đã xóa', `Đã xóa ${emp.name}`);
+                                                    if (selectedEmployee?.id === emp.id) setSelectedEmployee(null);
+                                                    loadInitialData();
+                                                  } catch (err) {
+                                                    console.error(err);
+                                                    toast.error('Lỗi', 'Không thể xóa');
+                                                  }
+                                                }
+                                              }}
+                                              className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
+                                                isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                              }`}
+                                              title="Xóa nhân viên"
+                                            >
+                                              🗑️
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Hàng 2: Lương • Ngày Làm • PIN */}
+                                    <div className="flex items-center justify-between text-[11px] font-bold mt-1 pt-1 border-t border-purple-100/30">
+                                      <div className={`truncate ${isSelected ? 'text-purple-200' : 'text-purple-700'}`}>
+                                        💰 {formatCurrency(emp.hourly_rate || 20000)}/h • Làm từ {formatDateFull(emp.created_at)}
+                                      </div>
+                                      <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${
+                                        isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-purple-100 text-purple-900'
+                                      }`}>
+                                        PIN: {emp.pin || '123456'}
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${
-                                    isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-purple-100 text-purple-900'
-                                  }`}>
-                                    PIN: {emp.pin || '123456'}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* KHU VỰC 2: HÀNG RIÊNG CHO NHÂN VIÊN ĐÃ NGHỈ VIỆC (🔴 Off / Resigned) */}
+                      {resignedStaffEmployees.length > 0 && (
+                        <div className="pt-2 border-t border-purple-200 space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowResignedGroup(!showResignedGroup)}
+                            className="w-full text-xs font-black text-rose-950 uppercase tracking-wider flex items-center justify-between bg-rose-50 hover:bg-rose-100/90 px-3 py-2 rounded-xl border border-rose-300 cursor-pointer transition-all shadow-2xs"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <span>🔴</span>
+                              <span>Nhân Viên Đã Nghỉ Việc ({resignedStaffEmployees.length})</span>
+                            </span>
+                            <span className="text-[11px] font-black bg-white px-2 py-0.5 rounded-lg border border-rose-300 text-rose-900">
+                              {showResignedGroup ? '▼ Ẩn danh sách' : '▶ Xem danh sách'}
+                            </span>
+                          </button>
+
+                          {showResignedGroup && (
+                            <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar animate-fade-in pt-1">
+                              {resignedStaffEmployees
+                                .filter((e) => e.name.toLowerCase().includes(empSearchQuery.toLowerCase()))
+                                .map((emp) => {
+                                  const isSelected = selectedEmployee?.id === emp.id;
+                                  return (
+                                    <div
+                                      key={emp.id}
+                                      className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all opacity-85 hover:opacity-100 ${
+                                        isSelected
+                                          ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50'
+                                          : 'bg-rose-50/50 text-purple-950 border-rose-200 hover:bg-rose-100/50'
+                                      }`}
+                                      onClick={() => setSelectedEmployee(emp)}
+                                    >
+                                      {/* Hàng 1: Avatar + Tên + Badge Nghỉ Việc */}
+                                      <div className="flex items-center justify-between gap-1.5">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          <div
+                                            className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
+                                              isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-rose-700 text-white'
+                                            }`}
+                                          >
+                                            {getInitials(emp.name)}
+                                          </div>
+                                          <span className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
+                                            {emp.name}
+                                          </span>
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-900 font-black border border-rose-300 flex-shrink-0">
+                                            🔴 Đã Nghỉ
+                                          </span>
+                                        </div>
+
+                                        {/* Action buttons (🔑 Đổi PIN & 🗑️ Xóa) */}
+                                        <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                          {editingPinEmpId === emp.id ? (
+                                            <div className="flex items-center gap-1">
+                                              <input
+                                                type="text"
+                                                maxLength={6}
+                                                value={newPinInput}
+                                                onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                                                className="w-14 px-1 py-0.5 bg-white border border-purple-500 rounded text-purple-950 text-xs font-black text-center outline-none"
+                                                autoFocus
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={async () => {
+                                                  if (!newPinInput.trim()) return;
+                                                  try {
+                                                    await updateEmployeePin(emp.id, newPinInput.trim());
+                                                    toast.success('Đã lưu PIN', `PIN mới của ${emp.name}: ${newPinInput.trim()}`);
+                                                    setEditingPinEmpId(null);
+                                                    setNewPinInput('');
+                                                    loadInitialData();
+                                                  } catch (err) {
+                                                    console.error(err);
+                                                    toast.error('Lỗi', 'Không thể đổi PIN');
+                                                  }
+                                                }}
+                                                className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black border-0 cursor-pointer"
+                                              >
+                                                ✓
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setEditingPinEmpId(emp.id);
+                                                  setNewPinInput(emp.pin || '123456');
+                                                }}
+                                                className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
+                                                  isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                                }`}
+                                                title="Đổi PIN nhân viên"
+                                              >
+                                                🔑
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={async () => {
+                                                  if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}"?`)) {
+                                                    try {
+                                                      await deleteEmployee(emp.id);
+                                                      toast.success('Đã xóa', `Đã xóa ${emp.name}`);
+                                                      if (selectedEmployee?.id === emp.id) setSelectedEmployee(null);
+                                                      loadInitialData();
+                                                    } catch (err) {
+                                                      console.error(err);
+                                                      toast.error('Lỗi', 'Không thể xóa');
+                                                    }
+                                                  }
+                                                }}
+                                                className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
+                                                  isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                                }`}
+                                                title="Xóa hẳn khỏi hệ thống"
+                                              >
+                                                🗑️
+                                              </button>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Hàng 2: Lương • Ngày Nghỉ Việc */}
+                                      <div className="flex items-center justify-between text-[11px] font-bold mt-1 pt-1 border-t border-purple-100/30">
+                                        <div className={`truncate ${isSelected ? 'text-purple-200' : 'text-rose-900'}`}>
+                                          📅 Nghỉ việc từ: <strong>{emp.resigned_at ? emp.resigned_at.split('-').reverse().join('/') : 'Trước đó'}</strong>
+                                        </div>
+                                        <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${
+                                          isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-rose-100 text-rose-900'
+                                        }`}>
+                                          PIN: {emp.pin || '123456'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1144,22 +1337,47 @@ function AdminContent() {
                                     PIN: {selectedEmployee.pin || '1234'}
                                   </span>
 
-                                  {/* Select Trạng Thái (Gọn gàng) */}
-                                  <select
-                                    value={selectedEmployee.status || (selectedEmployee.is_active !== false ? 'active' : 'off')}
-                                    onChange={(e) => handleUpdateStatus(e.target.value)}
-                                    className={`px-2 py-0.5 rounded-lg text-[11px] font-black outline-none border cursor-pointer ${
-                                      (selectedEmployee.status === 'leave')
-                                        ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                        : (selectedEmployee.status === 'off' || selectedEmployee.is_active === false)
-                                          ? 'bg-rose-100 text-rose-900 border-rose-300'
-                                          : 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                    }`}
-                                  >
-                                    <option value="active" className="text-emerald-950 font-bold bg-white">🟢 Làm</option>
-                                    <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin off (Tạm nghỉ)</option>
-                                    <option value="off" className="text-rose-950 font-bold bg-white">🔴 Nghỉ việc (Nghỉ luôn)</option>
-                                  </select>
+                                  {/* Select Trạng Thái (Gọn gàng + Cấu hình mốc thời gian) */}
+                                  <div className="flex items-center gap-1">
+                                    <select
+                                      value={selectedEmployee.status || (selectedEmployee.is_active !== false ? 'active' : 'off')}
+                                      onChange={(e) => handleSelectStatusChange(e.target.value)}
+                                      className={`px-2 py-0.5 rounded-lg text-[11px] font-black outline-none border cursor-pointer ${
+                                        (selectedEmployee.status === 'leave')
+                                          ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                          : (selectedEmployee.status === 'off' || selectedEmployee.is_active === false)
+                                            ? 'bg-rose-100 text-rose-900 border-rose-300'
+                                            : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                      }`}
+                                    >
+                                      <option value="active" className="text-emerald-950 font-bold bg-white">🟢 Làm</option>
+                                      <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin off (Tạm nghỉ)</option>
+                                      <option value="off" className="text-rose-950 font-bold bg-white">🔴 Nghỉ việc (Nghỉ luôn)</option>
+                                    </select>
+
+                                    {/* Nút sửa mốc thời gian off/nghỉ việc */}
+                                    {selectedEmployee.status === 'leave' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSelectStatusChange('leave')}
+                                        className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 hover:bg-amber-200 text-[10px] font-black border border-amber-300 cursor-pointer"
+                                        title="Chỉnh sửa mốc ngày xin off"
+                                      >
+                                        📅 {selectedEmployee.off_start_date ? `${selectedEmployee.off_start_date.split('-').reverse().slice(0,2).join('/')}-${selectedEmployee.off_end_date ? selectedEmployee.off_end_date.split('-').reverse().slice(0,2).join('/') : ''}` : 'Sửa mốc off'} ✏️
+                                      </button>
+                                    )}
+
+                                    {selectedEmployee.status === 'off' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSelectStatusChange('off')}
+                                        className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-950 hover:bg-rose-200 text-[10px] font-black border border-rose-300 cursor-pointer"
+                                        title="Chỉnh sửa ngày nghỉ việc"
+                                      >
+                                        📅 {selectedEmployee.resigned_at ? selectedEmployee.resigned_at.split('-').reverse().join('/') : 'Sửa ngày nghỉ'} ✏️
+                                      </button>
+                                    )}
+                                  </div>
                                 </>
                               )}
                             </div>
@@ -1928,6 +2146,92 @@ function AdminContent() {
                         className="flex-1 py-2.5 rounded-xl text-xs font-black bg-purple-700 hover:bg-purple-800 text-white border-0 cursor-pointer shadow-2xs"
                       >
                         Đã Hiểu / Đóng
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* POPUP CẤU HÌNH THỜI GIAN XIN OFF / NGHỈ VIỆC */}
+          {showStatusModal && selectedEmployee && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+              <div className="relative max-w-md w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{pendingStatus === 'leave' ? '🟡' : '🔴'}</span>
+                    <h3 className="font-black text-purple-950 text-base">
+                      {pendingStatus === 'leave' ? `Cấu Hình Ngày Xin Off — ${selectedEmployee.name}` : `Cấu Hình Ngày Nghỉ Việc — ${selectedEmployee.name}`}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowStatusModal(false)}
+                    className="w-8 h-8 rounded-full bg-purple-100 text-purple-900 font-black text-sm flex items-center justify-center border-0 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {pendingStatus === 'leave' ? (
+                  <div className="space-y-3 text-xs">
+                    <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 font-bold">
+                      📌 Nhập mốc thời gian nhân viên xin Off. Trong khoảng thời gian này nhân viên mới bị đánh dấu Off, các mốc thời gian trước đó vẫn giữ nguyên tên trên bảng ma trận lịch!
+                    </div>
+
+                    <div>
+                      <label className="block font-black text-purple-950 mb-1">📅 Bắt đầu Off từ ngày:</label>
+                      <VnDatePicker value={offStartDateInput} onChange={setOffStartDateInput} />
+                    </div>
+
+                    <div>
+                      <label className="block font-black text-purple-950 mb-1">📅 Off đến hết ngày:</label>
+                      <VnDatePicker value={offEndDateInput} onChange={setOffEndDateInput} />
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowStatusModal(false)}
+                        className="px-4 py-2 rounded-xl bg-purple-100 text-purple-950 font-bold cursor-pointer border-0"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => executeSaveStatus('leave', { off_start_date: offStartDateInput, off_end_date: offEndDateInput })}
+                        className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black cursor-pointer border-0 shadow-2xs"
+                      >
+                        Lưu Mốc Xin Off
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-xs">
+                    <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200 text-rose-900 font-bold">
+                      📌 Nhập ngày nhân viên chính thức nghỉ việc. Các tuần trước ngày nghỉ việc vẫn hiển thị tên nhân viên để xem lại lịch sử chấm công!
+                    </div>
+
+                    <div>
+                      <label className="block font-black text-purple-950 mb-1">📅 Ngày chính thức nghỉ việc:</label>
+                      <VnDatePicker value={resignedDateInput} onChange={setResignedDateInput} />
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowStatusModal(false)}
+                        className="px-4 py-2 rounded-xl bg-purple-100 text-purple-950 font-bold cursor-pointer border-0"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => executeSaveStatus('off', { resigned_at: resignedDateInput })}
+                        className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black cursor-pointer border-0 shadow-2xs"
+                      >
+                        Lưu Ngày Nghỉ Việc
                       </button>
                     </div>
                   </div>

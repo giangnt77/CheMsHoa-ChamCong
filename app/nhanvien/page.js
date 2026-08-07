@@ -10,6 +10,7 @@ import { ToastProvider, useToast } from '@/components/Toast';
 import {
   getEmployeeByName,
   getEmployees,
+  getAllEmployees,
   createEmployee,
   getScheduleByDateRange,
   updateEmployeeRate,
@@ -18,7 +19,7 @@ import {
   getAnnouncementNotice,
   getShiftSwapsByEmployee,
 } from '@/lib/supabase';
-import { getCurrentMonth, formatCurrency, getToday, formatDateFull } from '@/lib/utils';
+import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN } from '@/lib/utils';
 
 function EmployeeContent() {
   const toast = useToast();
@@ -30,7 +31,7 @@ function EmployeeContent() {
   const [initialLoading, setInitialLoading] = useState(false);
 
   useEffect(() => {
-    getEmployees().then(setEmployees).catch(console.error);
+    getAllEmployees().then(setEmployees).catch(console.error);
   }, []);
 
   // View state
@@ -47,12 +48,13 @@ function EmployeeContent() {
   // State Thông Báo Quan Trọng Dành Cho Nhân Viên
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [noticeText, setNoticeText] = useState(
-    '📌 THÔNG BÁO TỪ CHỦ QUÁN (CHỊ HOA):\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!'
+    '📌 THÔNG BÁO TỪ QUẢN LÝ (CHỊ HOA):\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!'
   );
 
   // State Quản Lý Đổi Ca
   const [shiftSwaps, setShiftSwaps] = useState([]);
   const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapFilterMonth, setSwapFilterMonth] = useState(getCurrentMonth());
 
   useEffect(() => {
     if (employee) {
@@ -109,7 +111,7 @@ function EmployeeContent() {
     const snoozeKey = `chems_employee_notice_snooze_${employee.id}`;
     localStorage.setItem(snoozeKey, String(snoozeTime));
     setShowNoticeModal(false);
-    toast.info('Đã ẩn thông báo', 'Thông báo từ Chủ Quán sẽ được tạm ẩn trong 4 giờ!');
+    toast.info('Đã ẩn thông báo', 'Thông báo từ Quản Lý sẽ được tạm ẩn trong 4 giờ!');
   }
 
   // Luôn bắt đầu từ Màn Hình Chọn Nhân Viên (Không tự động nhảy thẳng vào app qua cache)
@@ -431,114 +433,203 @@ function EmployeeContent() {
           {view === 'swap' && (
             <div className="animate-fade-in space-y-4">
               {/* Header Box & Add Button */}
-              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-purple-200 shadow-2xs flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <h2 className="text-base sm:text-xl font-black text-purple-950 flex items-center gap-2">
-                    <span>🔄</span>
-                    <span>Lịch Sử Yêu Cầu Đổi Ca</span>
-                  </h2>
-                  <p className="text-xs text-purple-700 font-bold mt-0.5">
-                    Gửi yêu cầu đổi ca cho Chủ Quán phê duyệt sau khi đã chốt thống nhất với nhau ngoài đời.
-                  </p>
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-purple-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <h2 className="text-base sm:text-xl font-black text-purple-950 flex items-center gap-2">
+                      <span>🔄</span>
+                      <span>Lịch Sử Yêu Cầu Đổi Ca</span>
+                    </h2>
+                    <p className="text-xs text-purple-700 font-bold mt-0.5">
+                      Gửi yêu cầu đổi ca cho Quản Lý phê duyệt sau khi đã chốt thống nhất với nhau ngoài đời.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSwapModal(true)}
+                    className="px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md active:scale-95 flex items-center gap-2 border-0 shrink-0"
+                  >
+                    <span>➕</span>
+                    <span>Đăng Ký Đổi Ca</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowSwapModal(true)}
-                  className="px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md active:scale-95 flex items-center gap-2 border-0 shrink-0"
-                >
-                  <span>➕</span>
-                  <span>Đăng Ký Đổi Ca</span>
-                </button>
+
+                {/* BỘ LỌC THEO THÁNG */}
+                <div className="flex items-center justify-between gap-2 bg-purple-50 px-3 py-2 rounded-xl border border-purple-200/80">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const [y, m] = swapFilterMonth.split('-').map(Number);
+                      const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+                      setSwapFilterMonth(prev);
+                    }}
+                    className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-800 font-black text-xs flex items-center justify-center border border-purple-200 cursor-pointer transition-all active:scale-90"
+                  >
+                    ◀
+                  </button>
+                  <span className="text-xs sm:text-sm font-black text-purple-900">
+                    📅 Tháng {swapFilterMonth.split('-')[1]}/{swapFilterMonth.split('-')[0]}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const [y, m] = swapFilterMonth.split('-').map(Number);
+                      const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+                      setSwapFilterMonth(next);
+                    }}
+                    className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-800 font-black text-xs flex items-center justify-center border border-purple-200 cursor-pointer transition-all active:scale-90"
+                  >
+                    ▶
+                  </button>
+                </div>
               </div>
 
               {/* THẺ HIỂN THỊ DANH SÁCH YÊU CẦU (XANH LÁ / ĐỎ / VÀNG) */}
               <div className="space-y-3">
-                {shiftSwaps.length === 0 ? (
-                  <div className="p-8 bg-white rounded-2xl border border-purple-200 text-center text-purple-600 text-xs font-bold space-y-2">
-                    <div className="text-3xl">🔄</div>
-                    <p>Bạn chưa gửi yêu cầu đổi ca nào.</p>
-                    <button
-                      type="button"
-                      onClick={() => setShowSwapModal(true)}
-                      className="px-4 py-2 rounded-xl bg-purple-700 text-white text-xs font-black"
-                    >
-                      Bấm vào đây để tạo yêu cầu đổi ca đầu tiên
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {shiftSwaps.map((swap) => {
-                      const isApproved = swap.status === 'approved';
-                      const isRejected = swap.status === 'rejected';
-                      const isPending = swap.status === 'pending';
+                {(() => {
+                  const filteredSwaps = shiftSwaps.filter((s) => {
+                    if (!s.shift_date) return false;
+                    return s.shift_date.startsWith(swapFilterMonth);
+                  });
 
-                      return (
-                        <div
-                          key={swap.id}
-                          className={`p-4 rounded-2xl border-2 shadow-2xs space-y-2.5 transition-all ${isApproved
-                            ? 'bg-emerald-50/90 border-emerald-400'
-                            : isRejected
-                              ? 'bg-rose-50/90 border-rose-400'
-                              : 'bg-amber-50/90 border-amber-300'
-                            }`}
+                  if (filteredSwaps.length === 0) {
+                    return (
+                      <div className="p-8 bg-white rounded-2xl border border-purple-200 text-center text-purple-600 text-xs font-bold space-y-2">
+                        <div className="text-3xl">🔄</div>
+                        <p>Không có yêu cầu đổi ca nào trong tháng {swapFilterMonth.split('-')[1]}/{swapFilterMonth.split('-')[0]}.</p>
+                        <button
+                          type="button"
+                          onClick={() => setShowSwapModal(true)}
+                          className="px-4 py-2 rounded-xl bg-purple-700 text-white text-xs font-black cursor-pointer border-0"
                         >
-                          {/* Top Status Header */}
-                          <div className="flex items-center justify-between gap-2 border-b pb-2 border-purple-100/80">
-                            <span
-                              className={`px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase text-white shadow-2xs flex items-center gap-1 ${isApproved
-                                ? 'bg-emerald-600'
-                                : isRejected
-                                  ? 'bg-rose-600'
-                                  : 'bg-amber-500'
-                                }`}
-                            >
-                              <span>{isApproved ? '✅' : isRejected ? '❌' : '⏳'}</span>
-                              <span>
-                                {isApproved
-                                  ? 'ĐÃ ĐƯỢC ĐỒNG Ý'
-                                  : isRejected
-                                    ? 'ĐÃ BỊ TỪ CHỐI'
-                                    : 'ĐANG CHỜ CHỦ QUÁN XEM XÉT'}
-                              </span>
-                            </span>
-                            <span className="text-xs text-purple-950 font-extrabold">
-                              📅 {formatDateFull(swap.shift_date)}
-                            </span>
-                          </div>
+                          Tạo yêu cầu đổi ca mới
+                        </button>
+                      </div>
+                    );
+                  }
 
-                          {/* Swap Details */}
-                          <div className="space-y-1 text-xs text-purple-950 font-bold">
-                            <p>
-                              👤 <strong>Người xin đổi:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)
-                            </p>
-                            <p>
-                              🔄 <strong>Đổi với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)
-                            </p>
-                            <p className="text-purple-800 italic pt-0.5">💬 <strong>Lý do xin đổi:</strong> &quot;{swap.reason}&quot;</p>
+                  const sortByNewest = (a, b) => {
+                    const dateA = new Date(a.shift_date || a.created_at).getTime();
+                    const dateB = new Date(b.shift_date || b.created_at).getTime();
+                    return dateB - dateA;
+                  };
 
-                            {/* HIỂN THỊ LÝ DO TỪ CHỐI DO CHỦ QUÁN VIẾT (THẺ ĐỎ) */}
-                            {isRejected && swap.rejection_reason && (
-                              <div className="p-2.5 bg-rose-100 rounded-xl border border-rose-300 text-rose-950 text-xs font-black mt-2 space-y-0.5">
-                                <p className="text-rose-900 font-black flex items-center gap-1">
-                                  <span>📢</span>
-                                  <span>LÝ DO TỪ CHỐI DO CHỦ QUÁN VIẾT:</span>
-                                </p>
-                                <p className="text-rose-800 italic">&quot;{swap.rejection_reason}&quot;</p>
+                  const pendingList = filteredSwaps.filter((s) => s.status === 'pending').sort(sortByNewest);
+                  const approvedList = filteredSwaps.filter((s) => s.status === 'approved').sort(sortByNewest);
+                  const rejectedList = filteredSwaps.filter((s) => s.status === 'rejected').sort(sortByNewest);
+
+                  return (
+                    <div className="space-y-6">
+                      {/* NHÓM 1: ĐANG CHỜ XEM XÉT */}
+                      {pendingList.length > 0 && (
+                        <div className="space-y-2.5">
+                          <h3 className="text-xs sm:text-sm font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5 bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-300 w-fit">
+                            <span>⏳</span>
+                            <span>Đang Chờ Quản Lý Xem Xét ({pendingList.length})</span>
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {pendingList.map((swap) => (
+                              <div key={swap.id} className="p-4 rounded-2xl bg-amber-50/90 border-2 border-amber-300 shadow-2xs space-y-2.5">
+                                <div className="flex items-center justify-between gap-2 border-b pb-2 border-amber-200">
+                                  <span className="px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase text-white bg-amber-500 shadow-2xs">
+                                    ⏳ CHỜ DUYỆT
+                                  </span>
+                                  <span className="text-xs text-purple-950 font-black bg-white px-2 py-0.5 rounded-lg border border-amber-300">
+                                    📅 {formatDateWithDayVN(swap.shift_date)}
+                                  </span>
+                                </div>
+                                <div className="space-y-1 text-xs text-purple-950 font-bold">
+                                  <p>👤 <strong>Nhân viên nhờ:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)</p>
+                                  <p>🤝 <strong>Nhờ làm hộ / Đổi ca với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)</p>
+                                  <p className="text-purple-800 italic pt-0.5">💬 <strong>Lý do xin đổi:</strong> &quot;{swap.reason}&quot;</p>
+                                </div>
                               </div>
-                            )}
-
-                            {isApproved && (
-                              <div className="p-2 bg-emerald-100/90 rounded-xl border border-emerald-300 text-emerald-950 text-[11px] font-extrabold mt-1 flex items-center gap-1">
-                                <span>🎉</span>
-                                <span>Yêu cầu đổi ca đã được phê duyệt! Chủ Quán sẽ điều chỉnh trên Lịch Phân Công.</span>
-                              </div>
-                            )}
+                            ))}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+
+                      {/* NHÓM 2: ĐÃ ĐƯỢC ĐỒNG Ý (MỚI NHẤT TRÊN CÙNG) */}
+                      <div className="space-y-2.5">
+                        <h3 className="text-xs sm:text-sm font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-100/90 px-3 py-1.5 rounded-xl border border-emerald-300 w-fit">
+                          <span>✅</span>
+                          <span>Đã Được Đồng Ý ({approvedList.length})</span>
+                        </h3>
+                        {approvedList.length === 0 ? (
+                          <div className="p-4 bg-white rounded-2xl border border-purple-200 text-center text-purple-600 text-xs font-bold">
+                            Chưa có yêu cầu nào được đồng ý trong tháng này.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {approvedList.map((swap) => (
+                              <div key={swap.id} className="p-4 rounded-2xl bg-emerald-50/90 border-2 border-emerald-400 shadow-2xs space-y-2.5">
+                                <div className="flex items-center justify-between gap-2 border-b pb-2 border-emerald-200">
+                                  <span className="px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase text-white bg-emerald-600 shadow-2xs">
+                                    ✅ ĐÃ ĐỒNG Ý
+                                  </span>
+                                  <span className="text-xs text-purple-950 font-black bg-white px-2 py-0.5 rounded-lg border border-emerald-300">
+                                    📅 {formatDateWithDayVN(swap.shift_date)}
+                                  </span>
+                                </div>
+                                <div className="space-y-1 text-xs text-purple-950 font-bold">
+                                  <p>👤 <strong>Nhân viên nhờ:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)</p>
+                                  <p>🤝 <strong>Nhờ làm hộ / Đổi ca với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)</p>
+                                  <p className="text-purple-800 italic pt-0.5">💬 <strong>Lý do xin đổi:</strong> &quot;{swap.reason}&quot;</p>
+                                  <div className="p-2 bg-emerald-100/90 rounded-xl border border-emerald-300 text-emerald-950 text-[11px] font-extrabold mt-1 flex items-center gap-1">
+                                    <span>🎉</span>
+                                    <span>Yêu cầu đổi ca đã được phê duyệt! Quản Lý sẽ điều chỉnh trên Lịch Phân Công.</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* NHÓM 3: ĐÃ BỊ TỪ CHỐI (MỚI NHẤT TRÊN CÙNG) */}
+                      <div className="space-y-2.5">
+                        <h3 className="text-xs sm:text-sm font-black text-rose-950 uppercase tracking-wider flex items-center gap-1.5 bg-rose-100/90 px-3 py-1.5 rounded-xl border border-rose-300 w-fit">
+                          <span>❌</span>
+                          <span>Đã Bị Từ Chối ({rejectedList.length})</span>
+                        </h3>
+                        {rejectedList.length === 0 ? (
+                          <div className="p-4 bg-white rounded-2xl border border-purple-200 text-center text-purple-600 text-xs font-bold">
+                            Không có yêu cầu nào bị từ chối trong tháng này.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {rejectedList.map((swap) => (
+                              <div key={swap.id} className="p-4 rounded-2xl bg-rose-50/90 border-2 border-rose-400 shadow-2xs space-y-2.5">
+                                <div className="flex items-center justify-between gap-2 border-b pb-2 border-rose-200">
+                                  <span className="px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase text-white bg-rose-600 shadow-2xs">
+                                    ❌ ĐÃ TỪ CHỐI
+                                  </span>
+                                  <span className="text-xs text-purple-950 font-black bg-white px-2 py-0.5 rounded-lg border border-rose-300">
+                                    📅 {formatDateWithDayVN(swap.shift_date)}
+                                  </span>
+                                </div>
+                                <div className="space-y-1 text-xs text-purple-950 font-bold">
+                                  <p>👤 <strong>Nhân viên nhờ:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)</p>
+                                  <p>🤝 <strong>Nhờ làm hộ / Đổi ca với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)</p>
+                                  <p className="text-purple-800 italic pt-0.5">💬 <strong>Lý do xin đổi:</strong> &quot;{swap.reason}&quot;</p>
+                                  {swap.rejection_reason && (
+                                    <div className="p-2.5 bg-rose-100 rounded-xl border border-rose-300 text-rose-950 text-xs font-black mt-2 space-y-0.5">
+                                      <p className="text-rose-900 font-black flex items-center gap-1">
+                                        <span>📢</span>
+                                        <span>LÝ DO TỪ CHỐI DO QUẢN LÝ VIẾT:</span>
+                                      </p>
+                                      <p className="text-rose-800 italic">&quot;{swap.rejection_reason}&quot;</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Modal Đổi Ca 3 Bước */}

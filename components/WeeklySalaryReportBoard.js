@@ -459,7 +459,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                 {/* HÀNG CỘNG TỔNG TOÀN BỘ CA LÀM VÀ LƯƠNG THÁNG CUỐI BẢNG */}
                 <tr className="bg-purple-950 text-white font-black border-t-2 border-purple-800">
                   <td className="py-3 px-2 font-black text-purple-950 text-xs sm:text-sm sticky left-0 z-20 bg-purple-200/90 shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] uppercase">
-                    👑 TỔNG CỘNG LƯƠNG
+                    TỔNG LƯƠNG
                   </td>
                   {weekDays.map((dStr) => {
                     const dayShifts = schedule.filter((s) => s.date === dStr);

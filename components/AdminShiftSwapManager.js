@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getAllShiftSwaps, updateShiftSwapStatus } from '@/lib/supabase';
-import { formatDateFull } from '@/lib/utils';
+import { formatDateWithDayVN, getCurrentMonth } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
 export default function AdminShiftSwapManager() {
   const toast = useToast();
   const [swaps, setSwaps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterMonth, setFilterMonth] = useState(getCurrentMonth());
 
   // Rejection Modal State
   const [rejectingSwap, setRejectingSwap] = useState(null);
@@ -68,30 +69,68 @@ export default function AdminShiftSwapManager() {
     }
   }
 
-  const pendingSwaps = swaps.filter((s) => s.status === 'pending');
-  const historySwaps = swaps.filter((s) => s.status !== 'pending');
+  const filteredSwaps = useMemo(() => {
+    return (swaps || []).filter((s) => {
+      if (!s.shift_date) return false;
+      return s.shift_date.startsWith(filterMonth);
+    });
+  }, [swaps, filterMonth]);
+
+  const pendingSwaps = filteredSwaps.filter((s) => s.status === 'pending');
+  const historySwaps = filteredSwaps.filter((s) => s.status !== 'pending');
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Header Bar */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-purple-200 shadow-2xs flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-lg sm:text-xl font-black text-purple-950 flex items-center gap-2">
+      {/* Header Box */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-purple-200 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-purple-950 flex items-center gap-2">
+              <span>🔄</span>
+              <span>Quản Lý Yêu Cầu Đổi Ca</span>
+            </h2>
+            <p className="text-xs text-purple-700 font-bold mt-0.5">
+              Duyệt các yêu cầu đổi ca từ nhân viên. Khi duyệt thành công, Quản lý sẽ điều chỉnh ca trên lịch phân công bằng tay.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={loadSwaps}
+            className="px-3.5 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black transition-all cursor-pointer flex items-center gap-1 border-0"
+          >
             <span>🔄</span>
-            <span>Quản Lý Yêu Cầu Đổi Ca</span>
-          </h2>
-          <p className="text-xs text-purple-700 font-bold mt-0.5">
-            Duyệt các yêu cầu đổi ca từ nhân viên. Khi duyệt thành công, Chủ quán sẽ điều chỉnh ca trên lịch phân công bằng tay.
-          </p>
+            <span>Làm mới danh sách</span>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={loadSwaps}
-          className="px-3.5 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black transition-all cursor-pointer flex items-center gap-1"
-        >
-          <span>🔄</span>
-          <span>Làm mới danh sách</span>
-        </button>
+
+        {/* BỘ LỌC THEO THÁNG DÀNH CHO ADMIN */}
+        <div className="flex items-center justify-between gap-2 bg-purple-50 px-3 py-2 rounded-xl border border-purple-200/80">
+          <button
+            type="button"
+            onClick={() => {
+              const [y, m] = filterMonth.split('-').map(Number);
+              const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+              setFilterMonth(prev);
+            }}
+            className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-800 font-black text-xs flex items-center justify-center border border-purple-200 cursor-pointer transition-all active:scale-90"
+          >
+            ◀
+          </button>
+          <span className="text-xs sm:text-sm font-black text-purple-900">
+            📅 Tháng {filterMonth.split('-')[1]}/{filterMonth.split('-')[0]}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const [y, m] = filterMonth.split('-').map(Number);
+              const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+              setFilterMonth(next);
+            }}
+            className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-800 font-black text-xs flex items-center justify-center border border-purple-200 cursor-pointer transition-all active:scale-90"
+          >
+            ▶
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -123,20 +162,20 @@ export default function AdminShiftSwapManager() {
                       <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black uppercase shadow-2xs">
                         ⏳ Chờ Chủ Duyệt
                       </span>
-                      <span className="text-[11px] text-amber-900 font-extrabold">
-                        📅 Ngày đổi: {formatDateFull(swap.shift_date)}
+                      <span className="text-[11px] text-amber-950 font-black bg-amber-100/90 px-2.5 py-0.5 rounded-lg border border-amber-300">
+                        📅 {formatDateWithDayVN(swap.shift_date)}
                       </span>
                     </div>
 
                     <div className="space-y-1.5 text-xs text-amber-950 font-bold">
                       <p>
-                        👤 <strong>Người gửi:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)
+                        👤 <strong>Nhân viên xin nhờ làm hộ:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)
                       </p>
                       <p>
-                        🔄 <strong>Muốn đổi với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)
+                        🤝 <strong>Nhờ làm hộ / Đổi ca với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)
                       </p>
                       <p className="pt-1 text-amber-900 italic bg-amber-100/70 p-2 rounded-xl">
-                        💬 <strong>Lý do:</strong> &quot;{swap.reason}&quot;
+                        💬 <strong>Lý do xin đổi:</strong> &quot;{swap.reason}&quot;
                       </p>
                     </div>
 
@@ -165,64 +204,115 @@ export default function AdminShiftSwapManager() {
             )}
           </div>
 
-          {/* Section 2: LỊCH SỬ ĐÃ XỬ LÝ (APPROVED / REJECTED) */}
-          <div className="space-y-3 pt-3">
-            <h3 className="text-sm font-black text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
-              <span>📜</span>
-              <span>Lịch sử yêu cầu đã xử lý ({historySwaps.length})</span>
-            </h3>
+          {/* Section 2 & 3: LỊCH SỬ ĐÃ DUYỆT ĐỒNG Ý VS TỪ CHỐI (SẮP XẾP MỚI NHẤT LÊN ĐẦU) */}
+          {(() => {
+            const sortByNewest = (a, b) => {
+              const dateA = new Date(a.shift_date || a.created_at).getTime();
+              const dateB = new Date(b.shift_date || b.created_at).getTime();
+              return dateB - dateA;
+            };
 
-            {historySwaps.length === 0 ? (
-              <div className="p-4 bg-white rounded-2xl border border-purple-200 text-center text-purple-600 text-xs font-bold">
-                Chưa có lịch sử yêu cầu đổi ca.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {historySwaps.map((swap) => {
-                  const isApproved = swap.status === 'approved';
-                  return (
-                    <div
-                      key={swap.id}
-                      className={`p-4 rounded-2xl border-2 shadow-2xs space-y-2.5 ${
-                        isApproved
-                          ? 'bg-emerald-50/80 border-emerald-300'
-                          : 'bg-rose-50/80 border-rose-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 border-b pb-2 border-purple-100">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase text-white shadow-2xs ${
-                            isApproved ? 'bg-emerald-600' : 'bg-rose-600'
-                          }`}
-                        >
-                          {isApproved ? '✅ Đã Đồng Ý' : '❌ Đã Từ Chối'}
-                        </span>
-                        <span className="text-[11px] text-purple-900 font-extrabold">
-                          📅 {formatDateFull(swap.shift_date)}
-                        </span>
-                      </div>
+            const approvedSwaps = historySwaps.filter((s) => s.status === 'approved').sort(sortByNewest);
+            const rejectedSwaps = historySwaps.filter((s) => s.status === 'rejected').sort(sortByNewest);
 
-                      <div className="space-y-1 text-xs text-purple-950 font-bold">
-                        <p>
-                          👤 <strong>{swap.requester_name}</strong> ↔ <strong>{swap.target_employee_name}</strong>
-                        </p>
-                        <p className="text-[11px] text-purple-800">
-                          Ca {swap.requester_name}: <span className="font-extrabold">{swap.my_shift_info}</span> | Ca {swap.target_employee_name}: <span className="font-extrabold">{swap.target_shift_info}</span>
-                        </p>
-                        <p className="text-purple-700 italic text-[11px]">💬 Lý do: &quot;{swap.reason}&quot;</p>
+            return (
+              <div className="space-y-5 pt-3">
+                {/* NHÓM 1: ĐÃ ĐƯỢC ĐỒNG Ý */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-200 w-fit">
+                    <span>✅</span>
+                    <span>Lịch sử Yêu Cầu Đã Được Đồng Ý ({approvedSwaps.length})</span>
+                  </h3>
 
-                        {!isApproved && swap.rejection_reason && (
-                          <div className="p-2 bg-rose-100/90 rounded-xl border border-rose-200 text-rose-950 text-[11px] font-black mt-1">
-                            📌 <strong>Lý do từ chối của Chủ:</strong> &quot;{swap.rejection_reason}&quot;
-                          </div>
-                        )}
-                      </div>
+                  {approvedSwaps.length === 0 ? (
+                    <div className="p-4 bg-white rounded-2xl border border-purple-200 text-center text-purple-600 text-xs font-bold">
+                      Chưa có yêu cầu nào được đồng ý.
                     </div>
-                  );
-                })}
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {approvedSwaps.map((swap) => (
+                        <div
+                          key={swap.id}
+                          className="p-4 rounded-2xl bg-emerald-50/90 border-2 border-emerald-400 shadow-2xs space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between gap-2 border-b pb-2 border-emerald-200">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase text-white bg-emerald-600 shadow-2xs">
+                              ✅ ĐÃ ĐỒNG Ý
+                            </span>
+                            <span className="text-xs text-emerald-950 font-black bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300">
+                              📅 {formatDateWithDayVN(swap.shift_date)}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 text-xs text-purple-950 font-bold">
+                            <p>
+                              👤 <strong>Nhân viên nhờ:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)
+                            </p>
+                            <p>
+                              🤝 <strong>Nhờ làm hộ / Đổi ca với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)
+                            </p>
+                            <p className="text-purple-800 italic pt-0.5">💬 <strong>Lý do xin đổi:</strong> &quot;{swap.reason}&quot;</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* NHÓM 2: ĐÃ BỊ TỪ CHỐI */}
+                <div className="space-y-3 pt-2">
+                  <h3 className="text-sm font-black text-rose-950 uppercase tracking-wider flex items-center gap-1.5 bg-rose-100/80 px-3 py-1.5 rounded-xl border border-rose-200 w-fit">
+                    <span>❌</span>
+                    <span>Lịch sử Yêu Cầu Đã Bị Từ Chối ({rejectedSwaps.length})</span>
+                  </h3>
+
+                  {rejectedSwaps.length === 0 ? (
+                    <div className="p-4 bg-white rounded-2xl border border-purple-200 text-center text-purple-600 text-xs font-bold">
+                      Chưa có yêu cầu nào bị từ chối.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {rejectedSwaps.map((swap) => (
+                        <div
+                          key={swap.id}
+                          className="p-4 rounded-2xl bg-rose-50/90 border-2 border-rose-400 shadow-2xs space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between gap-2 border-b pb-2 border-rose-200">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase text-white bg-rose-600 shadow-2xs">
+                              ❌ ĐÃ TỪ CHỐI
+                            </span>
+                            <span className="text-xs text-rose-950 font-black bg-white px-2.5 py-0.5 rounded-lg border border-rose-300">
+                              📅 {formatDateWithDayVN(swap.shift_date)}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 text-xs text-purple-950 font-bold">
+                            <p>
+                              👤 <strong>Nhân viên nhờ:</strong> <span className="text-purple-950 font-black">{swap.requester_name}</span> (Ca: <span className="text-purple-700 font-extrabold">{swap.my_shift_info}</span>)
+                            </p>
+                            <p>
+                              🤝 <strong>Nhờ làm hộ / Đổi ca với:</strong> <span className="text-orange-700 font-black">{swap.target_employee_name}</span> (Ca: <span className="text-orange-800 font-extrabold">{swap.target_shift_info}</span>)
+                            </p>
+                            <p className="text-purple-800 italic pt-0.5">💬 <strong>Lý do xin đổi:</strong> &quot;{swap.reason}&quot;</p>
+
+                            {swap.rejection_reason && (
+                              <div className="p-2.5 bg-rose-100 rounded-xl border border-rose-300 text-rose-950 text-xs font-black mt-2 space-y-0.5">
+                                <p className="text-rose-900 font-black flex items-center gap-1">
+                                  <span>📢</span>
+                                  <span>LÝ DO TỪ CHỐI DO QUẢN LÝ VIẾT:</span>
+                                </p>
+                                <p className="text-rose-800 italic">&quot;{swap.rejection_reason}&quot;</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       )}
 

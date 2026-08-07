@@ -153,9 +153,39 @@ BEGIN
 END $$;
 
 -- --------------------------------------------
--- BƯỚC 12: NÂNG CẤP BẢNG NẾU BẢNG ĐÃ TỒN TẠI TỪ TRƯỚC (QUICK MIGRATION SQL)
+-- BƯỚC 12: NÂNG CẤP BẢNG & BỔ SUNG MỞ RỘNG (MIGRATION SQL)
 -- --------------------------------------------
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS pin TEXT DEFAULT '1234';
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_rate INTEGER DEFAULT 20000;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS off_start_date TEXT;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS off_end_date TEXT;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS resigned_at TEXT;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS note TEXT;
+
+-- BẢNG QUẢN LÝ ĐỔI CA (SHIFT SWAPS)
+CREATE TABLE IF NOT EXISTS shift_swaps (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  requester_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  requester_name TEXT NOT NULL,
+  target_employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  target_employee_name TEXT NOT NULL,
+  shift_date DATE NOT NULL,
+  my_shift_info TEXT DEFAULT '',
+  target_shift_info TEXT DEFAULT '',
+  reason TEXT DEFAULT '',
+  status TEXT DEFAULT 'pending',       -- 'pending' (Chờ duyệt) | 'approved' (Đồng ý) | 'rejected' (Từ chối)
+  rejection_reason TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE shift_swaps ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all shift_swaps') THEN
+    CREATE POLICY "Allow all shift_swaps" ON shift_swaps FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 

@@ -170,7 +170,7 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
             Chè Ms Hoa
           </h1>
           <p className="text-purple-700 text-xs sm:text-sm font-black">
-            ❤ CHÈ ÍT NGỌT ❤ • Chọn tên để vào làm việc
+            Chọn tên để đăng nhập
           </p>
         </div>
 

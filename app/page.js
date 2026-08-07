@@ -15,16 +15,11 @@ export default function Home() {
   }, [router]);
 
   return (
-    <html>
-      <head>
-        <meta httpEquiv="refresh" content="0;url=/nhanvien" />
-      </head>
-      <body className="bg-[#faf5ff] min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin mb-2" />
-          <p className="text-xs font-black text-purple-950">Đang chuyển hướng...</p>
-        </div>
-      </body>
-    </html>
+    <div className="bg-[#faf5ff] min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin mb-2" />
+        <p className="text-xs font-black text-purple-950">Đang chuyển hướng...</p>
+      </div>
+    </div>
   );
 }
