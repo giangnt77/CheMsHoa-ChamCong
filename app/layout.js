@@ -41,6 +41,18 @@ export default function RootLayout({ children }) {
       lang="vi"
       className={`${inter.variable} ${playfair.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof globalThis === 'undefined') { window.globalThis = window; }
+              if (typeof window !== 'undefined' && !window.structuredClone) {
+                window.structuredClone = function(obj) { return JSON.parse(JSON.stringify(obj)); };
+              }
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         {/* Animated Background Orbs */}
         <div className="bg-orb bg-orb-1" aria-hidden="true" />

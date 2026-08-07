@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['@supabase/supabase-js'],
   async redirects() {
     return [
       {

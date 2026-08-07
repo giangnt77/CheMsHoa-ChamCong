@@ -20,5 +20,12 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4"
-  }
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "ios >= 14",
+    "safari >= 14",
+    "chrome >= 80"
+  ]
 }
