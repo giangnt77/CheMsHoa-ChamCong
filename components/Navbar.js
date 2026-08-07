@@ -8,14 +8,15 @@ export default function Navbar({
   employeeName,
   backHref = '/nhanvien',
   onBackClick,
+  onNoticeClick,
   homeIcon = '🏠',
   homeTitle = 'Về trang chủ',
   showRulesLink = false,
 }) {
   return (
     <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-purple-100 shadow-2xs overflow-hidden">
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 py-1.5 flex items-center justify-between gap-1.5">
-        {/* Brand Logo & Title */}
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 py-2 flex items-center justify-between gap-2">
+        {/* Brand Logo & Title (LÀM TO RA HƠN CHUẨN ĐẸP) */}
         <Link
           href={backHref}
           onClick={(e) => {
@@ -24,9 +25,9 @@ export default function Navbar({
               onBackClick();
             }
           }}
-          className="flex items-center gap-1.5 no-underline group shrink-0"
+          className="flex items-center gap-2 sm:gap-2.5 no-underline group shrink-0"
         >
-          <div className="w-7 h-7 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-white p-0.5 border border-purple-200 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform overflow-hidden shrink-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white p-0.5 border border-purple-200 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform overflow-hidden shrink-0">
             <img
               src="/logo.png"
               alt="Chè Ms Hoa Logo"
@@ -34,7 +35,7 @@ export default function Navbar({
             />
           </div>
           <div className="leading-tight">
-            <span className="text-xs sm:text-lg font-black text-purple-950 tracking-tight block whitespace-nowrap">
+            <span className="text-base sm:text-2xl font-black text-purple-950 tracking-tight block whitespace-nowrap">
               {title || 'Chè Ms Hoa'}
             </span>
             <span className="hidden sm:block text-[10px] sm:text-[11px] text-purple-700 font-extrabold uppercase tracking-wider">
@@ -43,19 +44,31 @@ export default function Navbar({
           </div>
         </Link>
 
-        {/* User badge & Rules Button */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        {/* Nút Nội Quy & Nút Thông Báo NẰM CÙNG 1 HÀNG KỀ NHAU */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {showRulesLink && (
             <a
               href="https://docs.google.com/forms/d/e/1FAIpQLSfvXOcjD_oU7NnqvaSUQOt5fKPr3M1-XcT1nB9NdTp1b4qDcQ/viewform?pli=1"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 text-[11px] sm:text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs border border-amber-500/50 no-underline whitespace-nowrap"
+              className="px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs border border-amber-500/50 no-underline whitespace-nowrap"
               title="Bấm để xem Nội Quy - Quy Định - Hướng Dẫn Chè Ms Hoa"
             >
               <span>📋</span>
               <span>Nội Quy</span>
             </a>
+          )}
+
+          {onNoticeClick && (
+            <button
+              type="button"
+              onClick={onNoticeClick}
+              className="px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-purple-950 text-xs font-black cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs border border-amber-500/50 whitespace-nowrap"
+              title="Bấm để xem Thông Báo Quan Trọng"
+            >
+              <span>🔔</span>
+              <span>Thông Báo</span>
+            </button>
           )}
 
           {employeeName && (

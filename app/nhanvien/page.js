@@ -249,6 +249,7 @@ function EmployeeContent() {
         icon="🍵"
         employeeName={employee.name}
         showRulesLink={true}
+        onNoticeClick={() => setShowNoticeModal(true)}
         onBackClick={handleLogout}
         homeIcon="🚪"
         homeTitle="Đăng Xuất"
@@ -256,28 +257,18 @@ function EmployeeContent() {
 
       <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4 w-full">
         <div className="max-w-5xl mx-auto space-y-3 w-full">
-          {/* Top Header Row: Greeting & Clean Navigation Bar */}
-          <div className="space-y-2.5 py-1">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <h1 className="text-base sm:text-2xl font-black text-purple-950 tracking-tight">
-                Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>! 👋
+          {/* Top Header Row: Greeting & Xem Lương Button */}
+          <div className="py-1">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="text-base sm:text-2xl font-black text-purple-950 tracking-tight shrink">
+                Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>!
               </h1>
 
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setShowNoticeModal(true)}
-                  className="px-2.5 sm:px-3 py-1 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-xs font-black border border-amber-500 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
-                  title="Bấm để xem Thông Báo Quan Trọng"
-                >
-                  <span>🔔</span>
-                  <span>Thông Báo</span>
-                </button>
-
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
-                  className="px-2.5 sm:px-3 py-1 rounded-full bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border border-purple-800 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                  className="px-3 sm:px-4 py-1.5 rounded-full bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black border border-purple-800 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs whitespace-nowrap"
                   title="Bấm để xem thu nhập cá nhân"
                 >
                   <span>💰</span>
