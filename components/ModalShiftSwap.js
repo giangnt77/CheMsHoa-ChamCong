@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getEmployees, getScheduleByDateRange, createShiftSwap } from '@/lib/supabase';
-import { getToday, formatDateFull, formatDateWithDayVN, calculateHours } from '@/lib/utils';
+import { getToday, formatDateFull, formatDateWithDayVN, calculateHours, sendTelegramNotification } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
 export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
@@ -210,7 +210,10 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
     try {
       await createShiftSwap(swapPayload);
-      toast.success('Thành công', 'Đã gửi yêu cầu đổi ca đến Quản Lý phê duyệt!');
+      // Tự động gửi thông báo Telegram Bot tới Quản Lý
+      sendTelegramNotification(swapPayload).catch(console.error);
+
+      toast.success('Thành công', 'Đã gửi yêu cầu đổi ca đến Quản Lý phê duyệt & thông báo Telegram!');
       if (onRefresh) onRefresh();
       onClose();
     } catch (err) {

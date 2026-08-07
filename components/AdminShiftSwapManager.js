@@ -16,6 +16,29 @@ export default function AdminShiftSwapManager() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Telegram Bot Config Modal State
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
+  const [tgBotToken, setTgBotToken] = useState('');
+  const [tgChatId, setTgChatId] = useState('');
+
+  function handleOpenTelegramModal() {
+    if (typeof window !== 'undefined') {
+      setTgBotToken(localStorage.getItem('chems_telegram_bot_token') || '');
+      setTgChatId(localStorage.getItem('chems_telegram_chat_id') || '');
+    }
+    setShowTelegramModal(true);
+  }
+
+  function handleSaveTelegramConfig(e) {
+    e.preventDefault();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('chems_telegram_bot_token', tgBotToken.trim());
+      localStorage.setItem('chems_telegram_chat_id', tgChatId.trim());
+    }
+    toast.success('Đã lưu Telegram Bot', 'Đã cài đặt Bot Token & Chat ID thành công!');
+    setShowTelegramModal(false);
+  }
+
   useEffect(() => {
     loadSwaps();
   }, []);
@@ -93,14 +116,24 @@ export default function AdminShiftSwapManager() {
               Duyệt các yêu cầu đổi ca từ nhân viên. Khi duyệt thành công, Quản lý sẽ điều chỉnh ca trên lịch phân công bằng tay.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={loadSwaps}
-            className="px-3.5 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black transition-all cursor-pointer flex items-center gap-1 border-0"
-          >
-            <span>🔄</span>
-            <span>Làm mới danh sách</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleOpenTelegramModal}
+              className="px-3.5 py-1.5 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-950 text-xs font-black transition-all cursor-pointer flex items-center gap-1 border border-sky-300 shadow-2xs"
+            >
+              <span>🤖</span>
+              <span>Telegram Bot</span>
+            </button>
+            <button
+              type="button"
+              onClick={loadSwaps}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black transition-all cursor-pointer flex items-center gap-1 border-0"
+            >
+              <span>🔄</span>
+              <span>Làm mới danh sách</span>
+            </button>
+          </div>
         </div>
 
         {/* BỘ LỌC THEO THÁNG DÀNH CHO ADMIN */}
@@ -364,6 +397,76 @@ export default function AdminShiftSwapManager() {
                 {submitting ? 'Đang gửi...' : 'Xác Nhận Từ Chối'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP CẤU HÌNH BOT TELEGRAM THÔNG BÁO TỰ ĐỘNG */}
+      {showTelegramModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+          <div className="relative max-w-md w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-sky-300 animate-scale-in">
+            <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🤖</span>
+                <h3 className="font-black text-purple-950 text-base">Cấu Hình Bot Telegram Thông Báo</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTelegramModal(false)}
+                className="w-8 h-8 rounded-full bg-purple-100 text-purple-900 font-black text-sm flex items-center justify-center border-0 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTelegramConfig} className="space-y-3.5 text-xs">
+              <div className="p-3 bg-sky-50 rounded-2xl border border-sky-200 text-sky-950 font-bold space-y-1">
+                <p className="font-black text-sky-900 flex items-center gap-1">
+                  <span>💡</span> Telegram Bot Thông Báo Đổi Ca Tự Động
+                </p>
+                <p className="text-[11px]">
+                  Mỗi khi nhân viên bấm gửi ticket đổi ca, Bot Telegram sẽ tự động bắn tin nhắn thông báo chi tiết ca đổi tới Telegram của Quản Lý!
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-black text-purple-950 mb-1">🔑 Telegram Bot Token:</label>
+                <input
+                  type="text"
+                  value={tgBotToken}
+                  onChange={(e) => setTgBotToken(e.target.value)}
+                  placeholder="VD: 7412345678:AAEg_ExampleToken..."
+                  className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-black text-purple-950 mb-1">📢 Chat ID / Group ID Telegram:</label>
+                <input
+                  type="text"
+                  value={tgChatId}
+                  onChange={(e) => setTgChatId(e.target.value)}
+                  placeholder="VD: -100123456789 hoặc ID cá nhân..."
+                  className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTelegramModal(false)}
+                  className="px-4 py-2 rounded-xl bg-purple-100 text-purple-950 font-bold border-0 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black border-0 cursor-pointer shadow-2xs"
+                >
+                  💾 Lưu Cấu Hình Bot
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
