@@ -26,6 +26,20 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
   const [rememberPin, setRememberPin] = useState(false); // Checkbox Ghi nhớ mật khẩu (Mặc định LUÔN TẮT)
 
   useEffect(() => {
+    // 1. Nạp tức thì từ Cache trước (0.001s)
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('chems_employees_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setEmployees(parsed);
+            setLoading(false);
+          }
+        }
+      } catch (e) {}
+    }
+    // 2. Nạp dữ liệu mới nhất từ Supabase
     loadEmployees();
   }, []);
 
@@ -33,7 +47,12 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     setLoading(true);
     try {
       const data = await getEmployees();
-      setEmployees(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setEmployees(data);
+        try {
+          localStorage.setItem('chems_employees_cache', JSON.stringify(data));
+        } catch (e) {}
+      }
     } catch (err) {
       console.error(err);
     }
@@ -320,16 +339,30 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
 
               if (sortedFiltered.length === 0) {
                 return (
-                  <div className="text-center py-8 bg-white rounded-2xl border border-purple-200 text-purple-600">
-                    <div className="text-3xl mb-2">🔍</div>
-                    <p className="text-sm font-bold">Không tìm thấy &quot;{searchQuery}&quot;</p>
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="mt-2 text-xs text-purple-700 font-bold border-0 bg-transparent cursor-pointer underline"
-                    >
-                      Xóa tìm kiếm
-                    </button>
+                  <div className="text-center py-8 px-4 bg-white rounded-2xl border border-purple-200 text-purple-600 space-y-3">
+                    <div className="text-3xl">👥</div>
+                    <p className="text-sm font-bold">
+                      {searchQuery ? `Không tìm thấy "${searchQuery}"` : 'Đang kết nối hoặc chưa tải được danh sách nhân viên'}
+                    </p>
+                    <div className="flex items-center justify-center gap-3 flex-wrap">
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-900 text-xs font-black cursor-pointer"
+                        >
+                          Xóa tìm kiếm
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={loadEmployees}
+                        className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black shadow-xs cursor-pointer active:scale-95 transition-all flex items-center gap-1.5 mx-auto"
+                      >
+                        <span>🔄</span>
+                        <span>Tải lại danh sách nhân viên</span>
+                      </button>
+                    </div>
                   </div>
                 );
               }
