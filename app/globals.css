@@ -26,14 +26,16 @@
    BASE STYLES - Chè Ms Hoa Theme
    ============================================ */
 html, body {
+  width: 100%;
   max-width: 100vw;
   overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
   background-color: #faf5ff;
   color: #1e1b4b;
-  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   padding-bottom: env(safe-area-inset-bottom, 20px);
   -webkit-font-smoothing: antialiased;
 }

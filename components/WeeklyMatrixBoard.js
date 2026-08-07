@@ -815,7 +815,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                         <td
                           key={dStr}
                           onClick={() => openCellModal(emp, dStr, empShifts[0] || null)}
-                          className={`py-2 px-1 border-r border-purple-100 text-center align-middle transition-all min-w-[105px] group ${
+                          className={`py-2 px-1 border-r border-purple-100 text-center align-middle transition-all min-w-[105px] max-w-[125px] overflow-hidden group ${
                             readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:bg-purple-100/60'
                           }`}
                         >
@@ -840,7 +840,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                       {branchDisplayName}
                                     </div>
                                     {shift.note && (
-                                      <div className="text-[10px] font-extrabold italic opacity-90 truncate mt-0.5">
+                                      <div className="text-[10px] font-extrabold italic opacity-90 truncate max-w-[110px] mx-auto mt-0.5" title={shift.note}>
                                         📝 {shift.note}
                                       </div>
                                     )}
@@ -849,11 +849,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                               })}
                             </div>
                           ) : (
-                            /* Ô Ngày Trống / Không có ca -> Hiện chữ OFF & NÚT COPY NGÀY HÔM TRƯỚC TINH TẾ */
-                            <div className="py-1 text-center space-y-1">
-                              {!readOnly && empAvail ? (
-                                <div className="text-[11px] font-black text-purple-700 truncate">
-                                  {empAvail.type === 'full' ? '💪 Cả ngày' : empAvail.type === 'off' ? '🛑 Xin nghỉ' : `📝 ${empAvail.note || 'Tùy ca'}`}
+                            /* Ô Ngày Trống / Không có ca -> Hiện chữ OFF & Ghi Chú Rút Gọn Cực Đẹp */
+                            <div className="py-1 text-center space-y-1 overflow-hidden">
+                              {empAvail ? (
+                                <div
+                                  className="text-[11px] font-black text-purple-700 truncate max-w-[115px] mx-auto px-1"
+                                  title={empAvail.type === 'off' && empAvail.note ? `Xin nghỉ: ${empAvail.note}` : empAvail.note || ''}
+                                >
+                                  {empAvail.type === 'full'
+                                    ? '💪 Cả ngày'
+                                    : empAvail.type === 'off'
+                                    ? (empAvail.note ? `🛑 ${empAvail.note}` : '🛑 Xin nghỉ')
+                                    : `📝 ${empAvail.note || 'Tùy ca'}`}
                                 </div>
                               ) : (
                                 <span className="text-red-500 font-black text-[10px] sm:text-[11px] uppercase px-2 py-0.5 rounded-md bg-red-50/80 border border-red-100 inline-block shadow-2xs">

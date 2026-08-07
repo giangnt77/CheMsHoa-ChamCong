@@ -322,18 +322,35 @@ function EmployeeContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-0.5">
-                <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/70 text-center">
-                  <div className="text-xs text-purple-700 font-bold mb-0.5">⏱️ Đã làm (tính đến hôm nay)</div>
-                  <div className="text-lg sm:text-xl font-black text-purple-800">{monthlyHours} <span className="text-xs font-normal text-purple-600">tiếng</span> ({monthlyShiftsCount} ca)</div>
+              {/* 2 Ô Khoanh Trên (Đã làm & Lương thỏa thuận) — Nhỏ Lại Gọn Gàng */}
+              <div className="grid grid-cols-2 gap-2 pt-0.5">
+                <div className="p-2 sm:p-2.5 bg-purple-50/70 rounded-xl border border-purple-200/80 text-center">
+                  <div className="text-[10px] sm:text-xs text-purple-700 font-bold mb-0.5">
+                    ⏱️ Đã làm (tính đến hôm nay)
+                  </div>
+                  <div className="text-xs sm:text-sm font-extrabold text-purple-900">
+                    {monthlyHours} tiếng <span className="font-bold text-purple-700">({monthlyShiftsCount} ca)</span>
+                  </div>
                 </div>
-                <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200/70 text-center">
-                  <div className="text-xs text-purple-700 font-bold mb-0.5">💵 Lương thỏa thuận</div>
-                  <div className="text-lg sm:text-xl font-black text-purple-950">{formatCurrency(currentRate)}<span className="text-xs font-normal text-purple-600">/h</span></div>
+
+                <div className="p-2 sm:p-2.5 bg-purple-50/70 rounded-xl border border-purple-200/80 text-center">
+                  <div className="text-[10px] sm:text-xs text-purple-700 font-bold mb-0.5">
+                    💵 Lương thỏa thuận
+                  </div>
+                  <div className="text-xs sm:text-sm font-extrabold text-purple-900">
+                    {formatCurrency(currentRate)}<span className="text-[10px] font-bold text-purple-600">/giờ</span>
+                  </div>
                 </div>
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/80 text-center">
-                  <div className="text-xs text-emerald-700 font-black mb-0.5">💰 Lương tích lũy hôm nay</div>
-                  <div className="text-lg sm:text-xl font-black text-emerald-700">{formatCurrency(monthlySalary)}</div>
+              </div>
+
+              {/* Ô Khoanh Dưới (Lương Tích Lũy Hôm Nay) — TO LÊN, NỔI HƠN RỰC RỠ ⚡ */}
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-emerald-100/90 to-teal-50 border-2 border-emerald-400 shadow-md text-center space-y-1">
+                <div className="text-xs sm:text-sm text-emerald-900 font-black uppercase tracking-wider flex items-center justify-center gap-1">
+                  <span>💰</span>
+                  <span>Lương tích lũy hôm nay</span>
+                </div>
+                <div className="text-2xl sm:text-4xl font-black text-emerald-700 tracking-tight drop-shadow-xs">
+                  {formatCurrency(monthlySalary)}
                 </div>
               </div>
             </div>
