@@ -51,6 +51,7 @@ import {
 
 import ModalSortEmployees from '@/components/ModalSortEmployees';
 import AdminSelector from '@/components/AdminSelector';
+import AdminShiftSwapManager from '@/components/AdminShiftSwapManager';
 
 function AdminContent() {
   const toast = useToast();
@@ -753,6 +754,7 @@ function AdminContent() {
           <div className="flex gap-1.5 bg-purple-100/80 rounded-2xl p-1.5 border border-purple-200/90 mb-4 overflow-x-auto custom-scrollbar whitespace-nowrap shadow-2xs">
             {[
               { id: 'schedule', label: 'Xếp Lịch', icon: '📅' },
+              { id: 'shift_swaps', label: 'QL Ca Đổi', icon: '🔄' },
               { id: 'salary', label: 'QL Tính Lương', icon: '💰' },
               { id: 'employees', label: 'QL Nhân Viên', icon: '👥' },
               { id: 'penalty', label: 'Thưởng & Phạt', icon: '🎁' },
@@ -1806,6 +1808,11 @@ function AdminContent() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* TAB QUẢN LÝ ĐỔI CA FOR ADMIN */}
+          {activeTab === 'shift_swaps' && (
+            <AdminShiftSwapManager />
           )}
 
           {/* MODAL SẮP XẾP THỨ TỰ NHÂN VIÊN */}
