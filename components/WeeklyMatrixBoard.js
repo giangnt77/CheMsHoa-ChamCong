@@ -712,7 +712,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           <thead>
             {/* Hàng 1: Tên Thứ (T2 -> CN) */}
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-2.5 px-2 border-r-2 border-purple-300 w-28 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
+              <th className="py-2 px-1 border-r-2 border-purple-300 w-20 sm:w-32 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-[11px] sm:text-xs">
                 NHÂN VIÊN
               </th>
               {weekDays.map((dStr, idx) => {
@@ -781,7 +781,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                       onTouchStart={(e) => !readOnly && isSortMode && handleDirectTouchStart(e, idx)}
                       onTouchMove={(e) => !readOnly && isSortMode && handleDirectTouchMove(e)}
                       onTouchEnd={handleDirectTouchEnd}
-                      className={`py-2.5 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sm:text-sm sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-28 sm:w-36 ${
+                      className={`py-2 px-1 border-r-2 border-purple-300 font-black text-purple-950 text-[11px] sm:text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-20 sm:w-32 ${
                         isSortMode
                           ? 'cursor-grab active:cursor-grabbing bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
                           : ''

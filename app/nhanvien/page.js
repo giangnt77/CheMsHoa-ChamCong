@@ -243,7 +243,7 @@ function EmployeeContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden relative">
       <Navbar
         title="Chè Ms Hoa"
         icon="🍵"
@@ -254,12 +254,12 @@ function EmployeeContent() {
         homeTitle="Đăng Xuất"
       />
 
-      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
-        <div className="max-w-7xl mx-auto space-y-3">
+      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4 w-full max-w-full overflow-x-hidden">
+        <div className="max-w-7xl mx-auto space-y-3 w-full max-w-full overflow-x-hidden">
           {/* Top Header Row: Greeting & Clean Navigation Bar */}
           <div className="space-y-2.5 py-1">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <h1 className="text-lg sm:text-2xl font-black text-purple-950 tracking-tight">
+              <h1 className="text-base sm:text-2xl font-black text-purple-950 tracking-tight">
                 Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>! 👋
               </h1>
 
@@ -286,7 +286,7 @@ function EmployeeContent() {
               </div>
             </div>
 
-            {/* Segmented Tab Switcher (Lịch Phân Công / Đăng Ký Làm) - Thiết Kế Siêu To Dễ Bấm Cho Nhân Viên */}
+            {/* Segmented Tab Switcher (Lịch Phân Công / Đăng Ký Làm) - Thiết Kế To Rõ Ràng Siêu Dễ Bấm */}
             <div className="flex bg-purple-100/90 p-1.5 rounded-2xl border border-purple-200 shadow-xs gap-2 mt-1">
               <button
                 type="button"
@@ -298,7 +298,7 @@ function EmployeeContent() {
                 }`}
               >
                 <span className="text-base sm:text-lg">📅</span>
-                <span className="tracking-tight">Lịch Phân Công</span>
+                <span className="tracking-tight whitespace-nowrap">Lịch Phân Công</span>
               </button>
               <button
                 type="button"
@@ -310,7 +310,7 @@ function EmployeeContent() {
                 }`}
               >
                 <span className="text-base sm:text-lg">📝</span>
-                <span className="tracking-tight">Đăng Ký Làm</span>
+                <span className="tracking-tight whitespace-nowrap">Đăng Ký Làm</span>
               </button>
             </div>
           </div>

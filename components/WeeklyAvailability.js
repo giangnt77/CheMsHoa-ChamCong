@@ -86,7 +86,8 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [blockedOffDays, setBlockedOffDays] = useState([]);
+  // blockedMap: { [dayIndex]: reasonString }
+  const [blockedMap, setBlockedMap] = useState({});
 
   useEffect(() => {
     const { getSpecialEventMode } = require('@/lib/supabase');
@@ -100,7 +101,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   async function loadAvailability() {
     setLoading(true);
     try {
-      const [data, blockedDays] = await Promise.all([
+      const [data, blockedData] = await Promise.all([
         getAvailabilityByEmployee(employee.id, days[0], days[days.length - 1]),
         getBlockedOffDays(),
       ]);
@@ -113,7 +114,24 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
       setAvailability(map);
       setInitialAvailability(map);
       setNoteInputs(notes);
-      setBlockedOffDays(blockedDays || []);
+
+      if (blockedData && typeof blockedData === 'object' && !Array.isArray(blockedData)) {
+        if (Array.isArray(blockedData.blockedDays)) {
+          const mapObj = {};
+          blockedData.blockedDays.forEach((dIdx) => {
+            mapObj[dIdx] = blockedData.reason || 'Ngày cao điểm đông khách, quán yêu cầu nhân sự đi làm đầy đủ!';
+          });
+          setBlockedMap(mapObj);
+        } else {
+          setBlockedMap(blockedData);
+        }
+      } else if (Array.isArray(blockedData)) {
+        const mapObj = {};
+        blockedData.forEach((dIdx) => {
+          mapObj[dIdx] = 'Ngày cao điểm đông khách, quán yêu cầu nhân sự đi làm đầy đủ!';
+        });
+        setBlockedMap(mapObj);
+      }
       setHasChanges(false);
     } catch (err) {
       console.error(err);
@@ -325,7 +343,8 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
           const status = availability[dateStr]; // 'full' | 'option' | 'off' | undefined
           const dateObj = new Date(dateStr + 'T00:00:00');
           const dayIdx = dateObj.getDay();
-          const isOffBlocked = blockedOffDays.includes(dayIdx);
+          const isOffBlocked = blockedMap[dayIdx] !== undefined;
+          const blockedReason = blockedMap[dayIdx] || 'Ngày cao điểm đông khách, quán yêu cầu đi làm đầy đủ!';
 
           return (
             <div
@@ -399,15 +418,23 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                   } ${isLocked ? 'cursor-not-allowed opacity-80' : isOffBlocked ? '' : 'cursor-pointer active:scale-95 hover:bg-rose-50'}`}
                   title={isOffBlocked ? 'Ngày cao điểm của quán - Chị Hoa quy định KHÔNG ĐƯỢC XIN NGHỈ' : ''}
                 >
-                  {isOffBlocked ? '🚫 Cấm Off' : status === 'off' ? '✅ Xin nghỉ' : '🛑 Xin nghỉ'}
+                  {isOffBlocked ? '🚫 Kh được Off' : status === 'off' ? '✅ Xin nghỉ' : '🛑 Xin nghỉ'}
                 </button>
               </div>
 
-              {/* Thông báo cảnh báo ngày cấm Off */}
+              {/* Thông báo cảnh báo ngày không được Off với lý do chi tiết từ Admin */}
               {isOffBlocked && (
-                <div className="mt-2 py-1.5 px-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 font-extrabold text-[11px] flex items-center gap-1.5 animate-fade-in">
-                  <span>🚫</span>
-                  <span>Ngày cao điểm: Chị Hoa quy định KHÔNG ĐƯỢC XIN NGHỈ ngày này!</span>
+                <div className="mt-2.5 p-2.5 rounded-xl bg-rose-100/90 border border-rose-300 text-rose-950 font-black text-xs space-y-1 shadow-2xs animate-fade-in">
+                  <div className="flex items-center gap-1.5 text-rose-900 font-black">
+                    <span className="text-base">🚫</span>
+                    <span>NGÀY NÀY KHÔNG ĐƯỢC XIN NGHỈ!</span>
+                  </div>
+                  <div className="text-[11.5px] font-extrabold text-purple-950 pl-6 leading-relaxed">
+                    📌 <span className="text-purple-900 font-bold">a Giang nói:</span>{' '}
+                    <span className="bg-white px-2 py-0.5 rounded-md border border-rose-200 text-rose-950 font-black italic inline-block mt-0.5">
+                      {blockedReason}
+                    </span>
+                  </div>
                 </div>
               )}
 
