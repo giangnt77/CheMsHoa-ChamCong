@@ -185,7 +185,7 @@ function EmployeeContent() {
             let recent = JSON.parse(localStorage.getItem('chemshoa_recent_logins') || '[]');
             recent = [emp.id, ...recent.filter((id) => id !== emp.id)].slice(0, 6);
             localStorage.setItem('chemshoa_recent_logins', JSON.stringify(recent));
-          } catch (e) {}
+          } catch (e) { }
 
           if (showToast) toast.success('Đăng nhập', `Xin chào ${emp.name}!`);
         }
@@ -282,11 +282,10 @@ function EmployeeContent() {
               <button
                 type="button"
                 onClick={() => setView('schedule')}
-                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
-                  view === 'schedule'
-                    ? 'bg-purple-700 text-white shadow-md font-black scale-[1.01]'
-                    : 'bg-white/80 text-purple-950 hover:bg-white font-extrabold border border-purple-200/60'
-                }`}
+                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${view === 'schedule'
+                  ? 'bg-purple-700 text-white shadow-md font-black scale-[1.01]'
+                  : 'bg-white/80 text-purple-950 hover:bg-white font-extrabold border border-purple-200/60'
+                  }`}
               >
                 <span className="text-base sm:text-lg">📅</span>
                 <span className="tracking-tight whitespace-nowrap">Lịch Phân Công</span>
@@ -294,11 +293,10 @@ function EmployeeContent() {
               <button
                 type="button"
                 onClick={() => setView('availability')}
-                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
-                  view === 'availability'
-                    ? 'bg-orange-600 text-white shadow-md font-black scale-[1.01] border border-orange-700'
-                    : 'bg-orange-500 text-white font-black hover:bg-orange-600 border border-orange-600 shadow-2xs'
-                }`}
+                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${view === 'availability'
+                  ? 'bg-orange-600 text-white shadow-md font-black scale-[1.01] border border-orange-700'
+                  : 'bg-orange-500 text-white font-black hover:bg-orange-600 border border-orange-600 shadow-2xs'
+                  }`}
               >
                 <span className="text-base sm:text-lg">📝</span>
                 <span className="tracking-tight whitespace-nowrap">Đăng Ký Làm</span>
@@ -369,10 +367,10 @@ function EmployeeContent() {
                     </div>
                     <div>
                       <h3 className="font-black text-base sm:text-lg text-purple-950">
-                        Thông Báo Từ Chủ Quán
+                        ALO ALO ALO!!!!!
                       </h3>
                       <p className="text-[11px] text-purple-700 font-extrabold">
-                        Quán Chè Ms Hoa thông báo
+                        Chè Ms Hoa Thông Báo!!!!
                       </p>
                     </div>
                   </div>
