@@ -187,10 +187,10 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
             <div className="p-3 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-950 font-bold space-y-1 shadow-2xs">
               <p className="font-black text-emerald-900 text-xs sm:text-sm flex items-center gap-1">
                 <span>🤝</span>
-                <span>XÁC NHẬN ĐỒNG Ý NGOÀI ĐỜI</span>
+                <span>YÊU CẦU GỌI ĐIỆN XÁC NHẬN TRƯỚC KHI GỬI ĐỔI CA</span>
               </p>
               <p className="text-[11px] text-emerald-800 font-extrabold">
-                Xác nhận bạn và đồng nghiệp <strong>ĐÃ TRAO ĐỔI ĐỒNG Ý THỐNG NHẤT Ở NGOÀI ĐỜI</strong> trước khi bấm gửi!
+                Xác nhận bạn và đồng nghiệp <strong>ĐÃ TRAO ĐỔI VÀ ĐỒNG Ý</strong> trước khi bấm gửi!
               </p>
             </div>
 
@@ -203,11 +203,10 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                 <button
                   type="button"
                   onClick={() => setSwapType('swap')}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-black border transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                    swapType === 'swap'
-                      ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
-                      : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
-                  }`}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black border transition-all cursor-pointer flex items-center justify-center gap-1 ${swapType === 'swap'
+                    ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
+                    : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
+                    }`}
                 >
                   <span>🔄</span>
                   <span>Đổi chéo ca làm</span>
@@ -215,11 +214,10 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                 <button
                   type="button"
                   onClick={() => setSwapType('double')}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-black border transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                    swapType === 'double'
-                      ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
-                      : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100/60'
-                  }`}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-black border transition-all cursor-pointer flex items-center justify-center gap-1 ${swapType === 'double'
+                    ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                    : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100/60'
+                    }`}
                 >
                   <span>⚡</span>
                   <span>Làm Ca Đôi / Chạy sô</span>
@@ -269,7 +267,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                 <label className="block text-[11px] font-black text-purple-950">
                   ⏰ Ca của tôi ({employee.name}):
                 </label>
-                
+
                 {/* Chọn chi nhánh của tôi */}
                 <div className="flex items-center gap-1 text-[11px] font-bold text-purple-900">
                   <span>🏪 Chi nhánh:</span>
