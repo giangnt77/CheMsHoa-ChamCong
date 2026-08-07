@@ -20,13 +20,40 @@ export default function AdminShiftSwapManager() {
   const [showTelegramModal, setShowTelegramModal] = useState(false);
   const [tgBotToken, setTgBotToken] = useState('');
   const [tgChatId, setTgChatId] = useState('');
+  const [fetchingChatId, setFetchingChatId] = useState(false);
 
   function handleOpenTelegramModal() {
     if (typeof window !== 'undefined') {
-      setTgBotToken(localStorage.getItem('chems_telegram_bot_token') || '');
-      setTgChatId(localStorage.getItem('chems_telegram_chat_id') || '');
+      setTgBotToken(localStorage.getItem('chems_telegram_bot_token') || '8514257668:AAFjq2t3a9p--jmwLomShVX4HSOJ8WNyIGw');
+      setTgChatId(localStorage.getItem('chems_telegram_chat_id') || '5766522088');
     }
     setShowTelegramModal(true);
+  }
+
+  async function handleAutoFetchChatId() {
+    const token = tgBotToken.trim() || '8514257668:AAFjq2t3a9p--jmwLomShVX4HSOJ8WNyIGw';
+    setFetchingChatId(true);
+    try {
+      const res = await fetch(`/api/telegram/get-updates?token=${encodeURIComponent(token)}`);
+      const data = await res.json();
+      if (data && data.ok && Array.isArray(data.result) && data.result.length > 0) {
+        const lastMsg = data.result[data.result.length - 1];
+        const detectedChatId = lastMsg.message?.chat?.id || lastMsg.my_chat_member?.chat?.id || lastMsg.channel_post?.chat?.id;
+        if (detectedChatId) {
+          setTgChatId(String(detectedChatId));
+          toast.success('Bắt thành công!', `Đã phát hiện Chat ID: ${detectedChatId}`);
+        } else {
+          toast.warning('Chưa có tin nhắn', 'Hãy bấm START hoặc gửi 1 tin nhắn bất kỳ tới Bot rồi bấm lại nhé!');
+        }
+      } else {
+        toast.warning('Chưa thấy tin nhắn', 'Hãy mở Telegram, bấm START cho Bot rồi bấm lại nút này nhé!');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể kết nối Telegram Bot!');
+    } finally {
+      setFetchingChatId(false);
+    }
   }
 
   function handleSaveTelegramConfig(e) {
@@ -441,12 +468,22 @@ export default function AdminShiftSwapManager() {
               </div>
 
               <div>
-                <label className="block font-black text-purple-950 mb-1">📢 Chat ID / Group ID Telegram:</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-black text-purple-950">📢 Chat ID / Group ID Telegram:</label>
+                  <button
+                    type="button"
+                    onClick={handleAutoFetchChatId}
+                    disabled={fetchingChatId}
+                    className="px-2 py-0.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-black text-[10px] cursor-pointer border-0 shadow-2xs transition-all active:scale-95"
+                  >
+                    {fetchingChatId ? '⏳ Đang tìm Chat ID...' : '⚡ Tự Động Nhận Chat ID (1 Bấm)'}
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={tgChatId}
                   onChange={(e) => setTgChatId(e.target.value)}
-                  placeholder="VD: -100123456789 hoặc ID cá nhân..."
+                  placeholder="VD: 123456789 (Hoặc bấm nút tự động ở trên)"
                   className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none"
                 />
               </div>
