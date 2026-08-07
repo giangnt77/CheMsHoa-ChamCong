@@ -25,7 +25,7 @@ function EmployeeContent() {
   const [employee, setEmployee] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [authLoading, setAuthLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(false);
 
   useEffect(() => {
     getEmployees().then(setEmployees).catch(console.error);
