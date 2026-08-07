@@ -254,8 +254,8 @@ function EmployeeContent() {
         homeTitle="Đăng Xuất"
       />
 
-      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4 w-full max-w-full overflow-x-hidden">
-        <div className="max-w-7xl mx-auto space-y-3 w-full max-w-full overflow-x-hidden">
+      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4 w-full">
+        <div className="max-w-5xl mx-auto space-y-3 w-full">
           {/* Top Header Row: Greeting & Clean Navigation Bar */}
           <div className="space-y-2.5 py-1">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -286,12 +286,12 @@ function EmployeeContent() {
               </div>
             </div>
 
-            {/* Segmented Tab Switcher (Lịch Phân Công / Đăng Ký Làm) - Thiết Kế To Rõ Ràng Siêu Dễ Bấm */}
-            <div className="flex bg-purple-100/90 p-1.5 rounded-2xl border border-purple-200 shadow-xs gap-2 mt-1">
+            {/* Segmented Tab Switcher (Lịch Phân Công / Đăng Ký Làm) - Giới Hạn Width Cân Đối Cực Đẹp trên Máy Tính & Mobile */}
+            <div className="flex bg-purple-100/90 p-1.5 rounded-2xl border border-purple-200 shadow-xs gap-2 mt-1 max-w-xl mx-auto w-full">
               <button
                 type="button"
                 onClick={() => setView('schedule')}
-                className={`flex-1 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
+                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
                   view === 'schedule'
                     ? 'bg-purple-700 text-white shadow-md font-black scale-[1.01]'
                     : 'bg-white/80 text-purple-950 hover:bg-white font-extrabold border border-purple-200/60'
@@ -303,7 +303,7 @@ function EmployeeContent() {
               <button
                 type="button"
                 onClick={() => setView('availability')}
-                className={`flex-1 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
+                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-black cursor-pointer transition-all flex items-center justify-center gap-2 active:scale-95 ${
                   view === 'availability'
                     ? 'bg-orange-600 text-white shadow-md font-black scale-[1.01] border border-orange-700'
                     : 'bg-orange-500 text-white font-black hover:bg-orange-600 border border-orange-600 shadow-2xs'
