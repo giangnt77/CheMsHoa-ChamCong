@@ -468,22 +468,12 @@ export default function AdminShiftSwapManager() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block font-black text-purple-950">📢 Chat ID / Group ID Telegram:</label>
-                  <button
-                    type="button"
-                    onClick={handleAutoFetchChatId}
-                    disabled={fetchingChatId}
-                    className="px-2 py-0.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-black text-[10px] cursor-pointer border-0 shadow-2xs transition-all active:scale-95"
-                  >
-                    {fetchingChatId ? '⏳ Đang tìm Chat ID...' : '⚡ Tự Động Nhận Chat ID (1 Bấm)'}
-                  </button>
-                </div>
+                <label className="block font-black text-purple-950 mb-1">📢 Chat ID Telegram Quản Lý:</label>
                 <input
                   type="text"
                   value={tgChatId}
                   onChange={(e) => setTgChatId(e.target.value)}
-                  placeholder="VD: 123456789 (Hoặc bấm nút tự động ở trên)"
+                  placeholder="VD: 5766522088"
                   className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none"
                 />
               </div>
