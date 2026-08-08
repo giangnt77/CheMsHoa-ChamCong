@@ -18,6 +18,8 @@ export default function ModalXepLichQuick({
   daySchedule,
   onSave,
   onDelete,
+  onAssignOff,
+  onRemoveOff,
   editItem = null, // Nếu editItem != null -> Chế độ chỉnh sửa ca làm đã có
   initialEmployee = null,
 }) {
@@ -159,11 +161,10 @@ export default function ModalXepLichQuick({
                       key={b.id}
                       type="button"
                       onClick={() => setSelectedBranchId(b.id)}
-                      className={`py-2.5 px-3 rounded-2xl font-black text-xs border transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-1.5 active:scale-95 ${
-                        isSelected
+                      className={`py-2.5 px-3 rounded-2xl font-black text-xs border transition-all cursor-pointer shadow-2xs flex items-center justify-between gap-1.5 active:scale-95 ${isSelected
                           ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400 scale-[1.02]'
                           : 'bg-purple-50/80 hover:bg-purple-100 text-purple-950 border-purple-200 font-bold'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-1.5 min-w-0 truncate">
                         <span
@@ -265,22 +266,20 @@ export default function ModalXepLichQuick({
                     <button
                       type="button"
                       onClick={() => setEmpFilterTab('unassigned')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${
-                        empFilterTab === 'unassigned'
+                      className={`px-2.5 py-1 rounded-lg transition-all ${empFilterTab === 'unassigned'
                           ? 'bg-purple-900 text-white font-black shadow-2xs'
                           : 'text-purple-950 hover:bg-purple-200 font-bold'
-                      }`}
+                        }`}
                     >
                       🟢 Chưa có ca
                     </button>
                     <button
                       type="button"
                       onClick={() => setEmpFilterTab('all')}
-                      className={`px-2.5 py-1 rounded-lg transition-all ${
-                        empFilterTab === 'all'
+                      className={`px-2.5 py-1 rounded-lg transition-all ${empFilterTab === 'all'
                           ? 'bg-purple-900 text-white font-black shadow-2xs'
                           : 'text-purple-950 hover:bg-purple-200 font-bold'
-                      }`}
+                        }`}
                       title="Xem tất cả nhân viên nếu muốn gán làm thêm ca 2 / tăng ca"
                     >
                       ✨ Làm thêm ca
@@ -347,17 +346,15 @@ export default function ModalXepLichQuick({
                             setSelectedEmpId(e.id);
                             setShowAllEmps(false);
                           }}
-                          className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
-                            isSelected
+                          className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-2.5 ${isSelected
                               ? 'bg-purple-900 text-white border-purple-600 shadow-md'
                               : 'bg-purple-50/70 border-purple-200 text-purple-950 hover:bg-purple-100'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div
-                              className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                                isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-200 text-purple-950'
-                              }`}
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-200 text-purple-950'
+                                }`}
                             >
                               👤
                             </div>
@@ -373,11 +370,10 @@ export default function ModalXepLichQuick({
 
                           <div className="flex-shrink-0">
                             <span
-                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                                isSelected
+                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-black transition-all ${isSelected
                                   ? 'bg-amber-400 text-purple-950 shadow-2xs scale-110'
                                   : 'border-2 border-purple-300 text-transparent'
-                              }`}
+                                }`}
                             >
                               ✓
                             </span>
@@ -411,27 +407,45 @@ export default function ModalXepLichQuick({
               >
                 🍳 Bếp 7:30-17:30
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!selectedEmpId) return;
-                  const existingShift = daySchedule.find((s) => s.employee_id === selectedEmpId);
-                  if (existingShift && onDelete) {
-                    onDelete(existingShift.id);
-                    onClose();
-                  } else if (editItem && editItem.id && onDelete) {
-                    onDelete(editItem.id);
-                    onClose();
-                  } else {
-                    onClose();
-                  }
-                }}
-                className="py-2 px-1 bg-rose-50 hover:bg-rose-100 text-xs font-black rounded-xl text-rose-900 border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1"
-                title="Gán ca OFF cho nhân viên này (xóa ca nếu có)"
-              >
-                <span>🛑</span>
-                <span>Ca : OFF</span>
-              </button>
+              {(() => {
+                const empAvailForOff = selectedEmpId ? availabilities.find((a) => a.employee_id === selectedEmpId) : null;
+                const isAlreadyAdminOff = empAvailForOff?.is_admin_assigned === true;
+
+                return isAlreadyAdminOff ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedEmpId) return;
+                      if (onRemoveOff) onRemoveOff(selectedEmpId, date);
+                      onClose();
+                    }}
+                    className="py-2 px-1 bg-emerald-50 hover:bg-emerald-100 text-xs font-black rounded-xl text-emerald-900 border border-emerald-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1"
+                    title="Xóa trạng thái OFF — quay về hiện ghi chú đăng ký ban đầu"
+                  >
+                    <span>↩️</span>
+                    <span>Xóa OFF</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedEmpId) return;
+                      if (onAssignOff) {
+                        onAssignOff(selectedEmpId, date);
+                      } else if (onDelete) {
+                        const existingShift = daySchedule.find((s) => s.employee_id === selectedEmpId);
+                        if (existingShift) onDelete(existingShift.id);
+                      }
+                      onClose();
+                    }}
+                    className="py-2 px-1 bg-rose-50 hover:bg-rose-100 text-xs font-black rounded-xl text-rose-900 border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1"
+                    title="Gán ca OFF đè lên cho nhân viên này"
+                  >
+                    <span>🛑</span>
+                    <span>Ca : OFF</span>
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -489,7 +503,7 @@ export default function ModalXepLichQuick({
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map((t) => (
+                {['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', "21:45", '22:00'].map((t) => (
                   <button
                     key={t}
                     type="button"

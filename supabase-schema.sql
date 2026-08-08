@@ -46,6 +46,7 @@ CREATE TABLE availability (
   date DATE NOT NULL,
   type TEXT NOT NULL DEFAULT 'full',   -- 'full' | 'option' | 'off'
   note TEXT DEFAULT '',                -- ghi chú mốc ca làm hoặc lý do xin off
+  is_admin_assigned BOOLEAN DEFAULT false, -- true = Chủ quán gán OFF, false = Nhân viên tự đăng ký
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(employee_id, date)
 );
