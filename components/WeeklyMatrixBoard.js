@@ -676,39 +676,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               onClick={goTodayWeek}
               className="px-2.5 py-1 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-[11px] sm:text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95"
             >
-              Hôm nay
+              Tuần này
             </button>
           </div>
 
-          {/* Nhóm Nút Thao Tác (Lưu, Hủy, Sắp Xếp) */}
+          {/* Nhóm Nút Thao Tác (Cấm Off, Sắp Xếp) */}
           {!readOnly && (
             <div className="flex items-center gap-1.5 flex-wrap ml-auto">
-              <button
-                type="button"
-                onClick={handleSaveAllBatch}
-                disabled={isBatchSaving || !hasUnsavedChanges}
-                className={`px-3 py-1 rounded-xl font-black text-[11px] sm:text-xs border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ${
-                  hasUnsavedChanges
-                    ? 'bg-amber-400 hover:bg-amber-500 text-purple-950 border-amber-500 animate-pulse shadow-md font-black'
-                    : 'bg-emerald-100 text-emerald-950 border-emerald-300 opacity-80'
-                }`}
-                title="Bấm để lưu toàn bộ bảng lịch phân công 1 lần"
-              >
-                <span>💾</span>
-                <span>{isBatchSaving ? 'Đang lưu...' : hasUnsavedChanges ? 'LƯU LỊCH' : 'Đã Lưu'}</span>
-              </button>
-
-              {hasUnsavedChanges && (
-                <button
-                  type="button"
-                  onClick={handleCancelUnsavedChanges}
-                  disabled={isBatchSaving}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 font-black border border-rose-300 flex items-center justify-center cursor-pointer text-xs shadow-2xs"
-                  title="Hủy bỏ thay đổi chưa lưu"
-                >
-                  🚫
-                </button>
-              )}
 
               <button
                 type="button"
