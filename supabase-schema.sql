@@ -73,6 +73,8 @@ CREATE TABLE penalties (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
   month TEXT NOT NULL,
+  date DATE,
+  type TEXT DEFAULT 'penalty',
   amount INTEGER NOT NULL,
   reason TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
