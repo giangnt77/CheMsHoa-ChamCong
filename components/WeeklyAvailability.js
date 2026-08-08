@@ -147,7 +147,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
       if (blockedMap[dayIdx] !== undefined) {
         toast.warning(
           'Ngày Cấm Xin Nghỉ!',
-          'Đây là ngày cao điểm của quán, Chị Hoa quy định KHÔNG ĐƯỢC ĐĂNG KÝ XIN NGHỈ!'
+          'Đây là ngày cao điểm của quán, Quản Lý quy định KHÔNG ĐƯỢC ĐĂNG KÝ XIN NGHỈ!'
         );
         return;
       }
@@ -189,7 +189,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     if (maxConsecutiveOff >= 3) {
       // Popup Xác Nhận Lần 1
       const confirm1 = window.confirm(
-        `Thí chủ đã xin phép Chị Hoa chưa? (Bạn đang đăng ký nghỉ ${maxConsecutiveOff} ngày liên tiếp trong tuần).`
+        `Thí chủ đã xin phép Chị Hoa / Anh Giang chưa? (Bạn đang đăng ký nghỉ ${maxConsecutiveOff} ngày liên tiếp trong tuần).`
       );
       if (!confirm1) {
         return; // Thí chủ chưa xin phép -> Dừng không cho gửi
@@ -197,7 +197,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
 
       // Popup Xác Nhận Lần 2
       const confirm2 = window.confirm(
-        `Xác nhận lần 2: Thí chủ đã xin phép Chị Hoa thật chưa? (Đăng ký nghỉ ${maxConsecutiveOff} ngày liên tiếp). Nếu chưa xin phép sẽ bị xử lý theo nội quy quán!`
+        `Xác nhận lần 2: Thí chủ đã xin phép Chị Hoa / Anh Giang thật chưa? (Đăng ký nghỉ ${maxConsecutiveOff} ngày liên tiếp). Nếu chưa xin phép sẽ bị xử lý theo nội quy quán!`
       );
       if (!confirm2) {
         return; // Dừng không cho gửi
@@ -279,22 +279,20 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
             <button
               type="button"
               onClick={() => setWeekType('this')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
-                weekType === 'this'
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${weekType === 'this'
                   ? 'bg-purple-700 text-white shadow-2xs font-black'
                   : 'text-purple-900 hover:text-purple-700 font-bold'
-              }`}
+                }`}
             >
               ⚡ Tuần Này
             </button>
             <button
               type="button"
               onClick={() => setWeekType('next')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${
-                weekType === 'next'
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all ${weekType === 'next'
                   ? 'bg-purple-700 text-white shadow-2xs font-black'
                   : 'text-purple-900 hover:text-purple-700 font-bold'
-              }`}
+                }`}
             >
               🚀 Tuần Sau
             </button>
@@ -304,11 +302,10 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
               <button
                 type="button"
                 onClick={() => setWeekType('special_month')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all flex items-center gap-1 ${
-                  weekType === 'special_month'
+                className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black cursor-pointer transition-all flex items-center gap-1 ${weekType === 'special_month'
                     ? 'bg-rose-600 text-white shadow-2xs font-black animate-pulse'
                     : 'bg-rose-100 text-rose-950 hover:bg-rose-200 font-extrabold border border-rose-300'
-                }`}
+                  }`}
               >
                 <span>🎆</span>
                 <span>Dịp Đặc Biệt (1 Tháng)</span>
@@ -324,8 +321,8 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
               {weekType === 'special_month'
                 ? `Đăng ký Dịp Đặc Biệt (4 Tuần / 1 Tháng): `
                 : weekType === 'next'
-                ? `Đăng ký cho tuần: `
-                : `Lịch tuần hiện tại: `}
+                  ? `Đăng ký cho tuần: `
+                  : `Lịch tuần hiện tại: `}
               <span className="font-black text-purple-950">{getWeekLabel()}</span>
             </span>
           </p>
@@ -349,15 +346,14 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
           return (
             <div
               key={dateStr}
-              className={`rounded-2xl p-3.5 sm:p-4 border transition-all ${
-                status === 'full'
+              className={`rounded-2xl p-3.5 sm:p-4 border transition-all ${status === 'full'
                   ? 'border-emerald-300 bg-emerald-50/90 shadow-2xs'
                   : status === 'option'
-                  ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
-                  : status === 'off'
-                  ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
-                  : 'border-purple-100 bg-purple-50/30'
-              } ${isLocked ? 'opacity-90' : ''}`}
+                    ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
+                    : status === 'off'
+                      ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
+                      : 'border-purple-100 bg-purple-50/30'
+                } ${isLocked ? 'opacity-90' : ''}`}
             >
               {/* Day Header */}
               <div className="flex items-center justify-between mb-2.5">
@@ -385,11 +381,10 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                   type="button"
                   disabled={isLocked}
                   onClick={() => !isLocked && handleSelect(dateStr, 'full')}
-                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${
-                    status === 'full'
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${status === 'full'
                       ? 'border-emerald-600 bg-emerald-700 text-white font-black'
                       : 'border-purple-200 bg-white text-purple-950 font-bold'
-                  } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-emerald-50'}`}
+                    } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-emerald-50'}`}
                 >
                   {status === 'full' ? '✅ Cả ngày' : '💪 Cả ngày'}
                 </button>
@@ -397,11 +392,10 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                   type="button"
                   disabled={isLocked}
                   onClick={() => !isLocked && handleSelect(dateStr, 'option')}
-                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${
-                    status === 'option'
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${status === 'option'
                       ? 'border-purple-600 bg-purple-700 text-white font-black'
                       : 'border-purple-200 bg-white text-purple-950 font-bold'
-                  } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-purple-50'}`}
+                    } ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95 hover:bg-purple-50'}`}
                 >
                   {status === 'option' ? '✅ Tùy ca' : '📝 Tùy ca'}
                 </button>
@@ -409,14 +403,13 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                   type="button"
                   disabled={isLocked || isOffBlocked}
                   onClick={() => !isLocked && handleSelect(dateStr, 'off')}
-                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${
-                    isOffBlocked
+                  className={`py-2.5 px-2 rounded-xl font-black text-xs sm:text-sm border transition-all shadow-2xs ${isOffBlocked
                       ? 'bg-rose-50/40 text-rose-300 border-rose-200 cursor-not-allowed opacity-60 line-through'
                       : status === 'off'
-                      ? 'border-rose-600 bg-rose-600 text-white font-black'
-                      : 'border-purple-200 bg-white text-purple-950 font-bold'
-                  } ${isLocked ? 'cursor-not-allowed opacity-80' : isOffBlocked ? '' : 'cursor-pointer active:scale-95 hover:bg-rose-50'}`}
-                  title={isOffBlocked ? 'Ngày cao điểm của quán - Chị Hoa quy định KHÔNG ĐƯỢC XIN NGHỈ' : ''}
+                        ? 'border-rose-600 bg-rose-600 text-white font-black'
+                        : 'border-purple-200 bg-white text-purple-950 font-bold'
+                    } ${isLocked ? 'cursor-not-allowed opacity-80' : isOffBlocked ? '' : 'cursor-pointer active:scale-95 hover:bg-rose-50'}`}
+                  title={isOffBlocked ? 'Ngày cao điểm của quán - Quản Lý quy định KHÔNG ĐƯỢC XIN NGHỈ' : ''}
                 >
                   {isOffBlocked ? '🚫 Kh được Off' : status === 'off' ? '✅ Xin nghỉ' : '🛑 Xin nghỉ'}
                 </button>
@@ -430,7 +423,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                     <span>NGÀY NÀY KHÔNG ĐƯỢC XIN NGHỈ!</span>
                   </div>
                   <div className="text-[11.5px] font-extrabold text-purple-950 pl-6 leading-relaxed">
-                    📌 <span className="text-purple-900 font-bold">a Giang nói:</span>{' '}
+                    📌 <span className="text-purple-900 font-bold">Quản Lý Nhắn:</span>{' '}
                     <span className="bg-white px-2 py-0.5 rounded-md border border-rose-200 text-rose-950 font-black italic inline-block mt-0.5">
                       {blockedReason}
                     </span>
@@ -451,9 +444,8 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                         : 'Ghi chú thời gian làm (ví dụ: rảnh sáng 8-12h, hoặc làm từ 13h...)'
                     }
                     rows={2}
-                    className={`w-full px-3.5 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm outline-none transition-all resize-none placeholder:text-purple-400 font-bold ${
-                      isLocked ? 'cursor-not-allowed bg-purple-50/50' : 'focus:border-purple-600'
-                    }`}
+                    className={`w-full px-3.5 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm outline-none transition-all resize-none placeholder:text-purple-400 font-bold ${isLocked ? 'cursor-not-allowed bg-purple-50/50' : 'focus:border-purple-600'
+                      }`}
                   />
                 </div>
               )}
@@ -472,7 +464,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
             <p className="text-xs text-purple-800 font-extrabold italic">
               {weekType === 'this'
                 ? '💡 Lịch phân công "Tuần Này" đã được chốt và đang chạy. Bạn hãy bấm chọn tab "🚀 Tuần Sau" ở trên để đăng ký lịch tuần tới nhé!'
-                : '💡 Đã hết hạn đăng ký tuần này. Lịch sẽ tự động mở lại vào Thứ 2 tuần tới! Nếu cần điều chỉnh gấp, vui lòng liên hệ Chị Hoa.'}
+                : '💡 Đã hết hạn đăng ký tuần này. Lịch sẽ tự động mở lại vào Thứ 2 tuần tới! Nếu cần điều chỉnh gấp, vui lòng liên hệ Quản Lý.'}
             </p>
           </div>
         ) : (
@@ -481,17 +473,16 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${
-                hasChanges
+              className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${hasChanges
                   ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              }`}
+                }`}
             >
               {submitting
                 ? '⏳ Đang lưu lịch...'
                 : hasChanges
-                ? '🚀 CẬP NHẬT & CHỐT LỊCH ĐĂNG KÝ'
-                : '✅ ĐÃ CHỐT ĐĂNG KÝ LỊCH (Bấm để cập nhật lại)'}
+                  ? '🚀 CẬP NHẬT & CHỐT LỊCH ĐĂNG KÝ'
+                  : '✅ ĐÃ CHỐT ĐĂNG KÝ LỊCH (Bấm để cập nhật lại)'}
             </button>
             <p className="text-[11px] sm:text-xs text-center text-purple-700 font-extrabold">
               💡 Hạn sửa chữa & chốt lịch: Mở tự do từ <span className="text-purple-950 font-black">Thứ 2 đến hết Thứ 7</span>. Hệ thống sẽ tự động khóa chốt lịch vào Chủ Nhật!

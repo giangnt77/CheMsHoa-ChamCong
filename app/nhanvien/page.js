@@ -48,7 +48,7 @@ function EmployeeContent() {
   // State Thông Báo Quan Trọng Dành Cho Nhân Viên
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [noticeText, setNoticeText] = useState(
-    '📌 THÔNG BÁO TỪ QUẢN LÝ (CHỊ HOA):\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!'
+    '📌 THÔNG BÁO TỪ QUẢN LÝ:\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!'
   );
 
   // State Quản Lý Đổi Ca
