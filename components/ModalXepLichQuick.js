@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { getBranchColorStyle } from '@/lib/utils';
 
 /**
@@ -39,6 +39,13 @@ export default function ModalXepLichQuick({
   const [note, setNote] = useState(editItem?.note || '');
   const [submitting, setSubmitting] = useState(false);
 
+  // States hỗ trợ tìm kiếm và lọc danh sách nhân viên thông minh
+  const initialEmpId = editItem ? editItem.employee_id : (initialEmployee ? initialEmployee.id : '');
+  const [backupEmpId, setBackupEmpId] = useState(initialEmpId);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [empFilterTab, setEmpFilterTab] = useState('unassigned'); // 'unassigned': Chưa xếp ca | 'all': Tất cả (Tăng ca)
+  const [showAllEmps, setShowAllEmps] = useState(false);
+
   if (!isOpen) return null;
 
   // Tính số giờ
@@ -53,9 +60,31 @@ export default function ModalXepLichQuick({
 
   const hours = calcHours(startTime, endTime);
 
-  // Group nhân viên theo đăng ký rảnh ngày đó
-  const registeredEmps = availabilities.filter((a) => a.type !== 'off');
-  const offEmps = availabilities.filter((a) => a.type === 'off');
+  // Lọc danh sách nhân viên thực sự (loại bỏ hoàn toàn Owner / Manager)
+  const staffOnlyEmployees = useMemo(() => {
+    if (!employees) return [];
+    return employees.filter((e) => {
+      if (e.role === 'owner' || e.role === 'manager') return false;
+      const nLower = (e.name || '').toLowerCase();
+      return (
+        !nLower.includes('chủ quán') &&
+        !nLower.includes('quản lý') &&
+        !nLower.includes('owner') &&
+        !nLower.includes('manager')
+      );
+    });
+  }, [employees]);
+
+  // Group nhân viên theo đăng ký rảnh ngày đó (chỉ áp dụng cho nhân viên thực sự)
+  const registeredEmps = useMemo(() => {
+    const staffIds = new Set(staffOnlyEmployees.map((e) => e.id));
+    return availabilities.filter((a) => a.type !== 'off' && staffIds.has(a.employee_id));
+  }, [availabilities, staffOnlyEmployees]);
+
+  const offEmps = useMemo(() => {
+    const staffIds = new Set(staffOnlyEmployees.map((e) => e.id));
+    return availabilities.filter((a) => a.type === 'off' && staffIds.has(a.employee_id));
+  }, [availabilities, staffOnlyEmployees]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -154,115 +183,190 @@ export default function ModalXepLichQuick({
               </div>
             </div>
           )}
-
-          {/* Chọn nhân viên */}
           <div>
-            <label className="block text-xs font-black text-purple-900 uppercase mb-1.5">
-              Nhân viên
-            </label>
-            <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {/* Nhóm 1: Nhân viên ĐÃ ĐĂNG KÝ LÀM */}
-              {registeredEmps.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-black text-emerald-900 uppercase tracking-wider bg-emerald-100/70 px-2.5 py-1 rounded-xl border border-emerald-200">
-                    ✨ Nhân viên đã đăng ký làm ({registeredEmps.length})
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-black text-purple-950 uppercase">
+                👤 Nhân viên phân công:
+              </label>
+              {selectedEmpId && !showAllEmps ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBackupEmpId(selectedEmpId);
+                    setShowAllEmps(true);
+                  }}
+                  className="text-[11px] font-black text-purple-700 hover:text-purple-950 bg-purple-100 px-2 py-0.5 rounded-lg border border-purple-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                >
+                  <span>🔄</span>
+                  <span>Đổi NV khác</span>
+                </button>
+              ) : backupEmpId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedEmpId(backupEmpId);
+                    setShowAllEmps(false);
+                  }}
+                  className="text-[11px] font-black text-rose-700 hover:text-rose-900 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                  title="Hủy chọn NV mới và giữ lại nhân viên ban đầu"
+                >
+                  <span>❌</span>
+                  <span>Hủy đổi (Giữ {staffOnlyEmployees.find((e) => e.id === backupEmpId)?.name || 'NV cũ'})</span>
+                </button>
+              ) : null}
+            </div>
+
+            {/* THẺ NHÂN VIÊN ĐANG ĐƯỢC CHỌN TRỰC TIẾP TỪ Ô (HIỂN THỊ NỔI BẬT ĐẦU TIÊN ⚡) */}
+            {selectedEmpId && !showAllEmps ? (
+              <div className="p-3.5 rounded-2xl bg-purple-900 text-white border-2 border-purple-600 shadow-md flex items-center justify-between gap-3 animate-fade-in mb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-amber-400 text-purple-950 font-black text-sm flex items-center justify-center flex-shrink-0 shadow-2xs">
+                    👤
                   </div>
-                  {registeredEmps.map((a) => {
-                    const isSelected = selectedEmpId === a.employee_id;
-                    const empName = a.employees?.name || 'Nhân viên';
-                    const availNote = a.type === 'full' ? 'Làm Cả Ngày' : `Tùy chọn: ${a.note || 'Ca linh hoạt'}`;
-
-                    return (
-                      <div
-                        key={a.employee_id}
-                        onClick={() => setSelectedEmpId(a.employee_id)}
-                        className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                          isSelected
-                            ? 'bg-purple-900 text-white border-purple-600 shadow-md scale-[1.01]'
-                            : 'bg-emerald-50/80 border-emerald-200 text-emerald-950 hover:bg-emerald-100/80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                              isSelected ? 'bg-amber-400 text-purple-950' : 'bg-emerald-200 text-emerald-950'
-                            }`}
-                          >
-                            ✅
-                          </div>
-                          <div className="truncate">
-                            <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
-                              {empName}
-                            </div>
-                            <div className={`text-[10.5px] font-extrabold truncate ${isSelected ? 'text-amber-300' : 'text-emerald-800'}`}>
-                              {availNote}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex-shrink-0">
-                          <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                              isSelected
-                                ? 'bg-amber-400 text-purple-950 shadow-2xs scale-110'
-                                : 'border-2 border-emerald-300 text-transparent'
-                            }`}
-                          >
-                            ✓
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Nhóm 2: Nhân viên CHƯA ĐĂNG KÝ hoặc XIN NGHỈ */}
-              {(() => {
-                const otherEmps = employees.filter((e) => !registeredEmps.some((r) => r.employee_id === e.id));
-                if (otherEmps.length === 0) return null;
-
-                return (
-                  <div className="space-y-1.5 pt-1">
-                    <div className="text-[11px] font-black text-purple-900 uppercase tracking-wider bg-purple-100/70 px-2.5 py-1 rounded-xl border border-purple-200">
-                      👥 Nhân viên khác ({otherEmps.length})
+                  <div className="truncate">
+                    <div className="font-black text-sm text-white truncate flex items-center gap-1.5">
+                      <span>{staffOnlyEmployees.find((e) => e.id === selectedEmpId)?.name || 'Nhân viên'}</span>
+                      <span className="bg-amber-400 text-purple-950 text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                        Đang chọn
+                      </span>
                     </div>
-                    {otherEmps.map((e) => {
+                    <div className="text-xs font-bold text-amber-300 truncate mt-0.5">
+                      {(() => {
+                        const avail = availabilities.find((a) => a.employee_id === selectedEmpId);
+                        if (!avail) return 'Chưa đăng ký ca';
+                        if (avail.type === 'full') return '💪 Đã đăng ký: Làm Cả Ngày';
+                        if (avail.type === 'off') return '🛑 Đã đăng ký: Xin Nghỉ';
+                        return `📝 Đã đăng ký: Tùy chọn ${avail.note ? `(${avail.note})` : 'ca linh hoạt'}`;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-amber-300 font-black text-lg">✓</div>
+              </div>
+            ) : null}
+
+            {/* DANH SÁCH GỢI Ý CHỌN NHANH ĐƯỢC TỐI ƯU GỌN GÀNG */}
+            {(!selectedEmpId || showAllEmps) && (
+              <div className="space-y-2">
+                {/* Thanh Tìm Kiếm + Bộ Lọc Tab */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="🔍 Tìm tên nhân viên..."
+                      className="w-full pl-7 pr-3 py-1.5 bg-purple-50 border border-purple-200 rounded-xl text-xs font-bold text-purple-950 outline-none focus:border-purple-600 placeholder:text-purple-400"
+                    />
+                    <span className="absolute left-2.5 top-1.5 text-xs text-purple-400">🔍</span>
+                  </div>
+
+                  <div className="flex bg-purple-100 p-0.5 rounded-xl border border-purple-200 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setEmpFilterTab('unassigned')}
+                      className={`px-2.5 py-1 rounded-lg transition-all ${
+                        empFilterTab === 'unassigned'
+                          ? 'bg-purple-900 text-white font-black shadow-2xs'
+                          : 'text-purple-950 hover:bg-purple-200 font-bold'
+                      }`}
+                    >
+                      🟢 Chưa có ca
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEmpFilterTab('all')}
+                      className={`px-2.5 py-1 rounded-lg transition-all ${
+                        empFilterTab === 'all'
+                          ? 'bg-purple-900 text-white font-black shadow-2xs'
+                          : 'text-purple-950 hover:bg-purple-200 font-bold'
+                      }`}
+                      title="Xem tất cả nhân viên nếu muốn gán làm thêm ca 2 / tăng ca"
+                    >
+                      ✨ Làm thêm ca
+                    </button>
+                  </div>
+                </div>
+
+                {/* Danh sách cuộn nhân viên */}
+                <div className="max-h-[200px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                  {(() => {
+                    // Lọc nhân viên theo tìm kiếm và tab
+                    const filteredEmps = staffOnlyEmployees.filter((e) => {
+                      if (searchTerm.trim() && !e.name.toLowerCase().includes(searchTerm.toLowerCase().trim())) {
+                        return false;
+                      }
+
+                      // Kiểm tra xem nhân viên đã có ca làm ngày hôm nay chưa
+                      const hasShift = daySchedule.some((s) => s.employee_id === e.id);
+                      if (empFilterTab === 'unassigned' && hasShift) {
+                        return false; // Chỉ hiển thị những ai chưa có ca
+                      }
+
+                      return true;
+                    });
+
+                    if (filteredEmps.length === 0) {
+                      return (
+                        <div className="p-3 text-center text-xs text-purple-800 font-bold bg-purple-50 rounded-xl border border-purple-200">
+                          {empFilterTab === 'unassigned'
+                            ? '✅ Tất cả nhân viên đã được xếp ca ngày này!'
+                            : 'Không tìm thấy nhân viên phù hợp.'}
+                        </div>
+                      );
+                    }
+
+                    return filteredEmps.map((e) => {
                       const isSelected = selectedEmpId === e.id;
-                      const isOff = offEmps.some((o) => o.employee_id === e.id);
+                      const hasShift = daySchedule.some((s) => s.employee_id === e.id);
+                      const avail = availabilities.find((a) => a.employee_id === e.id);
+
+                      let statusBadge = '🟢 Chưa xếp ca';
+                      let badgeStyle = 'bg-purple-100 text-purple-950 border-purple-200';
+
+                      if (hasShift) {
+                        statusBadge = '✨ Đã có ca (Làm thêm)';
+                        badgeStyle = 'bg-sky-100 text-sky-900 border-sky-300';
+                      } else if (avail) {
+                        if (avail.type === 'full') {
+                          statusBadge = '💪 Đã ĐK: Cả Ngày';
+                          badgeStyle = 'bg-emerald-100 text-emerald-900 border-emerald-300';
+                        } else if (avail.type === 'off') {
+                          statusBadge = '🛑 Đã ĐK: Xin Nghỉ';
+                          badgeStyle = 'bg-rose-100 text-rose-900 border-rose-300';
+                        } else if (avail.type === 'option') {
+                          statusBadge = `📝 Đã ĐK: Tùy ca ${avail.note ? `(${avail.note})` : ''}`;
+                          badgeStyle = 'bg-amber-100 text-amber-900 border-amber-300';
+                        }
+                      }
 
                       return (
                         <div
                           key={e.id}
-                          onClick={() => setSelectedEmpId(e.id)}
-                          className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                          onClick={() => {
+                            setSelectedEmpId(e.id);
+                            setShowAllEmps(false);
+                          }}
+                          className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
                             isSelected
-                              ? 'bg-purple-900 text-white border-purple-600 shadow-md scale-[1.01]'
-                              : isOff
-                              ? 'bg-rose-50/70 border-rose-200 text-rose-950 hover:bg-rose-100/70'
-                              : 'bg-purple-50/70 border-purple-200 text-purple-950 hover:bg-purple-100/70'
+                              ? 'bg-purple-900 text-white border-purple-600 shadow-md'
+                              : 'bg-purple-50/70 border-purple-200 text-purple-950 hover:bg-purple-100'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div
-                              className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                                isSelected
-                                  ? 'bg-amber-400 text-purple-950'
-                                  : isOff
-                                  ? 'bg-rose-200 text-rose-950'
-                                  : 'bg-purple-200 text-purple-950'
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
+                                isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-200 text-purple-950'
                               }`}
                             >
-                              {isOff ? '🛑' : '👤'}
+                              👤
                             </div>
                             <div className="truncate">
                               <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
                                 {e.name}
                               </div>
-                              <div className={`text-[10.5px] font-extrabold truncate ${
-                                isSelected ? 'text-amber-300' : isOff ? 'text-rose-700' : 'text-purple-700'
-                              }`}>
-                                {isOff ? 'Xin Nghỉ' : 'Chưa đăng ký ca'}
+                              <div className={`text-[10.5px] font-extrabold truncate ${isSelected ? 'text-amber-300' : 'text-purple-700'}`}>
+                                {statusBadge}
                               </div>
                             </div>
                           </div>
@@ -280,52 +384,11 @@ export default function ModalXepLichQuick({
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Hộp Thông Tin & Ghi Chú Đăng Ký Của Nhân Viên Được Chọn */}
-            {selectedEmpId && (() => {
-              const avail = availabilities.find((a) => a.employee_id === selectedEmpId);
-              if (!avail) {
-                return (
-                  <div className="mt-2.5 p-3 rounded-xl bg-purple-50 border border-purple-200 text-xs text-purple-950 font-black flex items-center gap-2 shadow-2xs">
-                    <span>⚠️</span> Nhân viên này CHƯA ĐĂNG KÝ ca làm ngày này.
-                  </div>
-                );
-              }
-              return (
-                <div
-                  className={`mt-2.5 p-3.5 rounded-2xl border text-xs font-extrabold shadow-2xs animate-fade-in ${avail.type === 'full'
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                    : avail.type === 'off'
-                      ? 'bg-rose-50 border-rose-300 text-rose-950'
-                      : 'bg-purple-50 border-purple-300 text-purple-950'
-                    }`}
-                >
-                  <div className="flex items-center gap-1.5 font-black text-xs sm:text-sm">
-                    {avail.type === 'full' && <span>💪 Đã đăng ký: LÀM CẢ NGÀY</span>}
-                    {avail.type === 'option' && <span>📝 Đã đăng ký: TÙY CHỌN CA LINH HOẠT</span>}
-                    {avail.type === 'off' && <span>🛑 Đã đăng ký: XIN NGHỈ</span>}
-                  </div>
-                  {avail.note ? (
-                    <div className="mt-2 text-xs text-purple-950 font-bold bg-white p-2.5 rounded-xl border border-purple-200 flex items-start gap-1.5 leading-relaxed">
-                      <span>💬</span>
-                      <div>
-                        <span className="text-purple-700 font-black block">Ghi chú giờ làm của NV:</span>
-                        &quot;{avail.note}&quot;
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-[11px] opacity-80">
-                      (Không có ghi chú thêm)
-                    </div>
-                  )}
+                    });
+                  })()}
                 </div>
-              );
-            })()}
+              </div>
+            )}
           </div>
 
           {/* Gợi ý điền nhanh mốc giờ */}
@@ -333,48 +396,41 @@ export default function ModalXepLichQuick({
             <label className="block text-xs font-black text-purple-900 uppercase mb-1.5">
               Gợi ý mốc ca (bấm để chọn nhanh):
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
                 onClick={() => applyPreset('07:30', '14:30')}
-                className="py-1.5 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs"
+                className="py-2 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs transition-all active:scale-95"
               >
                 🍳 Bếp 7:30-14:30
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset('07:30', '17:30')}
-                className="py-1.5 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs"
+                className="py-2 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs transition-all active:scale-95"
               >
                 🍳 Bếp 7:30-17:30
               </button>
               <button
                 type="button"
-                onClick={() => applyPreset('09:00', '14:00')}
-                className="py-1.5 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs"
+                onClick={() => {
+                  if (!selectedEmpId) return;
+                  const existingShift = daySchedule.find((s) => s.employee_id === selectedEmpId);
+                  if (existingShift && onDelete) {
+                    onDelete(existingShift.id);
+                    onClose();
+                  } else if (editItem && editItem.id && onDelete) {
+                    onDelete(editItem.id);
+                    onClose();
+                  } else {
+                    onClose();
+                  }
+                }}
+                className="py-2 px-1 bg-rose-50 hover:bg-rose-100 text-xs font-black rounded-xl text-rose-900 border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1"
+                title="Gán ca OFF cho nhân viên này (xóa ca nếu có)"
               >
-                Sáng (9-14h)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset('14:00', '18:00')}
-                className="py-1.5 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs"
-              >
-                Chiều (14-18h)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset('18:00', '22:00')}
-                className="py-1.5 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs"
-              >
-                Tối (18-22h)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset('09:00', '22:00')}
-                className="py-1.5 px-1 bg-purple-50 hover:bg-purple-100 text-xs font-black rounded-xl text-purple-950 border border-purple-200 cursor-pointer shadow-2xs"
-              >
-                Cả ngày (9-22h)
+                <span>🛑</span>
+                <span>Ca : OFF</span>
               </button>
             </div>
           </div>

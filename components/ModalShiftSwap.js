@@ -102,6 +102,16 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
     }
 
     return allEmployees
+      .filter((emp) => {
+        if (emp.role === 'owner' || emp.role === 'manager') return false;
+        const nLower = (emp.name || '').toLowerCase();
+        return (
+          !nLower.includes('chủ quán') &&
+          !nLower.includes('quản lý') &&
+          !nLower.includes('owner') &&
+          !nLower.includes('manager')
+        );
+      })
       .map((emp) => {
         // Tìm lịch của nhân viên này trong ngày (Khớp cả ID lẫn Tên nhân viên để chính xác 100%)
         const empScheds = daySchedules.filter(
