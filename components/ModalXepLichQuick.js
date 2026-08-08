@@ -160,41 +160,131 @@ export default function ModalXepLichQuick({
             <label className="block text-xs font-black text-purple-900 uppercase mb-1.5">
               Nhân viên
             </label>
-            <select
-              value={selectedEmpId}
-              onChange={(e) => setSelectedEmpId(e.target.value)}
-              required
-              className="w-full px-3.5 py-2.5 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none focus:border-purple-600 cursor-pointer shadow-2xs"
-            >
-              <option value="" disabled className="text-purple-600 font-bold">-- Bấm để chọn nhân viên --</option>
-
+            <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {/* Nhóm 1: Nhân viên ĐÃ ĐĂNG KÝ LÀM */}
               {registeredEmps.length > 0 && (
-                <option disabled className="bg-purple-100 text-purple-950 font-black py-1">
-                  ─── ✨ NHÂN VIÊN ĐÃ ĐĂNG KÝ LÀM ───
-                </option>
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-black text-emerald-900 uppercase tracking-wider bg-emerald-100/70 px-2.5 py-1 rounded-xl border border-emerald-200">
+                    ✨ Nhân viên đã đăng ký làm ({registeredEmps.length})
+                  </div>
+                  {registeredEmps.map((a) => {
+                    const isSelected = selectedEmpId === a.employee_id;
+                    const empName = a.employees?.name || 'Nhân viên';
+                    const availNote = a.type === 'full' ? 'Làm Cả Ngày' : `Tùy chọn: ${a.note || 'Ca linh hoạt'}`;
+
+                    return (
+                      <div
+                        key={a.employee_id}
+                        onClick={() => setSelectedEmpId(a.employee_id)}
+                        className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? 'bg-purple-900 text-white border-purple-600 shadow-md scale-[1.01]'
+                            : 'bg-emerald-50/80 border-emerald-200 text-emerald-950 hover:bg-emerald-100/80'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
+                              isSelected ? 'bg-amber-400 text-purple-950' : 'bg-emerald-200 text-emerald-950'
+                            }`}
+                          >
+                            ✅
+                          </div>
+                          <div className="truncate">
+                            <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
+                              {empName}
+                            </div>
+                            <div className={`text-[10.5px] font-extrabold truncate ${isSelected ? 'text-amber-300' : 'text-emerald-800'}`}>
+                              {availNote}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex-shrink-0">
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+                              isSelected
+                                ? 'bg-amber-400 text-purple-950 shadow-2xs scale-110'
+                                : 'border-2 border-emerald-300 text-transparent'
+                            }`}
+                          >
+                            ✓
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-              {registeredEmps.map((a) => (
-                <option key={a.employee_id} value={a.employee_id} className="text-purple-950 font-bold bg-white">
-                  ✅ {a.employees?.name} ({a.type === 'full' ? 'Làm Cả Ngày' : `Tùy chọn: ${a.note || 'Ca linh hoạt'}`})
-                </option>
-              ))}
 
               {/* Nhóm 2: Nhân viên CHƯA ĐĂNG KÝ hoặc XIN NGHỈ */}
-              <option disabled className="bg-purple-100 text-purple-950 font-black py-1">
-                ─── 👥 NHÂN VIÊN CHƯA ĐĂNG KÝ / XIN NGHỈ ───
-              </option>
-              {employees
-                .filter((e) => !registeredEmps.some((r) => r.employee_id === e.id))
-                .map((e) => {
-                  const isOff = offEmps.some((o) => o.employee_id === e.id);
-                  return (
-                    <option key={e.id} value={e.id} className="text-purple-950 font-bold bg-white">
-                      {isOff ? `🛑 ${e.name} (Xin Nghỉ)` : `👤 ${e.name} (Chưa đăng ký ca)`}
-                    </option>
-                  );
-                })}
-            </select>
+              {(() => {
+                const otherEmps = employees.filter((e) => !registeredEmps.some((r) => r.employee_id === e.id));
+                if (otherEmps.length === 0) return null;
+
+                return (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-[11px] font-black text-purple-900 uppercase tracking-wider bg-purple-100/70 px-2.5 py-1 rounded-xl border border-purple-200">
+                      👥 Nhân viên khác ({otherEmps.length})
+                    </div>
+                    {otherEmps.map((e) => {
+                      const isSelected = selectedEmpId === e.id;
+                      const isOff = offEmps.some((o) => o.employee_id === e.id);
+
+                      return (
+                        <div
+                          key={e.id}
+                          onClick={() => setSelectedEmpId(e.id)}
+                          className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-purple-900 text-white border-purple-600 shadow-md scale-[1.01]'
+                              : isOff
+                              ? 'bg-rose-50/70 border-rose-200 text-rose-950 hover:bg-rose-100/70'
+                              : 'bg-purple-50/70 border-purple-200 text-purple-950 hover:bg-purple-100/70'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
+                                isSelected
+                                  ? 'bg-amber-400 text-purple-950'
+                                  : isOff
+                                  ? 'bg-rose-200 text-rose-950'
+                                  : 'bg-purple-200 text-purple-950'
+                              }`}
+                            >
+                              {isOff ? '🛑' : '👤'}
+                            </div>
+                            <div className="truncate">
+                              <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
+                                {e.name}
+                              </div>
+                              <div className={`text-[10.5px] font-extrabold truncate ${
+                                isSelected ? 'text-amber-300' : isOff ? 'text-rose-700' : 'text-purple-700'
+                              }`}>
+                                {isOff ? 'Xin Nghỉ' : 'Chưa đăng ký ca'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex-shrink-0">
+                            <span
+                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+                                isSelected
+                                  ? 'bg-amber-400 text-purple-950 shadow-2xs scale-110'
+                                  : 'border-2 border-purple-300 text-transparent'
+                              }`}
+                            >
+                              ✓
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
 
             {/* Hộp Thông Tin & Ghi Chú Đăng Ký Của Nhân Viên Được Chọn */}
             {selectedEmpId && (() => {

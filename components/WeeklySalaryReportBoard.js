@@ -7,6 +7,7 @@ import {
   getEmployeeRates,
   calculateSalaryFromShifts,
   updateEmployeesSortOrders,
+  getAllPenaltiesByMonth,
 } from '@/lib/supabase';
 import {
   formatCurrency,
@@ -56,6 +57,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
   const [monthSchedule, setMonthSchedule] = useState([]);
   const [branches, setBranches] = useState([]);
   const [ratesMap, setRatesMap] = useState({});
+  const [penaltiesMap, setPenaltiesMap] = useState({});
   const [loading, setLoading] = useState(true);
 
   const weekDays = useMemo(() => getWeekDaysFromMonday(currentMonday), [currentMonday]);
@@ -78,14 +80,23 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
   async function loadWeekSalaryData() {
     setLoading(true);
     try {
-      const [schedData, monthSchedData, branchData] = await Promise.all([
+      const [schedData, monthSchedData, branchData, allPenalties] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getScheduleByDateRange(monthStartDate, monthEndDate),
         getBranches(),
+        getAllPenaltiesByMonth(selectedMonth),
       ]);
       setSchedule(schedData);
       setMonthSchedule(monthSchedData || []);
       setBranches(branchData || []);
+
+      // Tạo map thưởng/phạt theo employee_id
+      const pMap = {};
+      (allPenalties || []).forEach((p) => {
+        if (!pMap[p.employee_id]) pMap[p.employee_id] = [];
+        pMap[p.employee_id].push(p);
+      });
+      setPenaltiesMap(pMap);
 
       // Tải mốc tăng lương cho tất cả nhân viên
       const ratesPromises = employees.map((emp) =>
@@ -174,10 +185,12 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
   }, [monthSchedule, selectedMonth]);
 
   // Tính tổng lương tháng cho từng nhân viên & toàn bộ nhân viên
-  const { empMonthlyTotals, grandTotalMonthlySalary, grandTotalMonthlyHours } = useMemo(() => {
+  const { empMonthlyTotals, grandTotalMonthlySalary, grandTotalMonthlyHours, grandTotalMonthlyBonus, grandTotalMonthlyPenalty, grandTotalMonthlyNet } = useMemo(() => {
     const empTotals = {};
     let totalSal = 0;
     let totalHrs = 0;
+    let totalBon = 0;
+    let totalPen = 0;
 
     const [y, m] = selectedMonth.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
@@ -199,22 +212,45 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
         defaultRate
       );
 
+      // Tính thưởng & phạt cho nhân viên này
+      let empBonus = 0;
+      let empPenalty = 0;
+      const empPenalties = penaltiesMap[emp.id] || [];
+      empPenalties.forEach((p) => {
+        const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+        if (isBonus) {
+          empBonus += Math.abs(p.amount);
+        } else {
+          empPenalty += Math.abs(p.amount);
+        }
+      });
+
+      const netSalary = grossSalary + empBonus - empPenalty;
+
       empTotals[emp.id] = {
         totalHours,
         grossSalary,
         shiftCount: empShifts.length,
+        totalBonus: empBonus,
+        totalPenalty: empPenalty,
+        netSalary,
       };
 
       totalSal += grossSalary;
       totalHrs += totalHours;
+      totalBon += empBonus;
+      totalPen += empPenalty;
     });
 
     return {
       empMonthlyTotals: empTotals,
       grandTotalMonthlySalary: totalSal,
       grandTotalMonthlyHours: totalHrs,
+      grandTotalMonthlyBonus: totalBon,
+      grandTotalMonthlyPenalty: totalPen,
+      grandTotalMonthlyNet: totalSal + totalBon - totalPen,
     };
-  }, [sortedEmployees, monthScheduleByEmpAndDate, ratesMap, selectedMonth]);
+  }, [sortedEmployees, monthScheduleByEmpAndDate, ratesMap, selectedMonth, penaltiesMap]);
 
   // Index map dữ liệu ca làm theo employeeId_date
   const scheduleByEmpAndDate = useMemo(() => {
@@ -341,8 +377,8 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
               <th className="py-2.5 px-2 text-center font-black uppercase text-emerald-300 text-xs bg-purple-950 w-32">
                 💵 LƯƠNG TUẦN
               </th>
-              <th className="py-2.5 px-2 text-center font-black uppercase text-amber-300 text-xs bg-purple-950 w-36 border-l-2 border-amber-400">
-                💰 LƯƠNG THÁNG ({selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]})
+              <th className="py-2.5 px-2 text-center font-black uppercase text-amber-300 text-xs bg-purple-950 w-44 border-l-2 border-amber-400">
+                💰 THỰC NHẬN THÁNG ({selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]})
               </th>
             </tr>
           </thead>
@@ -368,7 +404,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                   const currentWeeklyRate = getEffectiveRateForDate(emp, empRates, endDate);
 
                   const empTotals = empWeeklyTotals[emp.id] || { totalHours: 0, grossSalary: 0, shiftCount: 0 };
-                  const empMTotal = empMonthlyTotals[emp.id] || { totalHours: 0, grossSalary: 0, shiftCount: 0 };
+                  const empMTotal = empMonthlyTotals[emp.id] || { totalHours: 0, grossSalary: 0, shiftCount: 0, totalBonus: 0, totalPenalty: 0, netSalary: 0 };
 
                   const isOffWeek = empShiftsThisWeek.length === 0;
                   const rowBgClass = isOffWeek ? 'bg-rose-50/40' : 'bg-white';
@@ -445,11 +481,17 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                         </div>
                       </td>
 
-                      {/* CỘT NỔI BẬT LƯƠNG THÁNG CẠNH BÊN: VỪA VẶN KHÔNG BỊ TRÀN HAY CHE KHUẤT */}
+                      {/* CỘT NỔI BẬT LƯƠNG THÁNG (THỰC NHẬN = LƯƠNG CA + THƯỞNG - PHẠT) */}
                       <td className="py-2 px-1 text-center align-middle bg-amber-50/70 border-l-2 border-amber-400">
                         <div className="p-1.5 rounded-2xl bg-amber-500 text-purple-950 font-black shadow-xs space-y-0.5 border border-amber-400">
-                          <div className="text-xs font-black tracking-tight">{formatCurrency(empMTotal.grossSalary)}</div>
+                          <div className="text-xs font-black tracking-tight">{formatCurrency(empMTotal.netSalary)}</div>
                           <div className="text-[9.5px] font-extrabold text-purple-900">({empMTotal.totalHours}h • {empMTotal.shiftCount} ca)</div>
+                          {(empMTotal.totalBonus > 0 || empMTotal.totalPenalty > 0) && (
+                            <div className="flex items-center justify-center gap-1 text-[9px] pt-0.5 border-t border-amber-400/60 font-bold">
+                              {empMTotal.totalBonus > 0 && <span className="text-emerald-900 font-extrabold">🎁+{formatCurrency(empMTotal.totalBonus)}</span>}
+                              {empMTotal.totalPenalty > 0 && <span className="text-rose-900 font-extrabold">⚠️-{formatCurrency(empMTotal.totalPenalty)}</span>}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -470,9 +512,9 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                       const empRates = ratesMap[shift.employee_id] || [];
                       const emp = sortedEmployees.find((e) => e.id === shift.employee_id);
                       const defaultRate = emp?.hourly_rate || 20000;
-                      const { grossSalary } = calculateSalaryFromShifts([shift], empRates, defaultRate);
+                      const { grossSalary, totalHours: shiftHrs } = calculateSalaryFromShifts([shift], empRates, defaultRate);
                       daySal += grossSalary;
-                      dayHrs += (shift.hours || 5);
+                      dayHrs += shiftHrs;
                     });
 
                     return (
@@ -487,8 +529,14 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                     <div className="text-[10px] font-extrabold text-purple-200">({grandTotalHours}h)</div>
                   </td>
                   <td className="py-3 px-3 text-center bg-amber-600 border-l-4 border-amber-400">
-                    <div className="text-xs sm:text-sm font-black text-white">{formatCurrency(grandTotalMonthlySalary)}</div>
+                    <div className="text-xs sm:text-sm font-black text-white">{formatCurrency(grandTotalMonthlyNet)}</div>
                     <div className="text-[10px] font-extrabold text-amber-100">({grandTotalMonthlyHours}h)</div>
+                    {(grandTotalMonthlyBonus > 0 || grandTotalMonthlyPenalty > 0) && (
+                      <div className="flex items-center justify-center gap-1 text-[9.5px] pt-0.5 font-bold">
+                        {grandTotalMonthlyBonus > 0 && <span className="text-emerald-200">🎁+{formatCurrency(grandTotalMonthlyBonus)}</span>}
+                        {grandTotalMonthlyPenalty > 0 && <span className="text-rose-200">⚠️-{formatCurrency(grandTotalMonthlyPenalty)}</span>}
+                      </div>
+                    )}
                   </td>
                 </tr>
               </>

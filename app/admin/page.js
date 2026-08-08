@@ -113,6 +113,7 @@ function AdminContent() {
   // Penalty & Bonus form
   const [penaltyAmount, setPenaltyAmount] = useState('');
   const [penaltyReason, setPenaltyReason] = useState('');
+  const [penaltyDate, setPenaltyDate] = useState(getToday());
   const [recordType, setRecordType] = useState('bonus'); // 'bonus' | 'penalty'
 
   // Name, Rate, PIN & Start Date edit
@@ -272,12 +273,22 @@ function AdminContent() {
     setAddEmpPin(pin);
   }
 
-  // Lọc danh sách NHÂN VIÊN PHỤC VỤ & BẾP (loại bỏ hoàn toàn tài khoản Chủ Quán & Quản Lý)
+  // Lọc danh sách NHÂN VIÊN PHỤC VỤ & BẾP (loại bỏ hoàn toàn tài khoản Chủ Quán & Quản Lý / Owner & Manager)
   const staffEmployees = useMemo(() => {
     if (!employees) return [];
-    return employees.filter(
-      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý')
-    );
+    return employees.filter((e) => {
+      if (e.role === 'owner' || e.role === 'manager') return false;
+      const nLower = (e.name || '').toLowerCase();
+      if (
+        nLower.includes('chủ quán') ||
+        nLower.includes('quản lý') ||
+        nLower.includes('owner') ||
+        nLower.includes('manager')
+      ) {
+        return false;
+      }
+      return true;
+    });
   }, [employees]);
 
   // Phân chia nhân viên thành 2 nhóm độc lập: Đang Làm & Đã Nghỉ Việc
@@ -460,8 +471,14 @@ function AdminContent() {
       ]);
       setEmployees(empData);
       setBranches(branchData);
-      if (empData.length > 0 && !selectedEmployee) {
-        setSelectedEmployee(empData[0]);
+      // Lọc bỏ Owner/Manager ngay từ đầu khi chọn nhân viên mặc định
+      const filteredStaff = (empData || []).filter((e) => {
+        if (e.role === 'owner' || e.role === 'manager') return false;
+        const nLower = (e.name || '').toLowerCase();
+        return !nLower.includes('chủ quán') && !nLower.includes('quản lý') && !nLower.includes('owner') && !nLower.includes('manager');
+      });
+      if (filteredStaff.length > 0 && !selectedEmployee) {
+        setSelectedEmployee(filteredStaff[0]);
       }
     } catch (err) {
       console.error(err);
@@ -620,22 +637,28 @@ function AdminContent() {
         ? cleanReason
         : `${prefix} ${cleanReason}`;
 
+      const targetMonth = penaltyDate ? penaltyDate.slice(0, 7) : selectedMonth;
+
       await createPenalty({
         employee_id: selectedEmployee.id,
-        month: selectedMonth,
+        month: targetMonth,
+        date: penaltyDate || getToday(),
         amount,
         type: isBonus ? 'bonus' : 'penalty',
         reason: finalReason,
       });
 
+      const formattedDate = penaltyDate ? penaltyDate.split('-').reverse().join('/') : '';
+
       if (isBonus) {
-        toast.success('Đã thêm thưởng!', `🎁 +${formatCurrency(amount)} - ${cleanReason}`);
+        toast.success('Đã thêm thưởng!', `🎁 +${formatCurrency(amount)} - ${cleanReason} (${formattedDate})`);
       } else {
-        toast.warning('Đã thêm phạt!', `⚠️ -${formatCurrency(amount)} - ${cleanReason}`);
+        toast.warning('Đã thêm phạt!', `⚠️ -${formatCurrency(amount)} - ${cleanReason} (${formattedDate})`);
       }
 
       setPenaltyAmount('');
       setPenaltyReason('');
+      setPenaltyDate(getToday());
       loadEmployeeData();
     } catch (err) {
       console.error('handleAddPenalty error:', err);
@@ -1721,23 +1744,49 @@ function AdminContent() {
                       </div>
                     </div>
 
-                    {/* Ô chọn nhân viên trực tiếp */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-purple-900 font-black uppercase">Nhân viên:</span>
-                      <select
-                        value={selectedEmployee.id}
-                        onChange={(e) => {
-                          const emp = employees.find((em) => em.id === e.target.value);
-                          if (emp) setSelectedEmployee(emp);
-                        }}
-                        className="px-4 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none cursor-pointer focus:border-purple-600 shadow-2xs"
-                      >
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={emp.id}>
-                            👤 {emp.name}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Bộ chọn Tháng & Bộ chọn Nhân viên trực tiếp */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Bộ điều hướng tháng tiện lợi */}
+                      <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-2xl border border-purple-200 shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={prevMonth}
+                          className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer text-xs active:scale-95 shadow-2xs transition-all"
+                          title="Tháng trước"
+                        >
+                          ◀
+                        </button>
+                        <span className="font-black text-xs sm:text-sm text-purple-950 px-1 min-w-[100px] text-center">
+                          {getMonthName(selectedMonth)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={nextMonth}
+                          className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer text-xs active:scale-95 shadow-2xs transition-all"
+                          title="Tháng sau"
+                        >
+                          ▶
+                        </button>
+                      </div>
+
+                      {/* Ô chọn nhân viên trực tiếp */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-purple-900 font-black uppercase">Nhân viên:</span>
+                        <select
+                          value={selectedEmployee.id}
+                          onChange={(e) => {
+                            const emp = staffEmployees.find((em) => em.id === e.target.value);
+                            if (emp) setSelectedEmployee(emp);
+                          }}
+                          className="px-4 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none cursor-pointer focus:border-purple-600 shadow-2xs"
+                        >
+                          {staffEmployees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              👤 {emp.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -1773,29 +1822,35 @@ function AdminContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                       <div>
-                        <label className="block text-xs font-black text-purple-900 uppercase mb-2">
+                        <label className="block text-xs font-black text-purple-900 uppercase mb-1.5">
+                          📅 Ngày Áp Dụng
+                        </label>
+                        <VnDatePicker value={penaltyDate} onChange={setPenaltyDate} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-purple-900 uppercase mb-1.5">
                           Số tiền (VNĐ)
                         </label>
                         <input
                           type="number"
                           value={penaltyAmount}
                           onChange={(e) => setPenaltyAmount(e.target.value)}
-                          placeholder={recordType === 'bonus' ? 'VD: 100000 (Thưởng)' : 'VD: 50000 (Phạt)'}
-                          className="w-full px-4 py-3 bg-white border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400"
+                          placeholder={recordType === 'bonus' ? 'VD: 100000' : 'VD: 50000'}
+                          className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400 h-[38px]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-black text-purple-900 uppercase mb-2">
+                        <label className="block text-xs font-black text-purple-900 uppercase mb-1.5">
                           Lý do
                         </label>
                         <input
                           type="text"
                           value={penaltyReason}
                           onChange={(e) => setPenaltyReason(e.target.value)}
-                          placeholder={recordType === 'bonus' ? 'VD: Thưởng làm tốt, doanh số...' : 'VD: Đi trễ 20 phút, vi phạm...'}
-                          className="w-full px-4 py-3 bg-white border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400"
+                          placeholder={recordType === 'bonus' ? 'VD: Làm tốt, doanh số...' : 'VD: Đi trễ, vi phạm...'}
+                          className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400 h-[38px]"
                         />
                       </div>
                       <div className="flex items-end">
@@ -1803,7 +1858,7 @@ function AdminContent() {
                           type="button"
                           onClick={handleAddPenalty}
                           disabled={!penaltyAmount || !penaltyReason.trim()}
-                          className={`w-full py-3 rounded-xl font-black text-sm cursor-pointer border-0 shadow-2xs transition-all active:scale-95 ${recordType === 'bonus'
+                          className={`w-full py-2.5 rounded-xl font-black text-xs sm:text-sm cursor-pointer border-0 shadow-2xs transition-all active:scale-95 h-[38px] ${recordType === 'bonus'
                             ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                             : 'bg-rose-600 hover:bg-rose-700 text-white'
                             }`}
@@ -1829,6 +1884,15 @@ function AdminContent() {
                           const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
                           const displayReason = p.reason ? p.reason.replace('[THƯỞNG] ', '') : '';
 
+                          // Format ngày áp dụng và thời gian ghi nhận (created_at)
+                          const effectiveDateStr = p.date
+                            ? formatDateFull(p.date)
+                            : (p.created_at ? formatDateFull(p.created_at.slice(0, 10)) : 'Chưa rõ');
+
+                          const createdAtFormatted = p.created_at
+                            ? `${new Date(p.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} • ${formatDateFull(p.created_at.slice(0, 10))}`
+                            : null;
+
                           return (
                             <div
                               key={p.id}
@@ -1837,15 +1901,25 @@ function AdminContent() {
                                 : 'bg-rose-50 border-rose-200'
                                 }`}
                             >
-                              <div className="flex items-center gap-3">
-                                <span className="text-xl">{isBonus ? '🎁' : '⚠️'}</span>
-                                <div>
+                              <div className="flex items-start gap-3">
+                                <span className="text-2xl mt-0.5">{isBonus ? '🎁' : '⚠️'}</span>
+                                <div className="space-y-1">
                                   <div className={`font-black text-sm ${isBonus ? 'text-emerald-950' : 'text-rose-950'}`}>
                                     {displayReason}
                                   </div>
-                                  <span className={`text-[11px] font-extrabold ${isBonus ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                    {isBonus ? 'Khoản Thưởng' : 'Khoản Phạt'}
-                                  </span>
+                                  <div className="flex items-center gap-2 flex-wrap text-[11px] font-extrabold">
+                                    <span className={`px-2 py-0.5 rounded-md ${isBonus ? 'bg-emerald-200/70 text-emerald-900 border border-emerald-300' : 'bg-rose-200/70 text-rose-900 border border-rose-300'}`}>
+                                      {isBonus ? 'Khoản Thưởng' : 'Khoản Phạt'}
+                                    </span>
+                                    <span className="text-purple-900 font-bold bg-white/80 px-2 py-0.5 rounded-md border border-purple-200">
+                                      📅 Ngày áp dụng: <strong>{effectiveDateStr}</strong>
+                                    </span>
+                                    {createdAtFormatted && (
+                                      <span className="text-purple-700 font-medium">
+                                        🕒 Tạo lúc: {createdAtFormatted}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
 

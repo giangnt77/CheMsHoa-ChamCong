@@ -54,6 +54,38 @@ function formatBranchDisplayName(name = '') {
   return n;
 }
 
+function formatAvailTextForView(empAvail, isReadOnly) {
+  if (!empAvail) return null;
+
+  if (empAvail.type === 'full') {
+    return '💪 Cả ngày';
+  }
+
+  if (empAvail.type === 'off') {
+    // Phía Admin (isReadOnly === false): Hiện chi tiết ghi chú xin nghỉ
+    if (!isReadOnly && empAvail.note) {
+      return `🔴 ${empAvail.note}`;
+    }
+    // Phía Nhân Viên (isReadOnly === true): Ẩn 100% lý do riêng tư, chỉ hiện "Xin nghỉ"!
+    return '🔴 Xin nghỉ';
+  }
+
+  // Loại 'option' (Tùy ca):
+  const rawNote = (empAvail.note || '').trim();
+  const isOnlyHours = /^\d{1,2}h?(\d{2})?\s*-\s*\d{1,2}h?(\d{2})?$/i.test(rawNote) || /^\d{1,2}h\s*-\s*\d{1,2}h$/i.test(rawNote);
+
+  if (isReadOnly) {
+    // Phía Nhân Viên: Giữ mốc giờ sạch (VD: "9h-17h"). Nếu là lý do chữ cá nhân ("bận học", "thứ 2 em xin...") -> Hiện "📝 Tùy ca"!
+    if (isOnlyHours) {
+      return `📝 ${rawNote}`;
+    }
+    return '📝 Tùy ca';
+  }
+
+  // Phía Admin: Hiện đầy đủ ghi chú
+  return `📝 ${rawNote || 'Tùy ca'}`;
+}
+
 import ModalSortEmployees from './ModalSortEmployees';
 import ModalBlockOffDays from './ModalBlockOffDays';
 
@@ -873,7 +905,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                     <div className="text-xs font-black opacity-95 mt-0.5">
                                       {branchDisplayName}
                                     </div>
-                                    {shift.note && (
+                                    {!readOnly && shift.note && (
                                       <div className="text-[10px] font-extrabold italic opacity-90 truncate max-w-[110px] mx-auto mt-0.5" title={shift.note}>
                                         📝 {shift.note}
                                       </div>
@@ -883,9 +915,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                               })}
                             </div>
                           ) : (
-                            /* Ô Ngày Trống / Không có ca -> Hiện chữ OFF & Ghi Chú Rút Gọn Cực Đẹp */
+                            /* Ô Ngày Trống / Không có ca -> Bên phía Nhân Viên (readOnly === true) CHỈ HIỆN CHỮ "OFF" MÀU ĐỎ, Phía Admin mới hiện thông tin Đăng ký rảnh */
                             <div className="py-1 text-center space-y-1 overflow-hidden">
-                              {empAvail ? (
+                              {readOnly ? (
+                                <span className="text-rose-600 font-black text-[11px] uppercase px-2.5 py-0.5 rounded-md bg-rose-50 border border-rose-200 inline-block shadow-2xs">
+                                  OFF
+                                </span>
+                              ) : empAvail ? (
                                 <div
                                   className="text-[11px] font-black text-purple-700 truncate max-w-[115px] mx-auto px-1"
                                   title={empAvail.type === 'off' && empAvail.note ? `Xin nghỉ: ${empAvail.note}` : empAvail.note || ''}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getEmployees, getScheduleByDateRange, createShiftSwap } from '@/lib/supabase';
-import { getToday, formatDateFull, formatDateWithDayVN, calculateHours, sendTelegramNotification } from '@/lib/utils';
+import { getToday, formatDateFull, formatDateWithDayVN, calculateHours, sendTelegramNotification, getInitials } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
 export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
@@ -332,29 +332,56 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
               {availableEmployees.length > 0 ? (
                 <div className="space-y-2">
-                  <select
-                    value={targetEmpId}
-                    onChange={(e) => setTargetEmpId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border-2 border-purple-300 focus:border-purple-700 rounded-2xl text-purple-950 text-sm font-black outline-none shadow-2xs cursor-pointer"
-                  >
-                    {availableEmployees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} — {emp.shiftSummary}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="max-h-[240px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {availableEmployees.map((emp) => {
+                      const isSelected = targetEmpId === emp.id;
+                      const isFreeAllDay = emp.shiftSummary.includes('Rảnh trọn ngày') || emp.shiftSummary.includes('🟢');
 
-                  {/* Thẻ hiển thị tóm tắt thông tin người đang chọn */}
-                  {selectedTargetEmp && (
-                    <div className="p-3 bg-orange-50/90 rounded-2xl border border-orange-200 text-xs space-y-1">
-                      <p className="font-black text-orange-950">
-                        👤 Đang chọn: <span className="text-orange-700 font-black">{selectedTargetEmp.name}</span>
-                      </p>
-                      <p className="text-[11px] text-orange-900 font-bold">
-                        ⏱️ Trạng thái: <span className="text-emerald-700 font-black">{selectedTargetEmp.shiftSummary}</span>
-                      </p>
-                    </div>
-                  )}
+                      return (
+                        <div
+                          key={emp.id}
+                          onClick={() => setTargetEmpId(emp.id)}
+                          className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-purple-900 text-white border-purple-600 shadow-md scale-[1.01]'
+                              : isFreeAllDay
+                              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950 hover:bg-emerald-100/80'
+                              : 'bg-purple-50/70 border-purple-200 text-purple-950 hover:bg-purple-100/70'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
+                                isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-200 text-purple-950'
+                              }`}
+                            >
+                              {getInitials(emp.name)}
+                            </div>
+                            <div className="truncate">
+                              <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
+                                {emp.name}
+                              </div>
+                              <div className={`text-[11px] font-extrabold truncate ${isSelected ? 'text-amber-300' : 'text-purple-700'}`}>
+                                {emp.shiftSummary}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex-shrink-0">
+                            <span
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black transition-all ${
+                                isSelected
+                                  ? 'bg-amber-400 text-purple-950 shadow-2xs scale-110'
+                                  : 'border-2 border-purple-300 text-transparent'
+                              }`}
+                            >
+                              ✓
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-center text-rose-800 text-xs font-bold space-y-1">
