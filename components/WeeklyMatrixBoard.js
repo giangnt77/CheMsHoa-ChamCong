@@ -1034,7 +1034,97 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         </table>
       </div>
 
+      {/* =========================================================================
+         BẢNG RIÊNG 1: DANH SÁCH NHÂN VIÊN XIN OFF (TẠM NGHỈ VÀI NGÀY) - CHỈ ADMIN HIỂN THỊ
+         ========================================================================= */}
+      {!readOnly && shortLeaveEmployees.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-amber-200/90 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="font-black text-xs sm:text-sm text-amber-950 flex items-center gap-2">
+              <span>🟡</span> Danh Sách Nhân Viên Xin Off ({shortLeaveEmployees.length} nhân viên)
+            </h3>
+            <span className="text-[11px] font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+              Tạm off vài ngày trong tuần
+            </span>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {shortLeaveEmployees.map(({ employee: emp, reason, offDaysCount }) => (
+              <div
+                key={emp.id}
+                className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 flex items-center justify-between gap-2 shadow-2xs"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-sm text-purple-950 truncate">{emp.name}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-amber-100 text-amber-900 border border-amber-300 flex-shrink-0">
+                      🟡 {reason}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-extrabold text-amber-800 mt-1">
+                    🗓️ Đã xin off: {offDaysCount > 0 ? `${offDaysCount}/7 ngày tuần này` : 'Tạm off'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openCellModal(emp, startDate)}
+                  className="px-2.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex-shrink-0"
+                  title="Xếp lịch làm cho nhân viên này"
+                >
+                  + Xếp lịch
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+         BẢNG RIÊNG 2: DANH SÁCH NHÂN VIÊN NGHỈ VIỆC (NGỪNG LÀM / OFF LUÔN) - CHỈ ADMIN HIỂN THỊ
+         ========================================================================= */}
+      {!readOnly && permanentOffEmployees.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-rose-200/90 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="font-black text-xs sm:text-sm text-rose-950 flex items-center gap-2">
+              <span>🔴</span> Danh Sách Nhân Viên Nghỉ Việc ({permanentOffEmployees.length} nhân viên)
+            </h3>
+            <span className="text-[11px] font-extrabold text-rose-800 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
+              Nghỉ luôn / Ngừng làm
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {permanentOffEmployees.map(({ employee: emp, reason }) => (
+              <div
+                key={emp.id}
+                className="p-3 rounded-xl bg-rose-50/80 border border-rose-200 flex items-center justify-between gap-2 shadow-2xs"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-sm text-purple-950 truncate">{emp.name}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-black bg-rose-100 text-rose-900 border border-rose-300 flex-shrink-0">
+                      🔴 {reason}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-extrabold text-rose-800 mt-1">
+                    ⛔ Đã nghỉ việc / ngưng xếp lịch
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openCellModal(emp, startDate)}
+                  className="px-2.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex-shrink-0"
+                  title="Xếp lịch làm cho nhân viên này"
+                >
+                  + Xếp lịch
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* MODAL XẾP LỊCH QUICK KHI BẤM VÀO Ô BẤT KỲ */}
       {modalState.isOpen && (
