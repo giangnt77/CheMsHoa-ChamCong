@@ -668,7 +668,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
 
-  // Tải trực tiếp FILE ẢNH PNG (Độ phân giải 2K sắc nét 100%, 0% LỖI LAB MÀU, 1 BỨC HÌNH DUY NHẤT ĐẸP LUNG LINH)
+  // Tải trực tiếp FILE ẢNH PNG (Độ phân giải 2K sắc nét 100%, RẮC GỌN VỪA KHÍT TỈ LỆ, CHỮ RÕ NẾT ĐẸP MẮT)
   async function handleDownloadImage() {
     if (typeof window === 'undefined') return;
     setIsExportingPDF(true);
@@ -676,9 +676,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
     try {
       const tableHeaderDays = weekDays.map((dStr, idx) => `
-        <th style="padding: 8px 4px; border: 1px solid #cbd5e1; background-color: #581c87; color: #ffffff; text-align: center; font-size: 11px; font-weight: bold; width: 11.5%;">
-          <div style="color: #ffffff; font-weight: 900; font-size: 12px;">${DAY_LABELS[idx]}</div>
-          <div style="font-size: 10px; opacity: 0.9; color: #e9d5ff; font-weight: normal; margin-top: 2px;">${dStr.split('-').reverse().slice(0, 2).join('/')}</div>
+        <th style="padding: 7px 4px; border: 1.5px solid #a855f7; background-color: #581c87; color: #ffffff; text-align: center; font-size: 12.5px; font-weight: 900; width: 11.8%;">
+          <div style="color: #ffffff; font-weight: 900; font-size: 13px; text-transform: uppercase;">${DAY_LABELS[idx]}</div>
+          <div style="font-size: 10px; opacity: 0.95; color: #f3e8ff; font-weight: 700; margin-top: 1px;">${dStr.split('-').reverse().slice(0, 2).join('/')}</div>
         </th>
       `).join('');
 
@@ -688,7 +688,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           const empShifts = scheduleByEmpAndDate[`${emp.id}_${dStr}`] || [];
           const empAvail = availByEmpAndDate[`${emp.id}_${dStr}`];
 
-          let cellContent = '<span style="color: #94a3b8; font-size: 10px;">—</span>';
+          let cellContent = '<span style="color: #cbd5e1; font-size: 13px; font-weight: bold; text-align: center;">—</span>';
 
           if (empShifts.length > 0) {
             cellContent = empShifts.map((shift) => {
@@ -696,33 +696,32 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               const startTimeStr = shift.start_time ? shift.start_time.slice(0, 5) : '09:00';
               const endTimeStr = shift.end_time ? shift.end_time.slice(0, 5) : '14:00';
               const branchDisplayName = formatBranchDisplayName(shift.branches?.name);
-
+              
               const bgHex = style.badgeStyle?.backgroundColor || '#f3e8ff';
               const colorHex = style.badgeStyle?.color || '#581c87';
 
               return `
-                <div style="background-color: ${bgHex}; color: ${colorHex}; padding: 4px 3px; border-radius: 6px; font-size: 10.5px; font-weight: 900; margin-bottom: 2px; text-align: center; border: 1px solid rgba(0,0,0,0.15); line-height: 1.2;">
-                  <div style="font-size: 10.5px; font-weight: 900;">${startTimeStr}-${endTimeStr}</div>
-                  <div style="font-size: 9px; opacity: 0.95; font-weight: 800; margin-top: 1px;">${branchDisplayName}</div>
+                <div style="background-color: ${bgHex}; color: ${colorHex}; border-radius: 6px; padding: 5px 2px 4px 2px; text-align: center; border: 1px solid rgba(0,0,0,0.15); box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-family: Arial, sans-serif; box-sizing: border-box; width: 100%; display: block;">
+                  <span style="font-size: 11.5px; font-weight: 900; color: ${colorHex}; display: inline-block; line-height: 1; letter-spacing: -0.2px;">${startTimeStr}-${endTimeStr}</span><br/><span style="font-size: 10px; font-weight: 900; color: ${colorHex}; display: inline-block; line-height: 1; margin-top: 3px; text-transform: uppercase;">${branchDisplayName}</span>
                 </div>
               `;
             }).join('');
           } else if (empAvail?.is_admin_assigned) {
             cellContent = `
-              <div style="background-color: #fff1f2; color: #e11d48; padding: 4px 3px; border-radius: 6px; font-size: 10px; font-weight: 900; text-align: center; border: 1px solid #fecdd3; line-height: 1.2;">
+              <div style="background-color: #fff1f2; color: #e11d48; border-radius: 6px; padding: 6px 2px; font-size: 11px; font-weight: 900; text-align: center; border: 1px solid #fecdd3; font-family: Arial, sans-serif; box-sizing: border-box; width: 100%; display: block; line-height: 1;">
                 🛑 OFF
               </div>
             `;
           }
 
-          return `<td style="padding: 4px 2px; border: 1px solid #e2e8f0; text-align: center; vertical-align: middle;">${cellContent}</td>`;
+          return `<td style="padding: 3px 3px; border: 1px solid #e9d5ff; text-align: center; vertical-align: middle;">${cellContent}</td>`;
         }).join('');
 
         return `
           <tr style="background-color: ${rowBg};">
-            <td style="padding: 6px 8px; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 900; color: #1e1b4b; text-align: left; white-space: nowrap;">
-              <span style="color: #6b21a8; font-size: 10px; margin-right: 4px;">${idx + 1}.</span>
-              ${emp.name}
+            <td style="padding: 4px 8px; border: 1px solid #e9d5ff; font-size: 12px; font-weight: 900; color: #1e1b4b; text-align: left; white-space: nowrap; vertical-align: middle; font-family: Arial, sans-serif;">
+              <span style="color: #7e22ce; font-size: 10.5px; margin-right: 5px; font-weight: 900;">${idx + 1}.</span>
+              <span style="font-weight: 900; color: #1e1b4b;">${emp.name}</span>
             </td>
             ${cells}
           </tr>
@@ -731,27 +730,27 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
       const tempElement = document.createElement('div');
       tempElement.style.backgroundColor = '#ffffff';
-      tempElement.style.padding = '20px 24px';
-      tempElement.style.fontFamily = 'Arial, sans-serif';
+      tempElement.style.padding = '18px 22px';
+      tempElement.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       tempElement.style.color = '#1e1b4b';
-      tempElement.style.width = '1200px';
+      tempElement.style.width = '1280px';
       tempElement.style.margin = '0 auto';
       tempElement.style.boxSizing = 'border-box';
 
       tempElement.innerHTML = `
-        <div style="text-align: center; margin-bottom: 14px; border-bottom: 3px solid #581c87; padding-bottom: 10px;">
-          <h2 style="font-size: 20px; font-weight: 900; color: #1e1b4b; margin: 0; text-transform: uppercase; letter-spacing: -0.5px;">
+        <div style="text-align: center; margin-bottom: 12px; border-bottom: 3px solid #581c87; padding-bottom: 8px;">
+          <h2 style="font-size: 21px; font-weight: 900; color: #1e1b4b; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">
             BẢNG PHÂN CÔNG LỊCH LÀM TUẦN
           </h2>
-          <p style="font-size: 13px; font-weight: bold; color: #6b21a8; margin: 4px 0 0 0;">
+          <p style="font-size: 12.5px; font-weight: 900; color: #6b21a8; margin: 4px 0 0 0;">
             Thời gian: Từ ngày ${startDate.split('-').reverse().join('/')} đến ngày ${endDate.split('-').reverse().join('/')}
           </p>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; background-color: #ffffff; font-size: 11px;">
+        <table style="width: 100%; border-collapse: collapse; background-color: #ffffff; table-layout: fixed;">
           <thead>
             <tr style="background-color: #581c87; color: #ffffff;">
-              <th style="padding: 8px 8px; border: 1px solid #cbd5e1; text-align: left; font-size: 11px; font-weight: 900; width: 195px;">
+              <th style="padding: 12px 12px; border: 1.5px solid #a855f7; text-align: left; font-size: 13px; font-weight: 900; width: 230px;">
                 STT / NHÂN VIÊN
               </th>
               ${tableHeaderDays}
@@ -933,8 +932,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                 }}
                 disabled={savingSort}
                 className={`px-3 py-1 rounded-xl text-[11px] sm:text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 border-0 ${isSortMode
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse shadow-md font-black'
-                    : 'bg-purple-700 hover:bg-purple-800 text-white font-black'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse shadow-md font-black'
+                  : 'bg-purple-700 hover:bg-purple-800 text-white font-black'
                   }`}
                 title={isSortMode ? 'Bấm để lưu thứ tự mới cho cả Admin & Nhân Viên' : 'Bấm để bật chế độ kéo thả sắp xếp nhân viên'}
               >
@@ -989,8 +988,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     key={dStr}
                     data-date={dStr}
                     className={`py-2.5 px-2 border-r border-purple-800 text-center font-black uppercase text-xs sm:text-sm transition-all ${isToday
-                        ? 'bg-amber-400 text-purple-950 font-black border-x-2 border-amber-500 shadow-inner'
-                        : 'text-amber-300'
+                      ? 'bg-amber-400 text-purple-950 font-black border-x-2 border-amber-500 shadow-inner'
+                      : 'text-amber-300'
                       }`}
                   >
                     <div className="flex items-center justify-center gap-1">
@@ -1048,8 +1047,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                       onTouchMove={(e) => !readOnly && isSortMode && handleDirectTouchMove(e)}
                       onTouchEnd={handleDirectTouchEnd}
                       className={`py-2 px-1 border-r-2 border-purple-300 font-black text-purple-950 text-[11px] sm:text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-20 sm:w-32 ${isSortMode
-                          ? 'cursor-grab active:cursor-grabbing bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
-                          : ''
+                        ? 'cursor-grab active:cursor-grabbing bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
+                        : ''
                         } ${draggedIdx === idx ? 'bg-purple-200/90 opacity-75 border-purple-500 shadow-xl scale-98' : ''}`}
                       title={isSortMode ? 'Đang bật Sắp Xếp: Chạm/Giữ kéo thả hàng này' : ''}
                     >
@@ -1374,8 +1373,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     <tbody>
                       {customMatrixOrder.map((emp, idx) => (
                         <tr key={emp.id} className={`border-b border-purple-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-purple-50/60'}`}>
-                          <td className="py-2 px-2 border-r border-purple-200 font-extrabold text-purple-950 text-xs">
-                            <span className="text-purple-600 font-bold text-[10px] mr-1.5">{idx + 1}.</span>
+                          <td className="py-1 px-2.5 border-r border-purple-200 font-black text-purple-950 text-xs whitespace-nowrap">
+                            <span className="text-purple-700 font-black text-[11px] mr-1.5">{idx + 1}.</span>
                             <span>{emp.name}</span>
                           </td>
                           {weekDays.map((dStr) => {
@@ -1383,9 +1382,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                             const empAvail = availByEmpAndDate[`${emp.id}_${dStr}`];
 
                             return (
-                              <td key={dStr} className="py-1.5 px-1 border-r border-purple-100 text-center align-middle">
+                              <td key={dStr} className="py-1 px-1 border-r border-purple-100 text-center align-middle h-[34px]">
                                 {empShifts.length > 0 ? (
-                                  <div className="space-y-1">
+                                  <div className="space-y-0.5">
                                     {empShifts.map((shift) => {
                                       const style = getBranchColorStyle(shift.branches?.name, shift.branches?.color);
                                       const startTimeStr = shift.start_time ? shift.start_time.slice(0, 5) : '09:00';
@@ -1395,21 +1394,21 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                       return (
                                         <div
                                           key={shift.id}
-                                          className="p-1 rounded-lg font-black text-[11px] leading-tight border"
+                                          className="p-1 rounded-md font-black text-[11px] leading-tight border shadow-2xs flex flex-col justify-center items-center min-h-[26px]"
                                           style={style.badgeStyle}
                                         >
-                                          <div>{startTimeStr}-{endTimeStr}</div>
-                                          <div className="text-[10px] font-extrabold opacity-95">{branchDisplayName}</div>
+                                          <div className="text-[11px] font-black">{startTimeStr}-{endTimeStr}</div>
+                                          <div className="text-[9.5px] font-black uppercase opacity-95 mt-0.5">{branchDisplayName}</div>
                                         </div>
                                       );
                                     })}
                                   </div>
                                 ) : empAvail?.is_admin_assigned ? (
-                                  <span className="text-rose-600 font-black text-[10px] uppercase px-2 py-0.5 rounded-md bg-rose-50 border border-rose-200 inline-block">
+                                  <div className="text-rose-600 font-black text-[11px] uppercase p-1 rounded-md bg-rose-50 border border-rose-200 flex justify-center items-center min-h-[26px]">
                                     🛑 OFF
-                                  </span>
+                                  </div>
                                 ) : (
-                                  <span className="text-purple-700 font-extrabold text-[10px]">
+                                  <span className="text-slate-400 font-bold text-xs">
                                     —
                                   </span>
                                 )}
@@ -1421,33 +1420,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </div>
-
-            {/* Footer Modal */}
-            <div className="p-3.5 bg-white border-t border-purple-100 flex items-center justify-between flex-wrap gap-2 shrink-0">
-              <span className="text-xs font-bold text-purple-900">
-                💡 Khuyến nghị: Bấm nút <b>"TẢI FILE ẢNH (PNG)"</b> để tải về bức ảnh đẹp lung linh, sắc nét gửi vào Zalo/Telegram!
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPDFPreview(false)}
-                  className="px-4 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 font-black text-xs border border-purple-300 cursor-pointer"
-                >
-                  ✕ Đóng
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleDownloadImage}
-                  disabled={isExportingPDF}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm cursor-pointer shadow-md active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  title="Tải bức hình PNG sắc nét 2K chuẩn đét"
-                >
-                  <span>🖼️</span>
-                  <span>{isExportingPDF ? '⏳ Đang Tải...' : 'TẢI FILE ẢNH (PNG)'}</span>
-                </button>
               </div>
             </div>
           </div>
