@@ -18,6 +18,7 @@ import {
   calculateSalaryFromShifts,
   getAnnouncementNotice,
   getShiftSwapsByEmployee,
+  getPenaltiesByEmployee,
 } from '@/lib/supabase';
 import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ function EmployeeContent() {
   const [monthlyShiftsCount, setMonthlyShiftsCount] = useState(0);
   const [monthlySalary, setMonthlySalary] = useState(0);
   const [empRates, setEmpRates] = useState([]);
+  const [empPenalties, setEmpPenalties] = useState([]);
   const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
 
   // State Thông Báo Quan Trọng Dành Cho Nhân Viên
@@ -134,12 +136,14 @@ function EmployeeContent() {
       const startDate = `${year}-${mStr}-01`;
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
 
-      const [schedData, rates] = await Promise.all([
+      const [schedData, rates, penaltiesData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getEmployeeRates(employee.id),
+        getPenaltiesByEmployee(employee.id, selectedMonth),
       ]);
 
       setEmpRates(rates);
+      setEmpPenalties(penaltiesData || []);
 
       // Quy tắc tính lương chuẩn: Chỉ cộng dồn ca làm ĐÃ DIỄN RA (s.date <= getToday())
       // Các ca tương lai được xếp sẵn chưa đến ngày sẽ KHÔNG bị dồn cộng trước!
@@ -161,6 +165,19 @@ function EmployeeContent() {
       console.error('Error loading employee hours:', err);
     }
   }
+
+  // Lọc danh sách khoản phạt vi phạm (không tính thưởng)
+  const penaltyList = useMemo(() => {
+    if (!empPenalties) return [];
+    return empPenalties.filter((p) => {
+      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      return !isBonus;
+    });
+  }, [empPenalties]);
+
+  const totalPenaltyAmount = useMemo(() => {
+    return penaltyList.reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
+  }, [penaltyList]);
 
   function handlePrevMonth() {
     const [y, m] = selectedMonth.split('-').map(Number);
@@ -309,10 +326,9 @@ function EmployeeContent() {
                 <button
                   type="button"
                   onClick={() => setIsIncomeExpanded(!isIncomeExpanded)}
-                  className="px-3 sm:px-4 py-1.5 rounded-full bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black border border-purple-800 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs whitespace-nowrap"
+                  className="px-3 sm:px-4 py-1.5 rounded-full bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black border border-purple-800 cursor-pointer transition-all active:scale-95 flex items-center justify-center shadow-2xs whitespace-nowrap"
                   title="Bấm để xem thu nhập cá nhân"
                 >
-                  <span>💰</span>
                   <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
                 </button>
               </div>
@@ -328,7 +344,6 @@ function EmployeeContent() {
                   : 'bg-white/80 text-purple-950 hover:bg-white font-extrabold border border-purple-200/60'
                   }`}
               >
-                <span className="text-sm sm:text-base">📅</span>
                 <span className="tracking-tight whitespace-nowrap">Lịch Phân Công</span>
               </button>
               <button
@@ -339,7 +354,6 @@ function EmployeeContent() {
                   : 'bg-orange-500 text-white font-black hover:bg-orange-600 border border-orange-600 shadow-2xs'
                   }`}
               >
-                <span className="text-sm sm:text-base">📝</span>
                 <span className="tracking-tight whitespace-nowrap">Đăng Ký Làm</span>
               </button>
               <button
@@ -354,7 +368,6 @@ function EmployeeContent() {
                   : 'bg-emerald-700 text-white font-black hover:bg-emerald-800 border border-emerald-800 shadow-2xs'
                   }`}
               >
-                <span className="text-sm sm:text-base">🔄</span>
                 <span className="tracking-tight whitespace-nowrap">Đổi Ca</span>
                 {hasUnreadApprovedSwap && (
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white animate-ping" />
@@ -367,10 +380,7 @@ function EmployeeContent() {
           {isIncomeExpanded && (
             <div className="bg-white rounded-2xl p-4 border border-purple-200/90 shadow-2xs animate-fade-in space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2 border-b border-purple-100 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">💰</span>
-                  <h3 className="font-black text-base md:text-lg text-purple-950">Thu Nhập Cá Nhân</h3>
-                </div>
+                <h3 className="font-black text-base md:text-lg text-purple-950">Thu Nhập Cá Nhân</h3>
                 {/* Bộ chọn tháng */}
                 <div className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200/80">
                   <button onClick={handlePrevMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs">◀</button>
@@ -381,11 +391,11 @@ function EmployeeContent() {
                 </div>
               </div>
 
-              {/* 2 Ô Khoanh Trên (Đã làm & Lương thỏa thuận) — Nhỏ Lại Gọn Gàng */}
+              {/* 2 Ô Khoanh Nhỏ Phía Trên (Đã làm & Lương thỏa thuận) */}
               <div className="grid grid-cols-2 gap-2 pt-0.5">
                 <div className="p-2 sm:p-2.5 bg-purple-50/70 rounded-xl border border-purple-200/80 text-center">
                   <div className="text-[10px] sm:text-xs text-purple-700 font-bold mb-0.5">
-                    ⏱️ Đã làm (tính đến hôm nay)
+                    Đã làm (tính đến hôm nay)
                   </div>
                   <div className="text-xs sm:text-sm font-extrabold text-purple-900">
                     {monthlyHours} tiếng <span className="font-bold text-purple-700">({monthlyShiftsCount} ca)</span>
@@ -394,7 +404,7 @@ function EmployeeContent() {
 
                 <div className="p-2 sm:p-2.5 bg-purple-50/70 rounded-xl border border-purple-200/80 text-center">
                   <div className="text-[10px] sm:text-xs text-purple-700 font-bold mb-0.5">
-                    💵 Lương thỏa thuận
+                    Lương thỏa thuận
                   </div>
                   <div className="text-xs sm:text-sm font-extrabold text-purple-900">
                     {formatCurrency(currentRate)}<span className="text-[10px] font-bold text-purple-600">/giờ</span>
@@ -402,14 +412,23 @@ function EmployeeContent() {
                 </div>
               </div>
 
-              {/* Ô Khoanh Dưới (Lương Tích Lũy Hôm Nay) — TO LÊN, NỔI HƠN RỰC RỠ ⚡ */}
+              {/* Ô Khoanh Giữa (LƯƠNG TÍCH LŨY HÔM NAY) — TO NỔI BẬT RỰC RỠ ⚡ */}
               <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-emerald-100/90 to-teal-50 border-2 border-emerald-400 shadow-md text-center space-y-1">
-                <div className="text-xs sm:text-sm text-emerald-900 font-black uppercase tracking-wider flex items-center justify-center gap-1">
-                  <span>💰</span>
-                  <span>Lương tích lũy hôm nay</span>
+                <div className="text-xs sm:text-sm text-emerald-900 font-black uppercase tracking-wider">
+                  LƯƠNG TÍCH LŨY HÔM NAY
                 </div>
                 <div className="text-2xl sm:text-4xl font-black text-emerald-700 tracking-tight drop-shadow-xs">
                   {formatCurrency(monthlySalary)}
+                </div>
+              </div>
+
+              {/* Ô Khoanh Dưới Cùng (TIỀN PHẠT LỖI DỰ KIẾN) — NHỎ GỌN XINH XẮN DƯỚI PHẦN LƯƠNG ⚡ */}
+              <div className="p-2.5 sm:p-3 bg-rose-50/80 rounded-xl border border-rose-200/90 text-center space-y-0.5">
+                <div className="text-[10px] sm:text-xs text-rose-800 font-black uppercase tracking-wider">
+                  Tiền phạt lỗi dự kiến:
+                </div>
+                <div className="text-xs sm:text-sm font-extrabold text-rose-600">
+                  {formatCurrency(totalPenaltyAmount)}
                 </div>
               </div>
             </div>
@@ -417,7 +436,7 @@ function EmployeeContent() {
 
           {/* SCHEDULE VIEW */}
           {view === 'schedule' && (
-            <div className="animate-fade-in">
+            <div className="animate-fade-in space-y-3">
               <WeeklyMatrixBoard employees={employees} highlightEmployeeId={employee.id} readOnly={true} />
             </div>
           )}

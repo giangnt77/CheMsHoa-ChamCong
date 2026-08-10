@@ -50,7 +50,7 @@ function getCurrentMonthStr() {
   return `${y}-${m}`;
 }
 
-export default function WeeklySalaryReportBoard({ employees = [], toast }) {
+export default function WeeklySalaryReportBoard({ employees = [], toast, onSelectPenaltyEmployee }) {
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthStr());
   const [schedule, setSchedule] = useState([]);
@@ -481,9 +481,17 @@ export default function WeeklySalaryReportBoard({ employees = [], toast }) {
                         </div>
                       </td>
 
-                      {/* CỘT NỔI BẬT LƯƠNG THÁNG (THỰC NHẬN = LƯƠNG CA + THƯỞNG - PHẠT) */}
+                      {/* CỘT NỔI BẬT LƯƠNG THÁNG (THỰC NHẬN = LƯƠNG CA + THƯỞNG - PHẠT) - BẤM VÀO ĐỂ CHUYỂN SANG TRANG THƯỞNG/PHẠT */}
                       <td className="py-2 px-1 text-center align-middle bg-amber-50/70 border-l-2 border-amber-400">
-                        <div className="p-1.5 rounded-2xl bg-amber-500 text-purple-950 font-black shadow-xs space-y-0.5 border border-amber-400">
+                        <div
+                          onClick={() => {
+                            if (onSelectPenaltyEmployee) {
+                              onSelectPenaltyEmployee(emp, selectedMonth);
+                            }
+                          }}
+                          className="p-1.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-purple-950 font-black shadow-xs space-y-0.5 border border-amber-400 cursor-pointer transition-all active:scale-95 hover:scale-[1.03] hover:shadow-md group"
+                          title={`Bấm để chuyển sang trang Thưởng & Phạt của ${emp.name}`}
+                        >
                           <div className="text-xs font-black tracking-tight">{formatCurrency(empMTotal.netSalary)}</div>
                           <div className="text-[9.5px] font-extrabold text-purple-900">({empMTotal.totalHours}h • {empMTotal.shiftCount} ca)</div>
                           {(empMTotal.totalBonus > 0 || empMTotal.totalPenalty > 0) && (

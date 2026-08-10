@@ -136,11 +136,15 @@ function AdminContent() {
   // Load contact info & CCCD khi chọn nhân viên 100% từ Supabase
   useEffect(() => {
     if (selectedEmployee) {
+      const currentPhone = selectedEmployee.phone || '';
+      const currentRelativePhone = selectedEmployee.relative_phone || '';
       setContactInfo({
-        phone: selectedEmployee.phone || '',
-        relative_phone: selectedEmployee.relative_phone || '',
+        phone: currentPhone,
+        relative_phone: currentRelativePhone,
         cccd_url: selectedEmployee.cccd_url || '',
       });
+      setPhoneInput(currentPhone);
+      setRelativePhoneInput(currentRelativePhone);
       setEditingContactInfo(false);
     }
   }, [selectedEmployee]);
@@ -153,17 +157,39 @@ function AdminContent() {
         phone: phoneInput.trim(),
         relative_phone: relativePhoneInput.trim(),
       });
-      setContactInfo({
-        phone: updated.phone || phoneInput.trim(),
-        relative_phone: updated.relative_phone || relativePhoneInput.trim(),
-        cccd_url: updated.cccd_url || contactInfo.cccd_url,
-      });
+
+      const newPhone = updated?.phone !== undefined ? updated.phone : phoneInput.trim();
+      const newRelativePhone = updated?.relative_phone !== undefined ? updated.relative_phone : relativePhoneInput.trim();
+
+      // 1. Cập nhật thẻ liên hệ hiển thị tức thì
+      setContactInfo((prev) => ({
+        ...prev,
+        phone: newPhone,
+        relative_phone: newRelativePhone,
+        cccd_url: updated?.cccd_url || prev.cccd_url,
+      }));
+
+      // 2. Cập nhật selectedEmployee hiện tại
       setSelectedEmployee((prev) => ({
         ...prev,
-        phone: updated.phone || phoneInput.trim(),
-        relative_phone: updated.relative_phone || relativePhoneInput.trim(),
+        phone: newPhone,
+        relative_phone: newRelativePhone,
       }));
+
+      // 3. Cập nhật danh sách employees tổng để đồng bộ 100% không bao giờ bị cũ
+      setEmployees((prevEmps) =>
+        prevEmps.map((emp) =>
+          emp.id === selectedEmployee.id
+            ? { ...emp, phone: newPhone, relative_phone: newRelativePhone }
+            : emp
+        )
+      );
+
+      // 4. Đồng bộ ô nhập liệu và tắt ngay chế độ sửa
+      setPhoneInput(newPhone);
+      setRelativePhoneInput(newRelativePhone);
       setEditingContactInfo(false);
+
       toast.success('Đã lưu Supabase', 'Cập nhật thông tin liên hệ thành công!');
     } catch (err) {
       console.error(err);
@@ -296,7 +322,13 @@ function AdminContent() {
 
   const activeStaffEmployees = useMemo(() => {
     if (!staffEmployees) return [];
-    return staffEmployees.filter((e) => e.status !== 'off');
+    const activeOnly = staffEmployees.filter((e) => e.status !== 'off');
+    // Sắp xếp theo trạng thái: Nhân viên '🟢 Làm' lên đầu, nhân viên '🟡 Off' (status === 'leave') đẩy xuống cuối
+    return [...activeOnly].sort((a, b) => {
+      const aIsLeave = a.status === 'leave' ? 1 : 0;
+      const bIsLeave = b.status === 'leave' ? 1 : 0;
+      return aIsLeave - bIsLeave;
+    });
   }, [staffEmployees]);
 
   const resignedStaffEmployees = useMemo(() => {
@@ -401,12 +433,29 @@ function AdminContent() {
   // Role state: 'owner' (Chủ quán - Full Access) | 'manager' (Quản lý - Chỉ Xếp Lịch)
   const [adminRole, setAdminRole] = useState('owner');
 
+  function changeActiveTab(tabId) {
+    setActiveTab(tabId);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('chemshoa_admin_active_tab', tabId);
+      localStorage.setItem('chemshoa_admin_active_tab', tabId);
+    }
+  }
+
   useEffect(() => {
     const saved = sessionStorage.getItem('chemshoa_admin_unlocked');
     const savedRole = sessionStorage.getItem('chemshoa_admin_role') || 'owner';
+    const savedTab = sessionStorage.getItem('chemshoa_admin_active_tab') || localStorage.getItem('chemshoa_admin_active_tab');
+
     if (saved === 'true') {
       setIsUnlocked(true);
       setAdminRole(savedRole);
+      if (savedTab && ['schedule', 'shift_swaps', 'salary', 'employees', 'penalty', 'branches'].includes(savedTab)) {
+        if (savedRole === 'manager' && savedTab !== 'schedule') {
+          setActiveTab('schedule');
+        } else {
+          setActiveTab(savedTab);
+        }
+      }
       loadInitialData();
     }
   }, []);
@@ -427,7 +476,7 @@ function AdminContent() {
       // Vai trò QUẢN LÝ (Chỉ Xếp Lịch)
       setIsUnlocked(true);
       setAdminRole('manager');
-      setActiveTab('schedule');
+      changeActiveTab('schedule');
       sessionStorage.setItem('chemshoa_admin_unlocked', 'true');
       sessionStorage.setItem('chemshoa_admin_role', 'manager');
       setPinError(false);
@@ -442,6 +491,10 @@ function AdminContent() {
       // Vai trò CHỦ QUÁN (Full Access)
       setIsUnlocked(true);
       setAdminRole('owner');
+      const savedTab = sessionStorage.getItem('chemshoa_admin_active_tab') || localStorage.getItem('chemshoa_admin_active_tab');
+      if (savedTab && ['schedule', 'shift_swaps', 'salary', 'employees', 'penalty', 'branches'].includes(savedTab)) {
+        setActiveTab(savedTab);
+      }
       sessionStorage.setItem('chemshoa_admin_unlocked', 'true');
       sessionStorage.setItem('chemshoa_admin_role', 'owner');
       setPinError(false);
@@ -459,6 +512,8 @@ function AdminContent() {
     setAdminRole('owner');
     sessionStorage.removeItem('chemshoa_admin_unlocked');
     sessionStorage.removeItem('chemshoa_admin_role');
+    sessionStorage.removeItem('chemshoa_admin_active_tab');
+    localStorage.removeItem('chemshoa_admin_active_tab');
     toast.info('Đã đăng xuất', 'Đã đăng xuất tài khoản Admin');
   }
 
@@ -735,12 +790,30 @@ function AdminContent() {
   function handleAdminSelect(role, acc) {
     setIsUnlocked(true);
     setAdminRole(role);
-    if (role === 'manager') {
-      setActiveTab('schedule');
+    const savedTab = sessionStorage.getItem('chemshoa_admin_active_tab') || localStorage.getItem('chemshoa_admin_active_tab');
+    if (savedTab && ['schedule', 'shift_swaps', 'salary', 'employees', 'penalty', 'branches'].includes(savedTab)) {
+      if (role === 'manager' && savedTab !== 'schedule') {
+        changeActiveTab('schedule');
+      } else {
+        setActiveTab(savedTab);
+      }
+    } else if (role === 'manager') {
+      changeActiveTab('schedule');
     }
     sessionStorage.setItem('chemshoa_admin_unlocked', 'true');
     sessionStorage.setItem('chemshoa_admin_role', role);
     loadInitialData();
+  }
+
+  function handleGoToEmployeePenalty(empObj, monthStr) {
+    if (empObj) {
+      setSelectedEmployee(empObj);
+    }
+    if (monthStr) {
+      setSelectedMonth(monthStr);
+    }
+    changeActiveTab('penalty');
+    toast.info('Thưởng & Phạt', `Đã chuyển đến quản lý Thưởng & Phạt của ${empObj?.name || 'nhân viên'}`);
   }
 
   // ========================================
@@ -823,7 +896,7 @@ function AdminContent() {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => changeActiveTab(tab.id)}
                   className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     activeTab === tab.id
                       ? 'bg-purple-700 text-white shadow-xs font-black'
@@ -873,7 +946,7 @@ function AdminContent() {
           {/* CHỈ RENDER CÁC TAB NÀY KHI CÓ QUYỀN CHỦ QUÁN (adminRole === 'owner') */}
           {adminRole === 'owner' && activeTab === 'salary' && (
             <div className="animate-fade-in">
-              <WeeklySalaryReportBoard employees={employees} toast={toast} />
+              <WeeklySalaryReportBoard employees={employees} toast={toast} onSelectPenaltyEmployee={handleGoToEmployeePenalty} />
             </div>
           )}
 
@@ -1484,15 +1557,27 @@ function AdminContent() {
                             <div className="text-[10px] text-purple-800 font-black uppercase">💵 Lương Ca</div>
                             <div className="text-xs sm:text-sm font-black text-purple-950 mt-0.5">{formatCurrency(salaryData.grossSalary)}</div>
                           </div>
-                          <div className="bg-emerald-50/70 rounded-2xl p-2.5 border border-emerald-200/80 text-center">
+                          <div
+                            onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
+                            className="bg-emerald-50/70 hover:bg-emerald-100 rounded-2xl p-2.5 border border-emerald-200/80 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.03]"
+                            title={`Bấm để chuyển sang trang Thưởng & Phạt của ${selectedEmployee?.name}`}
+                          >
                             <div className="text-[10px] text-emerald-800 font-black uppercase">🎁 Thưởng</div>
                             <div className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">+{formatCurrency(salaryData.totalBonus)}</div>
                           </div>
-                          <div className="bg-rose-50/70 rounded-2xl p-2.5 border border-rose-200/80 text-center">
+                          <div
+                            onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
+                            className="bg-rose-50/70 hover:bg-rose-100 rounded-2xl p-2.5 border border-rose-200/80 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.03]"
+                            title={`Bấm để chuyển sang trang Thưởng & Phạt của ${selectedEmployee?.name}`}
+                          >
                             <div className="text-[10px] text-rose-800 font-black uppercase">⚠️ Phạt</div>
                             <div className="text-xs sm:text-sm font-black text-rose-700 mt-0.5">-{formatCurrency(salaryData.totalPenalty)}</div>
                           </div>
-                          <div className="col-span-2 sm:col-span-1 bg-purple-700 rounded-2xl p-2.5 text-white text-center shadow-2xs">
+                          <div
+                            onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
+                            className="col-span-2 sm:col-span-1 bg-purple-700 hover:bg-purple-800 rounded-2xl p-2.5 text-white text-center shadow-2xs cursor-pointer transition-all active:scale-95 hover:scale-[1.03]"
+                            title={`Bấm để chuyển sang trang Thưởng & Phạt của ${selectedEmployee?.name}`}
+                          >
                             <div className="text-[10px] text-purple-200 font-black uppercase">🎉 THỰC NHẬN</div>
                             <div className="text-xs sm:text-sm font-black mt-0.5">{formatCurrency(salaryData.netSalary)}</div>
                           </div>
@@ -1729,25 +1814,17 @@ function AdminContent() {
                 </div>
               ) : (
                 <div className="space-y-5 max-w-4xl mx-auto">
-                  <div className="bg-white rounded-3xl p-5 flex items-center justify-between flex-wrap gap-4 border border-purple-200/90 shadow-2xs">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-xl bg-purple-700 flex items-center justify-center font-black text-white text-base shadow-2xs">
-                        {getInitials(selectedEmployee.name)}
+                  {/* BỘ CHỌN NHÂN VIÊN DẠNG THẺ CHUYÊN NGHIỆP (QUICK EMPLOYEE SELECTOR) */}
+                  <div className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-200/90 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-purple-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-purple-950 uppercase tracking-tight">
+                          👥 Chọn Nhân Viên ({staffEmployees.length}):
+                        </span>
                       </div>
-                      <div>
-                        <h3 className="font-black text-purple-950 text-lg flex items-center gap-2">
-                          <span>{selectedEmployee.name}</span>
-                        </h3>
-                        <p className="text-xs text-purple-700 font-black">
-                          Thống kê Thưởng & Phạt • <span className="text-purple-950 font-black">{getMonthName(selectedMonth)}</span>
-                        </p>
-                      </div>
-                    </div>
 
-                    {/* Bộ chọn Tháng & Bộ chọn Nhân viên trực tiếp */}
-                    <div className="flex items-center gap-3 flex-wrap">
                       {/* Bộ điều hướng tháng tiện lợi */}
-                      <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-2xl border border-purple-200 shadow-2xs">
+                      <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1 rounded-2xl border border-purple-200 shadow-2xs">
                         <button
                           type="button"
                           onClick={prevMonth}
@@ -1768,24 +1845,50 @@ function AdminContent() {
                           ▶
                         </button>
                       </div>
+                    </div>
 
-                      {/* Ô chọn nhân viên trực tiếp */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-purple-900 font-black uppercase">Nhân viên:</span>
-                        <select
-                          value={selectedEmployee.id}
-                          onChange={(e) => {
-                            const emp = staffEmployees.find((em) => em.id === e.target.value);
-                            if (emp) setSelectedEmployee(emp);
-                          }}
-                          className="px-4 py-2 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-sm font-black outline-none cursor-pointer focus:border-purple-600 shadow-2xs"
-                        >
-                          {staffEmployees.map((emp) => (
-                            <option key={emp.id} value={emp.id}>
-                              👤 {emp.name}
-                            </option>
-                          ))}
-                        </select>
+                    {/* Dải Thẻ Chọn Nhân Viên Vuốt Ngang Mượt Mà */}
+                    <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 custom-scrollbar whitespace-nowrap">
+                      {staffEmployees.map((emp) => {
+                        const isSelected = selectedEmployee?.id === emp.id;
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => setSelectedEmployee(emp)}
+                            className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer active:scale-95 border ${
+                              isSelected
+                                ? 'bg-purple-700 text-white border-purple-800 shadow-md scale-[1.02]'
+                                : 'bg-purple-50/70 hover:bg-purple-100 text-purple-950 border-purple-200/90 font-bold'
+                            }`}
+                          >
+                            <div
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                isSelected ? 'bg-white text-purple-950' : 'bg-purple-200 text-purple-900'
+                              }`}
+                            >
+                              {getInitials(emp.name)}
+                            </div>
+                            <span>{emp.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Header Thông Tin Nhân Viên Đã Chọn */}
+                  <div className="bg-white rounded-3xl p-5 flex items-center justify-between flex-wrap gap-4 border border-purple-200/90 shadow-2xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-purple-700 flex items-center justify-center font-black text-white text-base shadow-2xs">
+                        {getInitials(selectedEmployee.name)}
+                      </div>
+                      <div>
+                        <h3 className="font-black text-purple-950 text-lg flex items-center gap-2">
+                          <span>{selectedEmployee.name}</span>
+                        </h3>
+                        <p className="text-xs text-purple-700 font-black">
+                          Thống kê Thưởng & Phạt • <span className="text-purple-950 font-black">{getMonthName(selectedMonth)}</span>
+                        </p>
                       </div>
                     </div>
                   </div>
