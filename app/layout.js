@@ -14,9 +14,21 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-  title: "Chè Ms Hoa - Chấm Công & Tính Lương",
-  description: "Hệ thống chấm công và tính lương nhân viên cho quán Chè Ms Hoa. Đăng ký ca làm, xem lịch, tính lương tự động.",
-  keywords: "chấm công, tính lương, quản lý nhân viên, chè ms hoa",
+  title: "Chè MsHoa - Hệ Thống Chấm Công - Tính Lương",
+  description: "Chè MsHoa - Đăng ký ca làm, xem lịch và tính lương tự động.",
+  keywords: "chấm công, tính lương, quản lý nhân viên, chè mshoa",
+  openGraph: {
+    title: "Chè MsHoa - Hệ Thống Chấm Công - Tính Lương",
+    description: "Chè MsHoa - Đăng ký ca làm, xem lịch và tính lương tự động.",
+    siteName: "Chè MsHoa",
+    locale: "vi_VN",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Chè MsHoa - Hệ Thống Chấm Công - Tính Lương",
+    description: "Chè MsHoa - Đăng ký ca làm, xem lịch và tính lương tự động.",
+  },
   icons: {
     icon: [
       { url: "/logo.png", type: "image/png" },

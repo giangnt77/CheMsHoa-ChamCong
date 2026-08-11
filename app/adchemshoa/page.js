@@ -103,6 +103,12 @@ function AdminContent() {
   const [empSchedule, setEmpSchedule] = useState([]);
   const [empPenalties, setEmpPenalties] = useState([]);
 
+  // Danh sách nhân viên đang hoạt động dành riêng cho tab Thưởng & Phạt (Loại bỏ nhân viên nghỉ luôn)
+  const activePenaltyEmployees = useMemo(() => {
+    if (!employees) return [];
+    return employees.filter((emp) => emp.status !== 'off' && emp.is_active !== false);
+  }, [employees]);
+
   // Month picker & Date picker for scheduling
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [schedDate, setSchedDate] = useState(getToday());
@@ -1821,7 +1827,7 @@ function AdminContent() {
                     {/* Header Bar + Bộ chọn tháng */}
                     <div className="flex items-center justify-between gap-2 flex-wrap border-b border-purple-100 pb-2">
                       <span className="text-xs sm:text-sm font-black text-purple-950 uppercase tracking-tight flex items-center gap-1.5">
-                        <span>👥</span> Chọn Nhân Viên ({staffEmployees.length})
+                        <span>👥</span> Chọn Nhân Viên ({activePenaltyEmployees.length})
                       </span>
 
                       {/* Bộ điều hướng tháng tiện lợi */}
@@ -1869,9 +1875,9 @@ function AdminContent() {
                       )}
                     </div>
 
-                    {/* DANH SÁCH THẺ NHÂN VIÊN (CHỈ HIỂN THỊ TÊN NHÂN VIÊN — GỌN GÀNG TỐI GIẢN 100%) */}
+                    {/* DANH SÁCH THẺ NHÂN VIÊN (CHỈ HIỂN THỊ CÁC NHÂN VIÊN ĐANG LÀM VIỆC — LOẠI BỎ NGHỈ LUÔN) */}
                     <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
-                      {staffEmployees
+                      {activePenaltyEmployees
                         .filter((emp) => emp.name.toLowerCase().includes(penaltyEmpSearchQuery.toLowerCase().trim()))
                         .map((emp) => {
                           const isSelected = selectedEmployee?.id === emp.id;
@@ -1904,7 +1910,7 @@ function AdminContent() {
                             </div>
                           );
                         })}
-                      {staffEmployees.filter((emp) => emp.name.toLowerCase().includes(penaltyEmpSearchQuery.toLowerCase().trim())).length === 0 && (
+                      {activePenaltyEmployees.filter((emp) => emp.name.toLowerCase().includes(penaltyEmpSearchQuery.toLowerCase().trim())).length === 0 && (
                         <p className="text-xs text-purple-500 italic text-center py-4">Không tìm thấy nhân viên phù hợp</p>
                       )}
                     </div>
