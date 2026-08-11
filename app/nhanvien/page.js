@@ -53,9 +53,10 @@ function EmployeeContent() {
     '📌 THÔNG BÁO TỪ QUẢN LÝ:\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!'
   );
 
-  // State Quản Lý Đổi Ca
+  // State Quản Lý Đổi Ca & Chi Tiết Lỗi Phạt
   const [shiftSwaps, setShiftSwaps] = useState([]);
   const [showSwapModal, setShowSwapModal] = useState(false);
+  const [showPenaltyDetailModal, setShowPenaltyDetailModal] = useState(false);
   const [swapFilterMonth, setSwapFilterMonth] = useState(getCurrentMonth());
 
   useEffect(() => {
@@ -422,8 +423,12 @@ function EmployeeContent() {
                 </div>
               </div>
 
-              {/* Ô Khoanh Dưới Cùng (TIỀN PHẠT LỖI DỰ KIẾN) — NHỎ GỌN XINH XẮN DƯỚI PHẦN LƯƠNG ⚡ */}
-              <div className="p-2.5 sm:p-3 bg-rose-50/80 rounded-xl border border-rose-200/90 text-center space-y-0.5">
+              {/* Ô Khoanh Dưới Cùng (TIỀN PHẠT LỖI DỰ KIẾN) — BẤM VÀO ĐỂ XEM CHI TIẾT DANH SÁCH LỖI ⚡ */}
+              <div
+                onClick={() => setShowPenaltyDetailModal(true)}
+                className="p-2.5 sm:p-3 bg-rose-50/80 hover:bg-rose-100/90 rounded-xl border border-rose-200/90 text-center space-y-0.5 cursor-pointer transition-all active:scale-95 hover:scale-[1.01] hover:shadow-xs border-rose-200 group"
+                title="Bấm để xem danh sách chi tiết các lỗi phạt"
+              >
                 <div className="text-[10px] sm:text-xs text-rose-800 font-black uppercase tracking-wider">
                   Tiền phạt lỗi dự kiến:
                 </div>
@@ -717,6 +722,81 @@ function EmployeeContent() {
                       Đã Hiểu / Đóng
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= MODAL XEM CHI TIẾT NỘI DUNG LỖI PHẠT ================= */}
+          {showPenaltyDetailModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-fade-in">
+              <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full border border-rose-200 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+                {/* Header Modal */}
+                <div className="flex items-center justify-between border-b border-rose-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-black text-lg">
+                      ⚠️
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base text-rose-950">Chi Tiết Tiền Phạt Lỗi Dự Kiến</h3>
+                      <p className="text-xs text-purple-700 font-bold">
+                        Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]} • {employee.name}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPenaltyDetailModal(false)}
+                    className="w-8 h-8 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 flex items-center justify-center border-0 cursor-pointer text-sm font-black"
+                    title="Đóng"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Nội dung danh sách các khoản phạt */}
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                  {penaltyList.length === 0 ? (
+                    <div className="py-8 text-center space-y-2 bg-emerald-50/60 rounded-2xl border border-emerald-200 p-4">
+                      <div className="text-3xl">🎉</div>
+                      <p className="text-xs sm:text-sm font-black text-emerald-900">
+                        Tuyệt vời! Bạn không có tiền phạt hay lỗi vi phạm nào trong Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}.
+                      </p>
+                    </div>
+                  ) : (
+                    penaltyList.map((item, idx) => (
+                      <div
+                        key={item.id || idx}
+                        className="p-3 bg-rose-50/60 rounded-2xl border border-rose-200/80 flex items-center justify-between gap-3 shadow-2xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] font-black text-rose-950 flex items-center gap-1">
+                            <span>📅</span> {item.date ? item.date.split('-').reverse().join('/') : 'Trong tháng'}
+                          </div>
+                          <div className="text-xs font-extrabold text-purple-950 leading-snug">
+                            {item.reason || 'Vi phạm quy định / Trừ phạt'}
+                          </div>
+                        </div>
+                        <div className="text-xs sm:text-sm font-black text-rose-600 shrink-0 bg-white px-2.5 py-1 rounded-xl border border-rose-200 shadow-2xs">
+                          -{formatCurrency(Math.abs(item.amount || 0))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer Tổng Tiền & Nút Đóng */}
+                <div className="pt-2 border-t border-purple-100 flex items-center justify-between gap-2">
+                  <div className="text-xs font-black text-purple-950">
+                    Tổng tiền phạt: <span className="text-rose-600 font-black text-sm">-{formatCurrency(totalPenaltyAmount)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPenaltyDetailModal(false)}
+                    className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs active:scale-95 transition-all"
+                  >
+                    ✕ Đóng Màn Hình
+                  </button>
                 </div>
               </div>
             </div>

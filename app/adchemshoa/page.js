@@ -98,6 +98,8 @@ function AdminContent() {
   const [branches, setBranches] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [empSearchQuery, setEmpSearchQuery] = useState('');
+  const [penaltyEmpSearchQuery, setPenaltyEmpSearchQuery] = useState('');
+  const [isEmpDropdownOpen, setIsEmpDropdownOpen] = useState(false);
   const [empSchedule, setEmpSchedule] = useState([]);
   const [empPenalties, setEmpPenalties] = useState([]);
 
@@ -1814,65 +1816,167 @@ function AdminContent() {
                 </div>
               ) : (
                 <div className="space-y-5 max-w-4xl mx-auto">
-                  {/* BỘ CHỌN NHÂN VIÊN DẠNG THẺ CHUYÊN NGHIỆP (QUICK EMPLOYEE SELECTOR) */}
+                  {/* BỘ CHỌN NHÂN VIÊN DẠNG THẺ CHUYÊN NGHIỆP CÓ NÚT TÌM KIẾM 🔻 (QUICK EMPLOYEE SELECTOR) */}
                   <div className="bg-white rounded-3xl p-4 sm:p-5 border border-purple-200/90 shadow-2xs space-y-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap border-b border-purple-100 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-purple-950 uppercase tracking-tight">
+                        <span className="text-xs sm:text-sm font-black text-purple-950 uppercase tracking-tight">
                           👥 Chọn Nhân Viên ({staffEmployees.length}):
                         </span>
                       </div>
 
-                      {/* Bộ điều hướng tháng tiện lợi */}
-                      <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1 rounded-2xl border border-purple-200 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={prevMonth}
-                          className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer text-xs active:scale-95 shadow-2xs transition-all"
-                          title="Tháng trước"
-                        >
-                          ◀
-                        </button>
-                        <span className="font-black text-xs sm:text-sm text-purple-950 px-1 min-w-[100px] text-center">
-                          {getMonthName(selectedMonth)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={nextMonth}
-                          className="w-7 h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer text-xs active:scale-95 shadow-2xs transition-all"
-                          title="Tháng sau"
-                        >
-                          ▶
-                        </button>
+                      {/* Bộ điều hướng tháng & Thanh Tìm Kiếm "tìm 🔻" đúng chuẩn hình vẽ */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Bộ điều hướng tháng tiện lợi */}
+                        <div className="flex items-center gap-1.5 bg-purple-50 px-2.5 py-1 rounded-2xl border border-purple-200 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={prevMonth}
+                            className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer text-xs active:scale-95 shadow-2xs transition-all"
+                            title="Tháng trước"
+                          >
+                            ◀
+                          </button>
+                          <span className="font-black text-xs sm:text-sm text-purple-950 px-1 min-w-[90px] text-center">
+                            {getMonthName(selectedMonth)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={nextMonth}
+                            className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer text-xs active:scale-95 shadow-2xs transition-all"
+                            title="Tháng sau"
+                          >
+                            ▶
+                          </button>
+                        </div>
+
+                        {/* NÚT TÌM KIẾM & DROPDOWN POPOVER CAO CẤP THAY THẾ CHO SELECT CỔ ĐỂN */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setIsEmpDropdownOpen(!isEmpDropdownOpen)}
+                            className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-black cursor-pointer border border-purple-800 shadow-xs transition-all active:scale-95 flex items-center gap-1.5"
+                            title="Bấm để mở danh sách tìm kiếm nhân viên xổ xuống"
+                          >
+                            <span>🔍 Tìm </span>
+                            <span className={`text-[9px] transition-transform duration-200 ${isEmpDropdownOpen ? 'rotate-180' : ''}`}>🔻</span>
+                          </button>
+
+                          {/* FLOATING MENU DROPDOWN POPOVER CỰC NỔI & ĐẸP MẮT */}
+                          {isEmpDropdownOpen && (
+                            <>
+                              {/* Backdrop overlay tự đóng khi bấm ra ngoài */}
+                              <div
+                                className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]"
+                                onClick={() => setIsEmpDropdownOpen(false)}
+                              />
+
+                              <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-white rounded-3xl p-3 border border-purple-200 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2">
+                                {/* Header menu + Ô tìm kiếm tích hợp ngay trong Dropdown */}
+                                <div className="flex items-center justify-between gap-2 border-b border-purple-100 pb-2">
+                                  <div className="relative flex-1">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-purple-500">🔍</span>
+                                    <input
+                                      type="text"
+                                      value={penaltyEmpSearchQuery}
+                                      onChange={(e) => setPenaltyEmpSearchQuery(e.target.value)}
+                                      placeholder="Gõ tên nhân viên..."
+                                      autoFocus
+                                      className="w-full pl-8 pr-7 py-1.5 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-xs font-black outline-none focus:border-purple-600 focus:bg-white transition-all placeholder:text-purple-400"
+                                    />
+                                    {penaltyEmpSearchQuery && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setPenaltyEmpSearchQuery('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-purple-400 hover:text-purple-950 border-0 bg-transparent cursor-pointer font-black"
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsEmpDropdownOpen(false)}
+                                    className="w-6 h-6 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black flex items-center justify-center cursor-pointer border-0 shrink-0"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+
+                                {/* Danh sách cuộn nhân viên đẹp mê ly */}
+                                <div className="max-h-64 overflow-y-auto pr-1 space-y-1 custom-scrollbar">
+                                  {staffEmployees
+                                    .filter((emp) => emp.name.toLowerCase().includes(penaltyEmpSearchQuery.toLowerCase().trim()))
+                                    .map((emp) => {
+                                      const isSelected = selectedEmployee?.id === emp.id;
+                                      return (
+                                        <button
+                                          key={emp.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedEmployee(emp);
+                                            setIsEmpDropdownOpen(false);
+                                            setPenaltyEmpSearchQuery('');
+                                          }}
+                                          className={`w-full p-2 rounded-xl text-xs font-black transition-all flex items-center justify-between cursor-pointer border ${
+                                            isSelected
+                                              ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
+                                              : 'bg-white hover:bg-purple-50 text-purple-950 border-transparent hover:border-purple-100'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2.5 truncate">
+                                            <div
+                                              className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${
+                                                isSelected ? 'bg-white text-purple-950' : 'bg-purple-100 text-purple-900'
+                                              }`}
+                                            >
+                                              {getInitials(emp.name)}
+                                            </div>
+                                            <span className="truncate">{emp.name}</span>
+                                          </div>
+                                          {isSelected && <span className="text-xs font-black text-amber-300">✓</span>}
+                                        </button>
+                                      );
+                                    })}
+                                  {staffEmployees.filter((emp) => emp.name.toLowerCase().includes(penaltyEmpSearchQuery.toLowerCase().trim())).length === 0 && (
+                                    <p className="text-xs text-purple-500 italic text-center py-4">Không tìm thấy nhân viên phù hợp</p>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Dải Thẻ Chọn Nhân Viên Vuốt Ngang Mượt Mà */}
+                    {/* Dải Thẻ Chọn Nhân Viên Vuốt Ngang Mượt Mà (Lọc theo penaltyEmpSearchQuery) */}
                     <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 custom-scrollbar whitespace-nowrap">
-                      {staffEmployees.map((emp) => {
-                        const isSelected = selectedEmployee?.id === emp.id;
-                        return (
-                          <button
-                            key={emp.id}
-                            type="button"
-                            onClick={() => setSelectedEmployee(emp)}
-                            className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer active:scale-95 border ${
-                              isSelected
-                                ? 'bg-purple-700 text-white border-purple-800 shadow-md scale-[1.02]'
-                                : 'bg-purple-50/70 hover:bg-purple-100 text-purple-950 border-purple-200/90 font-bold'
-                            }`}
-                          >
-                            <div
-                              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                                isSelected ? 'bg-white text-purple-950' : 'bg-purple-200 text-purple-900'
+                      {staffEmployees
+                        .filter((emp) => emp.name.toLowerCase().includes(penaltyEmpSearchQuery.toLowerCase().trim()))
+                        .map((emp) => {
+                          const isSelected = selectedEmployee?.id === emp.id;
+                          return (
+                            <button
+                              key={emp.id}
+                              type="button"
+                              onClick={() => setSelectedEmployee(emp)}
+                              className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center gap-2 shrink-0 cursor-pointer active:scale-95 border ${
+                                isSelected
+                                  ? 'bg-purple-700 text-white border-purple-800 shadow-md scale-[1.02]'
+                                  : 'bg-purple-50/70 hover:bg-purple-100 text-purple-950 border-purple-200/90 font-bold'
                               }`}
                             >
-                              {getInitials(emp.name)}
-                            </div>
-                            <span>{emp.name}</span>
-                          </button>
-                        );
-                      })}
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                  isSelected ? 'bg-white text-purple-950' : 'bg-purple-200 text-purple-900'
+                                }`}
+                              >
+                                {getInitials(emp.name)}
+                              </div>
+                              <span>{emp.name}</span>
+                            </button>
+                          );
+                        })}
                     </div>
                   </div>
 
