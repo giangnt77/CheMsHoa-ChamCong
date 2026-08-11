@@ -192,12 +192,23 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
-  // Lọc bỏ tài khoản Chủ Quán & Quản Lý ra khỏi Bảng Xếp Lịch Nhân Viên
+  // Lọc bỏ tài khoản Chủ Quán & Quản Lý ra khỏi Bảng Xếp Lịch Nhân Viên (BẰNG MỌI GIÁ LOẠI BỎ 'Owner' VÀ 'Manager')
   const staffEmployees = useMemo(() => {
     if (!employees || employees.length === 0) return [];
-    return employees.filter(
-      (e) => e.role !== 'owner' && e.role !== 'manager' && !e.name.includes('Chủ Quán') && !e.name.includes('Quản Lý')
-    );
+    return employees.filter((e) => {
+      const nameLower = String(e.name || '').toLowerCase().trim();
+      const roleLower = String(e.role || '').toLowerCase().trim();
+      return (
+        roleLower !== 'owner' &&
+        roleLower !== 'manager' &&
+        nameLower !== 'owner' &&
+        nameLower !== 'manager' &&
+        !nameLower.includes('owner') &&
+        !nameLower.includes('manager') &&
+        !nameLower.includes('chủ quán') &&
+        !nameLower.includes('quản lý')
+      );
+    });
   }, [employees]);
 
   // Sắp xếp danh sách nhân viên: Theo sort_order do Admin sắp xếp

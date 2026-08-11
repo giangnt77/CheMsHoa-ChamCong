@@ -32,7 +32,21 @@ function EmployeeContent() {
   const [initialLoading, setInitialLoading] = useState(false);
 
   useEffect(() => {
-    getAllEmployees().then(setEmployees).catch(console.error);
+    getAllEmployees().then((data) => {
+      const filtered = (data || []).filter((emp) => {
+        const nameLower = String(emp.name || '').toLowerCase().trim();
+        const roleLower = String(emp.role || '').toLowerCase().trim();
+        return (
+          roleLower !== 'owner' &&
+          roleLower !== 'manager' &&
+          nameLower !== 'owner' &&
+          nameLower !== 'manager' &&
+          !nameLower.includes('owner') &&
+          !nameLower.includes('manager')
+        );
+      });
+      setEmployees(filtered);
+    }).catch(console.error);
   }, []);
 
   // View state

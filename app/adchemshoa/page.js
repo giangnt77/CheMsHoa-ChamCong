@@ -103,10 +103,34 @@ function AdminContent() {
   const [empSchedule, setEmpSchedule] = useState([]);
   const [empPenalties, setEmpPenalties] = useState([]);
 
-  // Danh sách nhân viên đang hoạt động dành riêng cho tab Thưởng & Phạt (Loại bỏ nhân viên nghỉ luôn)
+  // Hàm kiểm tra tài khoản quản trị Admin (BẰNG MỌI GIÁ LOẠI BỎ 'Owner' VÀ 'Manager' KHỎI MỌI DANH SÁCH NHÂN VIÊN)
+  const isManagementAccount = (emp) => {
+    if (!emp) return true;
+    const nameLower = String(emp.name || '').toLowerCase().trim();
+    const roleLower = String(emp.role || '').toLowerCase().trim();
+    return (
+      roleLower === 'owner' ||
+      roleLower === 'manager' ||
+      nameLower === 'owner' ||
+      nameLower === 'manager' ||
+      nameLower.includes('owner') ||
+      nameLower.includes('manager')
+    );
+  };
+
+  // Danh sách nhân viên thuần túy (Loại bỏ tuyệt đối Owner / Manager)
+  const staffEmployees = useMemo(() => {
+    if (!employees) return [];
+    return employees.filter((emp) => !isManagementAccount(emp));
+  }, [employees]);
+
+  // Danh sách nhân viên đang hoạt động dành riêng cho tab Thưởng & Phạt (Loại bỏ nhân viên nghỉ luôn & LOẠI BỎ BẰNG MỌI GIÁ Owner, Manager)
   const activePenaltyEmployees = useMemo(() => {
     if (!employees) return [];
-    return employees.filter((emp) => emp.status !== 'off' && emp.is_active !== false);
+    return employees.filter((emp) => {
+      const isOff = emp.status === 'off' || emp.is_active === false;
+      return !isOff && !isManagementAccount(emp);
+    });
   }, [employees]);
 
   // Month picker & Date picker for scheduling
@@ -307,23 +331,7 @@ function AdminContent() {
     setAddEmpPin(pin);
   }
 
-  // Lọc danh sách NHÂN VIÊN PHỤC VỤ & BẾP (loại bỏ hoàn toàn tài khoản Chủ Quán & Quản Lý / Owner & Manager)
-  const staffEmployees = useMemo(() => {
-    if (!employees) return [];
-    return employees.filter((e) => {
-      if (e.role === 'owner' || e.role === 'manager') return false;
-      const nLower = (e.name || '').toLowerCase();
-      if (
-        nLower.includes('chủ quán') ||
-        nLower.includes('quản lý') ||
-        nLower.includes('owner') ||
-        nLower.includes('manager')
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [employees]);
+
 
   // Phân chia nhân viên thành 2 nhóm độc lập: Đang Làm & Đã Nghỉ Việc
   const [showResignedGroup, setShowResignedGroup] = useState(false);
