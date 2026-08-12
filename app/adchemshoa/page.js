@@ -1449,13 +1449,17 @@ function AdminContent() {
                                     PIN: {selectedEmployee.pin || '1234'}
                                   </span>
 
-                                  {/* Select Trạng Thái (Gọn gàng + Cấu hình mốc thời gian) */}
+                                  {/* Select Trạng Thái (Tự động chuyển 'active' khi hết hạn off_end_date) */}
                                   <div className="flex items-center gap-1">
                                     <select
-                                      value={selectedEmployee.status || (selectedEmployee.is_active !== false ? 'active' : 'off')}
+                                      value={
+                                        (selectedEmployee.status === 'leave' && selectedEmployee.off_end_date && getToday() > selectedEmployee.off_end_date)
+                                          ? 'active'
+                                          : (selectedEmployee.status || (selectedEmployee.is_active !== false ? 'active' : 'off'))
+                                      }
                                       onChange={(e) => handleSelectStatusChange(e.target.value)}
                                       className={`px-2 py-0.5 rounded-lg text-[11px] font-black outline-none border cursor-pointer ${
-                                        (selectedEmployee.status === 'leave')
+                                        (selectedEmployee.status === 'leave' && (!selectedEmployee.off_end_date || getToday() <= selectedEmployee.off_end_date))
                                           ? 'bg-amber-100 text-amber-900 border-amber-300'
                                           : (selectedEmployee.status === 'off' || selectedEmployee.is_active === false)
                                             ? 'bg-rose-100 text-rose-900 border-rose-300'

@@ -147,15 +147,48 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
     setSelectedMonth(getCurrentMonthStr());
   }
 
-  // Sắp xếp danh sách nhân viên y chang Bảng Ma Trận Lịch Tuần (Đẩy OFF xuống cuối cùng)
+  // Index map dữ liệu ca làm theo employeeId_date
+  const scheduleByEmpAndDate = useMemo(() => {
+    const map = {};
+    (schedule || []).forEach((item) => {
+      const key = `${item.employee_id}_${item.date}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(item);
+    });
+    return map;
+  }, [schedule]);
+
+  // Sắp xếp & lọc danh sách nhân viên: Bỏ hẳn Owner/Manager & bỏ hoàn toàn nhân viên đã nghỉ luôn mà không có ca làm trong tuần
   const sortedEmployees = useMemo(() => {
     if (!employees) return [];
     return [...employees]
       .filter((emp) => {
-        // Lọc bỏ tài khoản Chủ Quán & Quản Lý
-        if (emp.role === 'owner' || emp.role === 'manager' || emp.name.includes('Chủ Quán') || emp.name.includes('Quản Lý')) {
+        // 1. Lọc bỏ tài khoản Chủ Quán & Quản Lý / Owner & Manager
+        const nameLower = (emp.name || '').toLowerCase().trim();
+        const roleLower = (emp.role || '').toLowerCase().trim();
+        if (
+          roleLower === 'owner' ||
+          roleLower === 'manager' ||
+          nameLower === 'owner' ||
+          nameLower === 'manager' ||
+          nameLower.includes('owner') ||
+          nameLower.includes('manager') ||
+          nameLower.includes('chủ quán') ||
+          nameLower.includes('quản lý')
+        ) {
           return false;
         }
+
+        // 2. Kiểm tra xem nhân viên có ca phân công nào trong tuần này không
+        const hasShiftsInThisWeek = (weekDays || []).some(
+          (dStr) => (scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []).length > 0
+        );
+
+        // 3. Nếu nhân viên ĐÃ NGHỈ LUÔN (status === 'off' hoặc is_active === false) VÀ KHÔNG CÓ CA LÀM NÀO TRONG TUẦN NÀY -> BỎ HOÀN TOÀN 100%!
+        if ((emp.status === 'off' || emp.is_active === false) && !hasShiftsInThisWeek) {
+          return false;
+        }
+
         const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
         return empStartDate <= endDate; // Chỉ hiển thị nhân viên đã vào làm mốc tuần này
       })
@@ -169,7 +202,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
         if (orderA !== orderB) return orderA - orderB;
         return a.name.localeCompare(b.name);
       });
-  }, [employees, endDate]);
+  }, [employees, endDate, weekDays, scheduleByEmpAndDate]);
 
   // Index map dữ liệu ca làm tháng theo employeeId_date (chỉ lọc các ca đúng thuộc selectedMonth)
   const monthScheduleByEmpAndDate = useMemo(() => {
@@ -252,16 +285,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
     };
   }, [sortedEmployees, monthScheduleByEmpAndDate, ratesMap, selectedMonth, penaltiesMap]);
 
-  // Index map dữ liệu ca làm theo employeeId_date
-  const scheduleByEmpAndDate = useMemo(() => {
-    const map = {};
-    schedule.forEach((item) => {
-      const key = `${item.employee_id}_${item.date}`;
-      if (!map[key]) map[key] = [];
-      map[key].push(item);
-    });
-    return map;
-  }, [schedule]);
+
 
   // Tính tổng lương tuần cho từng nhân viên & toàn tiệm
   const { empWeeklyTotals, grandTotalSalary, grandTotalHours } = useMemo(() => {

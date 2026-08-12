@@ -257,6 +257,25 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     return map;
   }, [localSchedule]);
 
+  // Tính tổng lương & tổng giờ làm của toàn bộ 7 ngày trong tuần
+  const { weekTotalHours, weekTotalSalary } = useMemo(() => {
+    let totalHours = 0;
+    let totalSalary = 0;
+
+    (localSchedule || []).forEach((shift) => {
+      if (weekDays.includes(shift.date)) {
+        const hours = calculateShiftHours(shift);
+        totalHours += hours;
+
+        const emp = (employees || []).find((e) => e.id === shift.employee_id);
+        const hourlyRate = emp?.hourly_rate || 20000;
+        totalSalary += hours * hourlyRate;
+      }
+    });
+
+    return { weekTotalHours: totalHours, weekTotalSalary: totalSalary };
+  }, [localSchedule, weekDays, employees]);
+
   // Index map lịch rảnh theo employeeId_date
   const availByEmpAndDate = useMemo(() => {
     const map = {};
@@ -297,17 +316,15 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       }
 
       // 1. NGHỈ VIỆC / OFF CỐ ĐỊNH ('off')
+      // Nếu đã nghỉ việc / nghỉ luôn và KHÔNG CÓ CA LÀM NÀO trong tuần này -> 100% BẰNG MỌI GIÁ KHÔNG HIỂN THỊ TRÊN BẢNG MA TRẬN (Tránh rác hàng OFF OFF OFF)
       if (emp.status === 'off' || emp.is_active === false) {
-        const resignedDate = emp.resigned_at || emp.off_date || (emp.updated_at ? emp.updated_at.slice(0, 10) : '2099-12-31');
-        if (resignedDate >= startDate) {
-          matrix.push(emp);
-        } else {
-          permanentOffList.push({
-            employee: emp,
-            reason: `Đã nghỉ việc từ ${resignedDate.split('-').reverse().join('/')}`,
-          });
-        }
-        return;
+        permanentOffList.push({
+          employee: emp,
+          reason: emp.resigned_at
+            ? `Đã nghỉ việc từ ${emp.resigned_at.split('-').reverse().join('/')}`
+            : 'Đã nghỉ việc',
+        });
+        return; // TUYỆT ĐỐI KHÔNG PUSH VÀO MATRIX HÀNG CHÍNH!
       }
 
       // 2. XIN OFF TẠM THỜI ('leave')
@@ -1212,9 +1229,17 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                HÀNG TỔNG LƯƠNG & TỔNG GIỜ LÀM THEO TỪNG NGÀY TRONG TUẦN (Y HỆT HÌNH MẪU)
                ========================================================================= */}
             <tr className="border-t-2 border-purple-900 font-black">
-              {/* Cột Tên Hàng: TỔNG LƯƠNG (Nền tím nhạt, chữ tím đậm nổi bật) */}
-              <td className="p-3 bg-purple-200 text-purple-950 text-center font-black text-xs sm:text-sm tracking-wider uppercase border-r border-purple-300">
-                TỔNG LƯƠNG
+              {/* Cột Đầu Tiên: TỔNG CẢ TUẦN (Cộng dồn tất cả 7 ngày trong tuần) */}
+              <td className="p-2 sm:p-2.5 bg-purple-200 text-purple-950 text-center font-black border-r-2 border-purple-300 space-y-0.5 min-w-[110px] sticky left-0 z-20 shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)]">
+                <div className="text-[10px] font-black uppercase tracking-wider text-purple-800">
+                  TỔNG CẢ TUẦN
+                </div>
+                <div className="text-xs sm:text-sm font-black text-purple-950 tracking-tight">
+                  {formatCurrency(weekTotalSalary)}
+                </div>
+                <div className="text-[11px] font-extrabold text-purple-800/90">
+                  {weekTotalHours > 0 ? `${weekTotalHours}h` : '0h'}
+                </div>
               </td>
 
               {/* 7 Cột Tương Ứng T2 -> CN */}
