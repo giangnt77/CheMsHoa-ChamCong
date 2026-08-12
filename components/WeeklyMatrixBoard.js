@@ -316,15 +316,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       }
 
       // 1. NGHỈ VIỆC / OFF CỐ ĐỊNH ('off')
-      // Nếu đã nghỉ việc / nghỉ luôn và KHÔNG CÓ CA LÀM NÀO trong tuần này -> 100% BẰNG MỌI GIÁ KHÔNG HIỂN THỊ TRÊN BẢNG MA TRẬN (Tránh rác hàng OFF OFF OFF)
+      // Nếu tuần đang xem xảy ra TRƯỚC NGÀY NGHỈ VIỆC (startDate < resignedDate) -> Vẫn hiển thị bình thường ở các tuần quá khứ!
+      // Nếu tuần đang xem diễn ra SAU KHI ĐÃ NGHỈ VIỆC và không có ca làm -> Ẩn khỏi bảng ma trận chính để tránh rác hàng OFF!
       if (emp.status === 'off' || emp.is_active === false) {
-        permanentOffList.push({
-          employee: emp,
-          reason: emp.resigned_at
-            ? `Đã nghỉ việc từ ${emp.resigned_at.split('-').reverse().join('/')}`
-            : 'Đã nghỉ việc',
-        });
-        return; // TUYỆT ĐỐI KHÔNG PUSH VÀO MATRIX HÀNG CHÍNH!
+        const resignedDate = emp.resigned_at || emp.off_date || (emp.updated_at ? emp.updated_at.slice(0, 10) : '2099-12-31');
+        if (startDate < resignedDate) {
+          matrix.push(emp); // Tuần quá khứ trước khi nghỉ -> Vẫn hiện trên bảng!
+        } else {
+          permanentOffList.push({
+            employee: emp,
+            reason: `Đã nghỉ việc từ ${resignedDate.split('-').reverse().join('/')}`,
+          });
+        }
+        return;
       }
 
       // 2. XIN OFF TẠM THỜI ('leave')

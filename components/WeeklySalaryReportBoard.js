@@ -184,9 +184,14 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
           (dStr) => (scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []).length > 0
         );
 
-        // 3. Nếu nhân viên ĐÃ NGHỈ LUÔN (status === 'off' hoặc is_active === false) VÀ KHÔNG CÓ CA LÀM NÀO TRONG TUẦN NÀY -> BỎ HOÀN TOÀN 100%!
-        if ((emp.status === 'off' || emp.is_active === false) && !hasShiftsInThisWeek) {
-          return false;
+        // 3. NGHỈ VIỆC / OFF CỐ ĐỊNH ('off'):
+        // - Nếu mốc tuần đang xem xảy ra TRƯỚC NGÀY NGHỈ VIỆC (startDate < resignedDate) -> Vẫn giữ lại nhân viên để hiện báo cáo quá khứ!
+        // - Nếu mốc tuần đang xem xảy ra SAU KHI ĐÃ NGHỈ VIỆC (startDate >= resignedDate) VÀ KHÔNG CÓ CA LÀM NÀO -> Mới ẩn đi!
+        if (emp.status === 'off' || emp.is_active === false) {
+          const resignedDate = emp.resigned_at || emp.off_date || (emp.updated_at ? emp.updated_at.slice(0, 10) : '2099-12-31');
+          if (startDate >= resignedDate && !hasShiftsInThisWeek) {
+            return false;
+          }
         }
 
         const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
