@@ -10,8 +10,25 @@ import {
   upsertAvailability,
   updateEmployeesSortOrders,
 } from '@/lib/supabase';
-import { getBranchColorStyle, getToday } from '@/lib/utils';
+import { getBranchColorStyle, getToday, formatCurrency } from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
+
+function calculateShiftHours(shift) {
+  if (!shift) return 0;
+  if (shift.duration_hours && Number(shift.duration_hours) > 0) {
+    return Number(shift.duration_hours);
+  }
+  const startStr = shift.start_time || '09:00';
+  const endStr = shift.end_time || '14:00';
+  const [sH, sM] = startStr.split(':').map(Number);
+  const [eH, eM] = endStr.split(':').map(Number);
+  let startMinutes = (sH || 0) * 60 + (sM || 0);
+  let endMinutes = (eH || 0) * 60 + (eM || 0);
+  if (endMinutes <= startMinutes) {
+    endMinutes += 24 * 60;
+  }
+  return Math.max(0, (endMinutes - startMinutes) / 60);
+}
 
 /**
  * WeeklyMatrixBoard — Bảng Ma Trận Phân Công Ca Làm Tuần Chuẩn ExcelCao Cấp.
@@ -1190,6 +1207,52 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                 );
               })
             )}
+
+            {/* =========================================================================
+               HÀNG TỔNG LƯƠNG & TỔNG GIỜ LÀM THEO TỪNG NGÀY TRONG TUẦN (Y HỆT HÌNH MẪU)
+               ========================================================================= */}
+            <tr className="border-t-2 border-purple-900 font-black">
+              {/* Cột Tên Hàng: TỔNG LƯƠNG (Nền tím nhạt, chữ tím đậm nổi bật) */}
+              <td className="p-3 bg-purple-200 text-purple-950 text-center font-black text-xs sm:text-sm tracking-wider uppercase border-r border-purple-300">
+                TỔNG LƯƠNG
+              </td>
+
+              {/* 7 Cột Tương Ứng T2 -> CN */}
+              {weekDays.map((dStr) => {
+                // 1. Lọc tất cả ca phân công trong ngày dStr từ localSchedule
+                const dayShifts = localSchedule.filter((s) => s.date === dStr);
+
+                // 2. Tính tổng giờ và tổng lương ngày đó
+                let dayTotalHours = 0;
+                let dayTotalSalary = 0;
+
+                dayShifts.forEach((shift) => {
+                  const hours = calculateShiftHours(shift);
+                  dayTotalHours += hours;
+
+                  const emp = (employees || []).find((e) => e.id === shift.employee_id);
+                  const hourlyRate = emp?.hourly_rate || 20000;
+                  dayTotalSalary += hours * hourlyRate;
+                });
+
+                return (
+                  <td
+                    key={dStr}
+                    className="p-2 sm:p-2.5 bg-purple-950 text-center text-white border-r border-purple-900 shadow-inner space-y-0.5"
+                  >
+                    {/* Tổng Số Tiền Lương Ngày Hôm Đó (Chữ Xanh Lá Cây Sáng Nổi Bật) */}
+                    <div className="text-xs sm:text-sm font-black text-emerald-400 tracking-tight">
+                      {formatCurrency(dayTotalSalary)}
+                    </div>
+
+                    {/* Tổng Số Giờ Làm Trong Ngày Đó */}
+                    <div className="text-[11px] font-extrabold text-purple-200/90">
+                      {dayTotalHours > 0 ? `${dayTotalHours}h` : '0h'}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
           </tbody>
         </table>
       </div>
