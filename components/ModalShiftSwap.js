@@ -148,9 +148,9 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
           const formattedShifts = shiftInfoList.join(', ');
 
           if (!isOverlap) {
-            currentShiftLabel = `Làm ca khác (${formattedShifts}) ➔ Rảnh giờ ca bạn!`;
+            currentShiftLabel = `🟡 Đã có ca ${formattedShifts} (Rảnh giờ bạn nhờ)`;
           } else {
-            currentShiftLabel = `Bị BẬN ca trùng (${formattedShifts})`;
+            currentShiftLabel = `🟠 Đã có ca ${formattedShifts} (Nhờ gộp ca / làm thay)`;
           }
         }
 
@@ -166,12 +166,11 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
         return {
           ...emp,
-          isAvailable: !isOverlap,
+          isAvailable: true, // MỞ TẤT CẢ TÊN NHÂN VIÊN (KHÔNG ẨN BẤT KỲ AI)
           shiftSummary: currentShiftLabel,
           targetShiftInfo: empShiftDetail,
         };
-      })
-      .filter((emp) => emp.isAvailable); // CHỈ GIỮ LẠI NHỮNG NGƯỜI RẢNH, ẨN NGƯỜI BỊ BẬN TRÙNG LỊCH!
+      }); // MỞ 100% DANH SÁCH NHÂN VIÊN TẠO TICKET GỬI CHỦ QUÁN TỰ TAY DUYỆT!
   }, [allEmployees, daySchedules, myShiftInfo]);
 
   // Tự động chọn người đầu tiên trong danh sách đủ điều kiện
