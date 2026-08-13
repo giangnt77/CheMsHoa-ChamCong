@@ -18,6 +18,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
   const [shiftDate, setShiftDate] = useState(getToday());
   const [myShiftInfo, setMyShiftInfo] = useState(''); // Ví dụ: "16:00 - 22:00 (CN 56)"
   const [targetEmpId, setTargetEmpId] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Tìm kiếm tên nhân viên
 
   // Tải danh sách nhân viên ban đầu
   useEffect(() => {
@@ -122,6 +123,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
         let isOverlap = false;
         let currentShiftLabel = '🟢 Chưa có ca làm (Rảnh trọn ngày)';
+        let statusPriority = 1; // 🟢 Chưa có ca làm (Rảnh trọn ngày) -> ĐẨY LÊN TRÊN CÙNG (Ưu tiên 1)
 
         if (empScheds.length > 0) {
           const shiftInfoList = empScheds.map((s) => {
@@ -137,7 +139,6 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
               const eStart = sh * 60 + sm;
               const eEnd = eh * 60 + em;
 
-              // Trùng giờ nếu: (eStart < myEnd) và (eEnd > myStart)
               if (eStart < myEnd && eEnd > myStart) {
                 isOverlap = true;
               }
@@ -148,8 +149,10 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
           const formattedShifts = shiftInfoList.join(', ');
 
           if (!isOverlap) {
+            statusPriority = 2; // 🟡 Đã có ca khác giờ (Rảnh giờ bạn nhờ) -> Ưu tiên 2
             currentShiftLabel = `🟡 Đã có ca ${formattedShifts} (Rảnh giờ bạn nhờ)`;
           } else {
+            statusPriority = 3; // 🟠 Đã có ca dính/trùng giờ (Nhờ gộp ca / làm thay) -> Ưu tiên 3 (Đáy danh sách)
             currentShiftLabel = `🟠 Đã có ca ${formattedShifts} (Nhờ gộp ca / làm thay)`;
           }
         }
@@ -166,12 +169,29 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
         return {
           ...emp,
-          isAvailable: true, // MỞ TẤT CẢ TÊN NHÂN VIÊN (KHÔNG ẨN BẤT KỲ AI)
+          isAvailable: true,
+          statusPriority,
           shiftSummary: currentShiftLabel,
           targetShiftInfo: empShiftDetail,
         };
-      }); // MỞ 100% DANH SÁCH NHÂN VIÊN TẠO TICKET GỬI CHỦ QUÁN TỰ TAY DUYỆT!
+      })
+      .sort((a, b) => {
+        // SẮP XẾP SỐ 1: Đứa nào rảnh nguyên ngày (statusPriority = 1) ĐẨY LÊN TRÊN CÙNG
+        if (a.statusPriority !== b.statusPriority) {
+          return a.statusPriority - b.statusPriority;
+        }
+        return a.name.localeCompare(b.name);
+      });
   }, [allEmployees, daySchedules, myShiftInfo]);
+
+  // Lọc danh sách đồng nghiệp theo ô tìm kiếm
+  const filteredEmployees = useMemo(() => {
+    if (!searchTerm.trim()) return availableEmployees;
+    const kw = searchTerm.trim().toLowerCase();
+    return availableEmployees.filter((emp) =>
+      (emp.name || '').toLowerCase().includes(kw)
+    );
+  }, [availableEmployees, searchTerm]);
 
   // Tự động chọn người đầu tiên trong danh sách đủ điều kiện
   useEffect(() => {
@@ -332,19 +352,41 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
               </div>
             </div>
 
-            {/* DANH SÁCH ĐỒNG NGHIỆP CÓ THỜI GIAN RẢNH (ĐƯỢC LỌC THÔNG MINH BẰNG THUẬT TOÁN) */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-black text-purple-950 flex items-center justify-between">
-                <span>👥 Chọn đồng nghiệp đổi ca cùng:</span>
+            {/* DANH SÁCH ĐỒNG NGHIỆP CÓ THỜI GIAN RẢNH (SẮP XẾP ƯU TIÊN RẢNH TRỌN NGÀY LÊN TRÊN CÙNG) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <label className="text-xs font-black text-purple-950 flex items-center gap-1">
+                  <span>👥 Chọn đồng nghiệp đổi ca cùng:</span>
+                </label>
                 {loadingSchedule && <span className="text-[11px] text-purple-600 font-bold animate-pulse">⏳ Đang tính toán thời gian rảnh...</span>}
-              </label>
+              </div>
 
-              {availableEmployees.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="max-h-[240px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                    {availableEmployees.map((emp) => {
+              {/* Ô TÌM KIẾM NHÂN VIÊN */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="🔍 Nhập tên đồng nghiệp để tìm nhanh..."
+                  className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-purple-600 rounded-xl text-purple-950 text-xs font-bold outline-none shadow-2xs"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-950 font-black text-xs bg-purple-200/60 rounded-full w-4 h-4 flex items-center justify-center cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {filteredEmployees.length > 0 ? (
+                <div className="space-y-2 pt-1">
+                  <div className="max-h-[230px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {filteredEmployees.map((emp) => {
                       const isSelected = targetEmpId === emp.id;
-                      const isFreeAllDay = emp.shiftSummary.includes('Rảnh trọn ngày') || emp.shiftSummary.includes('🟢');
+                      const isFreeAllDay = emp.statusPriority === 1 || emp.shiftSummary.includes('Rảnh trọn ngày') || emp.shiftSummary.includes('🟢');
 
                       return (
                         <div
@@ -393,9 +435,9 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                   </div>
                 </div>
               ) : (
-                <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-center text-rose-800 text-xs font-bold space-y-1">
-                  <p className="font-black text-rose-950">⚠️ Không tìm thấy đồng nghiệp nào rảnh trong khung giờ này!</p>
-                  <p className="text-[11px]">Tất cả nhân viên khác đều đang có lịch làm trùng khung giờ ca của bạn.</p>
+                <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200 text-center text-purple-900 text-xs font-bold space-y-1">
+                  <p className="font-black">🔍 Không tìm thấy đồng nghiệp phù hợp với từ khóa "{searchTerm}"!</p>
+                  <p className="text-[11px] text-purple-700">Vui lòng thử xóa ô tìm kiếm hoặc nhập từ khóa tên khác.</p>
                 </div>
               )}
             </div>
