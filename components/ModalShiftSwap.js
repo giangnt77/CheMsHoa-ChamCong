@@ -123,8 +123,8 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
         );
 
         let isOverlap = false;
-        let currentShiftLabel = '🟢 Chưa có ca làm (Rảnh trọn ngày)';
-        let statusPriority = 1; // 🟢 Chưa có ca làm (Rảnh trọn ngày) -> ĐẨY LÊN TRÊN CÙNG (Ưu tiên 1)
+        let currentShiftLabel = '🟢 Chưa có ca làm';
+        let statusPriority = 1;
 
         if (empScheds.length > 0) {
           const shiftInfoList = empScheds.map((s) => {
@@ -150,11 +150,11 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
           const formattedShifts = shiftInfoList.join(', ');
 
           if (!isOverlap) {
-            statusPriority = 2; // 🟡 Đã có ca khác giờ (Rảnh giờ bạn nhờ) -> Ưu tiên 2
-            currentShiftLabel = `🟡 Đã có ca ${formattedShifts} (Rảnh giờ bạn nhờ)`;
+            statusPriority = 2;
+            currentShiftLabel = `🟡 Đã có ca ${formattedShifts}`;
           } else {
-            statusPriority = 3; // 🟠 Đã có ca dính/trùng giờ (Nhờ gộp ca / làm thay) -> Ưu tiên 3 (Đáy danh sách)
-            currentShiftLabel = `🟠 Đã có ca ${formattedShifts} (Nhờ gộp ca / làm thay)`;
+            statusPriority = 3;
+            currentShiftLabel = `🟠 Đã có ca ${formattedShifts} (Gộp ca)`;
           }
         }
 

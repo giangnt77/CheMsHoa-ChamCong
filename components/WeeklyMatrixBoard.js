@@ -689,7 +689,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         }
       }
 
-      if (toast) toast.success('🚀 THÀNH CÔNG RỰC RỠ!', `Đã lưu siêu tốc các thay đổi lịch phân công & Ca OFF!`);
+      if (toast) toast.success('Đã lưu thành công', 'Đã cập nhật lịch phân công & Ca OFF');
       await loadWeekData(true);
     } catch (err) {
       console.error('Lỗi khi lưu batch lịch:', err);
@@ -833,7 +833,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       link.click();
       document.body.removeChild(link);
 
-      if (toast) toast.success('🎉 THÀNH CÔNG!', 'Đã tải Bức Ảnh Bảng Lịch (PNG) 2K siêu nét về máy!');
+      if (toast) toast.success('Đã tải thành công', 'Đã tải file ảnh bảng lịch (PNG)');
     } catch (err) {
       console.error('Lỗi tải ảnh:', err);
       if (toast) toast.error('Lỗi', 'Không thể xuất file ảnh PNG. Vui lòng thử lại!');
@@ -1360,10 +1360,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                 <span className="text-xl">👁️</span>
                 <div>
                   <h3 className="font-black text-sm sm:text-base tracking-tight text-white uppercase">
-                    XEM TRƯỚC BẢNG LỊCH PHÂN CÔNG (TRỌN 1 HÌNH SẠCH SẼ)
+                    XEM TRƯỚC BẢNG LỊCH PHÂN CÔNG
                   </h3>
                   <p className="text-xs text-purple-200 font-extrabold">
-                    Xem bản mẫu chuẩn trước khi tải tệp PDF về máy
+                    Xem trước hình ảnh bảng phân công trước khi tải về
                   </p>
                 </div>
               </div>
@@ -1374,7 +1374,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   onClick={handleDownloadImage}
                   disabled={isExportingPDF}
                   className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs sm:text-sm border border-emerald-400 cursor-pointer shadow-md active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  title="Tải thẳng bức ảnh PNG siêu sắc nét 2K"
+                  title="Tải file ảnh PNG"
                 >
                   <span>🖼️</span>
                   <span>{isExportingPDF ? '⏳ Đang Tải...' : 'TẢI FILE ẢNH (PNG)'}</span>
