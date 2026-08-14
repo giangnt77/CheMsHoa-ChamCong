@@ -561,7 +561,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
 
     setHasUnsavedChanges(true);
-    if (toast) toast.info('Đã gán ca (Bản thảo)', 'Thay đổi đã được cập nhật! Bấm "LƯU LỊCH PHÂN CÔNG" ở trên khi xếp xong.');
   }
 
   // 2. Xóa ca làm (chỉ cập nhật State Local)
@@ -571,7 +570,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     }
     setLocalSchedule((prev) => prev.filter((s) => s.id !== itemId));
     setHasUnsavedChanges(true);
-    if (toast) toast.info('Đã bỏ ca (Bản thảo)', 'Đã xóa ca trên bản thảo. Bấm "LƯU LỊCH PHÂN CÔNG" để lưu chính thức!');
   }
 
   // 2.5. Gán ca OFF đè lên (CHỈ bật flag is_admin_assigned, GIỮ NGUYÊN ghi chú gốc của NV)
@@ -609,7 +607,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
 
     setHasUnsavedChanges(true);
-    if (toast) toast.warning('Đã gán Ca OFF', 'Đã đè trạng thái OFF cho nhân viên. Bấm "LƯU LỊCH PHÂN CÔNG" để lưu chính thức!');
   }
 
   // 2.6. Xóa ca OFF — quay về trạng thái ban đầu (thấy lại ghi chú đăng ký của NV)
@@ -627,7 +624,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
 
     setHasUnsavedChanges(true);
-    if (toast) toast.info('Đã xóa Ca OFF', 'Đã khôi phục trạng thái ban đầu. Bấm "LƯU LỊCH PHÂN CÔNG" để lưu chính thức!');
   }
 
   // 3. Sao chép ca từ hôm trước (chỉ cập nhật State Local)
@@ -649,7 +645,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
     setLocalSchedule((prev) => [...prev, newDraft]);
     setHasUnsavedChanges(true);
-    if (toast) toast.info('Đã copy ca (Bản thảo)', 'Bấm "LƯU LỊCH PHÂN CÔNG" ở trên khi xếp xong.');
   }
 
   // 4. LƯU THÔNG MINH: CHỈ LƯU NHỮNG CA BỊ THAY ĐỔI/THÊM MỚI/XÓA (TỐC ĐỘ SIÊU TỐC THẦN TỐC ⚡)
@@ -768,9 +763,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
         return `
           <tr style="background-color: ${rowBg};">
-            <td style="padding: 4px 8px; border: 1px solid #e9d5ff; font-size: 12px; font-weight: 900; color: #1e1b4b; text-align: left; white-space: nowrap; vertical-align: middle; font-family: Arial, sans-serif;">
-              <span style="color: #7e22ce; font-size: 10.5px; margin-right: 5px; font-weight: 900;">${idx + 1}.</span>
-              <span style="font-weight: 900; color: #1e1b4b;">${emp.name}</span>
+            <td style="padding: 6px 10px; border: 1px solid #e9d5ff; font-size: 16px; font-weight: 900; color: #1e1b4b; text-align: left; white-space: nowrap; vertical-align: middle; font-family: system-ui, -apple-system, sans-serif;">
+              <span style="color: #6b21a8; font-size: 14px; margin-right: 6px; font-weight: 900;">${idx + 1}.</span>
+              <span style="font-weight: 900; color: #1e1b4b; font-size: 16px; letter-spacing: -0.2px;">${emp.name}</span>
             </td>
             ${cells}
           </tr>
@@ -782,16 +777,16 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       tempElement.style.padding = '18px 22px';
       tempElement.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       tempElement.style.color = '#1e1b4b';
-      tempElement.style.width = '1280px';
+      tempElement.style.width = '1320px';
       tempElement.style.margin = '0 auto';
       tempElement.style.boxSizing = 'border-box';
 
       tempElement.innerHTML = `
         <div style="text-align: center; margin-bottom: 12px; border-bottom: 3px solid #581c87; padding-bottom: 8px;">
-          <h2 style="font-size: 21px; font-weight: 900; color: #1e1b4b; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">
+          <h2 style="font-size: 22px; font-weight: 900; color: #1e1b4b; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">
             BẢNG PHÂN CÔNG LỊCH LÀM TUẦN
           </h2>
-          <p style="font-size: 12.5px; font-weight: 900; color: #6b21a8; margin: 4px 0 0 0;">
+          <p style="font-size: 13px; font-weight: 900; color: #6b21a8; margin: 4px 0 0 0;">
             Thời gian: Từ ngày ${startDate.split('-').reverse().join('/')} đến ngày ${endDate.split('-').reverse().join('/')}
           </p>
         </div>
@@ -799,7 +794,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         <table style="width: 100%; border-collapse: collapse; background-color: #ffffff; table-layout: fixed;">
           <thead>
             <tr style="background-color: #581c87; color: #ffffff;">
-              <th style="padding: 12px 12px; border: 1.5px solid #a855f7; text-align: left; font-size: 13px; font-weight: 900; width: 230px;">
+              <th style="padding: 12px 12px; border: 1.5px solid #a855f7; text-align: left; font-size: 14px; font-weight: 900; width: 255px;">
                 STT / NHÂN VIÊN
               </th>
               ${tableHeaderDays}
@@ -1432,9 +1427,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     <tbody>
                       {customMatrixOrder.map((emp, idx) => (
                         <tr key={emp.id} className={`border-b border-purple-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-purple-50/60'}`}>
-                          <td className="py-1 px-2.5 border-r border-purple-200 font-black text-purple-950 text-xs whitespace-nowrap">
-                            <span className="text-purple-700 font-black text-[11px] mr-1.5">{idx + 1}.</span>
-                            <span>{emp.name}</span>
+                          <td className="py-1.5 px-3 border-r border-purple-200 font-black text-purple-950 text-sm whitespace-nowrap">
+                            <span className="text-purple-700 font-black text-xs mr-1.5">{idx + 1}.</span>
+                            <span className="font-black text-purple-950 text-sm">{emp.name}</span>
                           </td>
                           {weekDays.map((dStr) => {
                             const empShifts = scheduleByEmpAndDate[`${emp.id}_${dStr}`] || [];

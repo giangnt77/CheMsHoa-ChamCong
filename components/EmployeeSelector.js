@@ -112,7 +112,6 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
       } else {
         localStorage.removeItem(`chemshoa_saved_pin_${selectedEmp.id}`);
       }
-      toast.success('Thành công', `Xin chào ${selectedEmp.name}!`);
       onSelect(selectedEmp.name, false);
     } else {
       setPinError(true);

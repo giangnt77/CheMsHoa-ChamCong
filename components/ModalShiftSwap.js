@@ -59,13 +59,14 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
       if (myScheds.length > 0) {
         const first = myScheds[0];
-        const bName = first.branches?.name || 'Chưa xếp CN';
+        const bName = first.branches?.name || first.branch_name || '56';
         const sTime = first.start_time ? String(first.start_time).slice(0, 5) : '';
         const eTime = first.end_time ? String(first.end_time).slice(0, 5) : '';
         const timeStr = sTime && eTime ? `${sTime} - ${eTime}` : 'Có lịch làm';
         setMyShiftInfo(`[CN ${bName}] ${timeStr}`);
       } else {
-        setMyShiftInfo('16:00 - 22:00 (Mặc định)');
+        const bName = employee?.branches?.name || employee?.branch_name || '56';
+        setMyShiftInfo(`[CN ${bName}] 13:00 - 19:00`);
       }
     } catch (e) {
       console.error(e);

@@ -128,7 +128,6 @@ function EmployeeContent() {
     const snoozeKey = `chems_employee_notice_snooze_${employee.id}`;
     localStorage.setItem(snoozeKey, String(snoozeTime));
     setShowNoticeModal(false);
-    toast.info('Đã ẩn thông báo', 'Thông báo từ Quản Lý sẽ được tạm ẩn trong 4 giờ!');
   }
 
   // Luôn bắt đầu từ Màn Hình Chọn Nhân Viên (Không tự động nhảy thẳng vào app qua cache)

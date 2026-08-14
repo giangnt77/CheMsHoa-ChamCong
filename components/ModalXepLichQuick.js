@@ -93,6 +93,16 @@ export default function ModalXepLichQuick({
     if (!selectedEmpId) return;
     setSubmitting(true);
 
+    // Tự động gỡ bỏ cờ OFF nếu nhân viên này đang bị gán OFF mà lại được xếp ca làm mới!
+    const empAvailForOff = availabilities.find((a) => a.employee_id === selectedEmpId);
+    if (empAvailForOff?.is_admin_assigned && onRemoveOff) {
+      try {
+        await onRemoveOff(selectedEmpId, date);
+      } catch (err) {
+        console.error('Lỗi khi tự động gỡ cờ OFF:', err);
+      }
+    }
+
     await onSave({
       employeeId: selectedEmpId,
       branchId: selectedBranchId,
@@ -409,9 +419,12 @@ export default function ModalXepLichQuick({
               </button>
               {(() => {
                 const empAvailForOff = selectedEmpId ? availabilities.find((a) => a.employee_id === selectedEmpId) : null;
-                const isAlreadyAdminOff = empAvailForOff?.is_admin_assigned === true;
+                const hasActiveShift = selectedEmpId ? daySchedule.some((s) => s.employee_id === selectedEmpId) : false;
 
-                return isAlreadyAdminOff ? (
+                // CHỈ HIỆN "XÓA OFF" KHI NHÂN VIÊN ĐANG CÓ CỜ ADMIN OFF VÀ KHÔNG CÓ CA LÀM NÀO TRONG NGÀY
+                const isOffWithoutShift = empAvailForOff?.is_admin_assigned === true && !hasActiveShift;
+
+                return isOffWithoutShift ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -420,7 +433,7 @@ export default function ModalXepLichQuick({
                       onClose();
                     }}
                     className="py-2 px-1 bg-emerald-50 hover:bg-emerald-100 text-xs font-black rounded-xl text-emerald-900 border border-emerald-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1"
-                    title="Xóa trạng thái OFF — quay về hiện ghi chú đăng ký ban đầu"
+                    title="Xóa trạng thái OFF — quay về đi làm"
                   >
                     <span>↩️</span>
                     <span>Xóa OFF</span>
@@ -439,7 +452,7 @@ export default function ModalXepLichQuick({
                       onClose();
                     }}
                     className="py-2 px-1 bg-rose-50 hover:bg-rose-100 text-xs font-black rounded-xl text-rose-900 border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-1"
-                    title="Gán ca OFF đè lên cho nhân viên này"
+                    title="Gán ca OFF (Cho nghỉ)"
                   >
                     <span>🛑</span>
                     <span>Ca : OFF</span>
