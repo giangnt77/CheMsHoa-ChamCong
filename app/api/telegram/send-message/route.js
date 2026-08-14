@@ -6,8 +6,8 @@ export async function POST(request) {
     const body = await request.json();
     const { token, chatId, text } = body;
 
-    const botToken = token || process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '8514257668:AAFjq2t3a9p--jmwLomShVX4HSOJ8WNyIGw';
-    const targetChatId = chatId || process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || '5766522088';
+    const botToken = token || process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
+    const targetChatId = chatId || process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || '5616165281';
 
     if (!targetChatId || !text) {
       return NextResponse.json({ ok: false, message: 'Thiếu Chat ID hoặc nội dung tin nhắn' });

@@ -24,14 +24,20 @@ export default function AdminShiftSwapManager() {
 
   function handleOpenTelegramModal() {
     if (typeof window !== 'undefined') {
-      setTgBotToken(localStorage.getItem('chems_telegram_bot_token') || '8514257668:AAFjq2t3a9p--jmwLomShVX4HSOJ8WNyIGw');
-      setTgChatId(localStorage.getItem('chems_telegram_chat_id') || '5766522088');
+      const savedToken = localStorage.getItem('chems_telegram_bot_token');
+      const savedChatId = localStorage.getItem('chems_telegram_chat_id');
+      const token = (savedToken && !savedToken.startsWith('8514257668')) ? savedToken : '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
+      const chatId = (savedChatId && savedChatId !== '5766522088') ? savedChatId : '5616165281';
+      setTgBotToken(token);
+      setTgChatId(chatId);
+      localStorage.setItem('chems_telegram_bot_token', token);
+      localStorage.setItem('chems_telegram_chat_id', chatId);
     }
     setShowTelegramModal(true);
   }
 
   async function handleAutoFetchChatId() {
-    const token = tgBotToken.trim() || '8514257668:AAFjq2t3a9p--jmwLomShVX4HSOJ8WNyIGw';
+    const token = tgBotToken.trim() || '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
     setFetchingChatId(true);
     try {
       const res = await fetch(`/api/telegram/get-updates?token=${encodeURIComponent(token)}`);

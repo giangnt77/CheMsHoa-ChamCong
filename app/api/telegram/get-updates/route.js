@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get('token') || '8514257668:AAFjq2t3a9p--jmwLomShVX4HSOJ8WNyIGw';
+  const token = searchParams.get('token') || process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
 
   const endpoints = [
     `https://api.telegram.org/bot${token}/getUpdates`,
