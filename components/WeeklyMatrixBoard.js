@@ -745,27 +745,28 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               const colorHex = style.badgeStyle?.color || '#581c87';
 
               return `
-                <div style="background-color: ${bgHex}; color: ${colorHex}; border-radius: 6px; padding: 5px 2px 4px 2px; text-align: center; border: 1px solid rgba(0,0,0,0.15); box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-family: Arial, sans-serif; box-sizing: border-box; width: 100%; display: block;">
-                  <span style="font-size: 11.5px; font-weight: 900; color: ${colorHex}; display: inline-block; line-height: 1; letter-spacing: -0.2px;">${startTimeStr}-${endTimeStr}</span><br/><span style="font-size: 10px; font-weight: 900; color: ${colorHex}; display: inline-block; line-height: 1; margin-top: 3px; text-transform: uppercase;">${branchDisplayName}</span>
+                <div style="background-color: ${bgHex}; color: ${colorHex}; border-radius: 7px; padding: 5px 2px; text-align: center; border: 1.5px solid rgba(0,0,0,0.12); box-shadow: 0 1px 2px rgba(0,0,0,0.04); font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box; width: 100%; min-height: 48px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px;">
+                  <span style="font-size: 14px; font-weight: 900; color: ${colorHex}; display: block; line-height: 1.1; letter-spacing: -0.3px;">${startTimeStr}-${endTimeStr}</span>
+                  <span style="font-size: 12px; font-weight: 900; color: ${colorHex}; display: block; line-height: 1.1; text-transform: uppercase; opacity: 0.95;">${branchDisplayName}</span>
                 </div>
               `;
             }).join('');
           } else if (empAvail?.is_admin_assigned) {
             cellContent = `
-              <div style="background-color: #fff1f2; color: #e11d48; border-radius: 6px; padding: 6px 2px; font-size: 11px; font-weight: 900; text-align: center; border: 1px solid #fecdd3; font-family: Arial, sans-serif; box-sizing: border-box; width: 100%; display: block; line-height: 1;">
+              <div style="background-color: #fff1f2; color: #e11d48; border-radius: 7px; padding: 5px 2px; font-size: 13.5px; font-weight: 900; text-align: center; border: 1.5px solid #fecdd3; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box; width: 100%; min-height: 48px; display: flex; justify-content: center; align-items: center; line-height: 1;">
                 🛑 OFF
               </div>
             `;
           }
 
-          return `<td style="padding: 3px 3px; border: 1px solid #e9d5ff; text-align: center; vertical-align: middle;">${cellContent}</td>`;
+          return `<td style="padding: 3px 3px; border: 1px solid #e9d5ff; text-align: center; vertical-align: middle; height: 52px;">${cellContent}</td>`;
         }).join('');
 
         return `
           <tr style="background-color: ${rowBg};">
-            <td style="padding: 6px 10px; border: 1px solid #e9d5ff; font-size: 16px; font-weight: 900; color: #1e1b4b; text-align: left; white-space: nowrap; vertical-align: middle; font-family: system-ui, -apple-system, sans-serif;">
-              <span style="color: #6b21a8; font-size: 14px; margin-right: 6px; font-weight: 900;">${idx + 1}.</span>
-              <span style="font-weight: 900; color: #1e1b4b; font-size: 16px; letter-spacing: -0.2px;">${emp.name}</span>
+            <td style="padding: 8px 12px; border: 1.5px solid #e9d5ff; font-size: 21px; font-weight: 900; color: #0f172a; text-align: left; white-space: nowrap; vertical-align: middle; font-family: system-ui, -apple-system, Arial, sans-serif;">
+              <span style="color: #6b21a8; font-size: 17px; margin-right: 6px; font-weight: 900;">${idx + 1}.</span>
+              <span style="font-weight: 900; color: #0f172a; font-size: 21px; letter-spacing: -0.3px;">${emp.name}</span>
             </td>
             ${cells}
           </tr>
@@ -774,19 +775,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
       const tempElement = document.createElement('div');
       tempElement.style.backgroundColor = '#ffffff';
-      tempElement.style.padding = '18px 22px';
+      tempElement.style.padding = '20px 24px';
       tempElement.style.fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       tempElement.style.color = '#1e1b4b';
-      tempElement.style.width = '1320px';
+      tempElement.style.width = '1420px';
       tempElement.style.margin = '0 auto';
       tempElement.style.boxSizing = 'border-box';
 
       tempElement.innerHTML = `
-        <div style="text-align: center; margin-bottom: 12px; border-bottom: 3px solid #581c87; padding-bottom: 8px;">
-          <h2 style="font-size: 22px; font-weight: 900; color: #1e1b4b; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">
+        <div style="text-align: center; margin-bottom: 14px; border-bottom: 3.5px solid #581c87; padding-bottom: 10px;">
+          <h2 style="font-size: 24px; font-weight: 900; color: #1e1b4b; margin: 0; text-transform: uppercase; letter-spacing: 0.6px;">
             BẢNG PHÂN CÔNG LỊCH LÀM TUẦN
           </h2>
-          <p style="font-size: 13px; font-weight: 900; color: #6b21a8; margin: 4px 0 0 0;">
+          <p style="font-size: 14px; font-weight: 900; color: #6b21a8; margin: 5px 0 0 0;">
             Thời gian: Từ ngày ${startDate.split('-').reverse().join('/')} đến ngày ${endDate.split('-').reverse().join('/')}
           </p>
         </div>
@@ -794,7 +795,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         <table style="width: 100%; border-collapse: collapse; background-color: #ffffff; table-layout: fixed;">
           <thead>
             <tr style="background-color: #581c87; color: #ffffff;">
-              <th style="padding: 12px 12px; border: 1.5px solid #a855f7; text-align: left; font-size: 14px; font-weight: 900; width: 255px;">
+              <th style="padding: 14px 12px; border: 1.5px solid #a855f7; text-align: left; font-size: 16px; font-weight: 900; width: 290px;">
                 STT / NHÂN VIÊN
               </th>
               ${tableHeaderDays}
