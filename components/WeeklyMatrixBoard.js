@@ -809,31 +809,35 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
       document.body.appendChild(tempElement);
 
-      // Chụp canvas 2K siêu nét
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(tempElement, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          const styles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
-          styles.forEach((s) => s.remove());
-        },
-      });
+      let canvas;
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        canvas = await html2canvas(tempElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc) => {
+            const styles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
+            styles.forEach((s) => s.remove());
+          },
+        });
+      } finally {
+        if (tempElement && tempElement.parentNode) {
+          tempElement.parentNode.removeChild(tempElement);
+        }
+      }
 
-      document.body.removeChild(tempElement);
-
-      const imageURI = canvas.toDataURL('image/png');
-
-      const link = document.createElement('a');
-      link.download = `Bảng_Xếp_Lịch_Chè_Ms_Hoa_${startDate}_đến_${endDate}.png`;
-      link.href = imageURI;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      if (toast) toast.success('Đã tải thành công', 'Đã tải file ảnh bảng lịch (PNG)');
+      if (canvas) {
+        const imageURI = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Bảng_Xếp_Lịch_Chè_Ms_Hoa_${startDate}_đến_${endDate}.png`;
+        link.href = imageURI;
+        document.body.appendChild(link);
+        link.click();
+        if (link.parentNode) link.parentNode.removeChild(link);
+        if (toast) toast.success('Đã tải thành công', 'Đã tải file ảnh bảng lịch (PNG)');
+      }
     } catch (err) {
       console.error('Lỗi tải ảnh:', err);
       if (toast) toast.error('Lỗi', 'Không thể xuất file ảnh PNG. Vui lòng thử lại!');

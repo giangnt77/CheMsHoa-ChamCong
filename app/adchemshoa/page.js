@@ -23,6 +23,7 @@ import {
   deleteBranch,
   getAvailabilityByDateRange,
   getScheduleByDateRange,
+  getScheduleByEmployee,
   upsertSchedule,
   deleteSchedule,
   getPenaltiesByEmployee,
@@ -162,7 +163,8 @@ function AdminContent() {
   const [editingContactInfo, setEditingContactInfo] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
   const [relativePhoneInput, setRelativePhoneInput] = useState('');
-  const [contactInfo, setContactInfo] = useState({ phone: '', relative_phone: '', cccd_url: '' });
+  const [addressInput, setAddressInput] = useState('');
+  const [contactInfo, setContactInfo] = useState({ phone: '', relative_phone: '', address: '', cccd_url: '' });
   const [previewCccdUrl, setPreviewCccdUrl] = useState(null);
 
   // Load contact info & CCCD khi chọn nhân viên 100% từ Supabase
@@ -170,13 +172,16 @@ function AdminContent() {
     if (selectedEmployee) {
       const currentPhone = selectedEmployee.phone || '';
       const currentRelativePhone = selectedEmployee.relative_phone || '';
+      const currentAddress = selectedEmployee.address || '';
       setContactInfo({
         phone: currentPhone,
         relative_phone: currentRelativePhone,
+        address: currentAddress,
         cccd_url: selectedEmployee.cccd_url || '',
       });
       setPhoneInput(currentPhone);
       setRelativePhoneInput(currentRelativePhone);
+      setAddressInput(currentAddress);
       setEditingContactInfo(false);
     }
   }, [selectedEmployee]);
@@ -188,16 +193,19 @@ function AdminContent() {
       const updated = await updateEmployeeContactInfo(selectedEmployee.id, {
         phone: phoneInput.trim(),
         relative_phone: relativePhoneInput.trim(),
+        address: addressInput.trim(),
       });
 
       const newPhone = updated?.phone !== undefined ? updated.phone : phoneInput.trim();
       const newRelativePhone = updated?.relative_phone !== undefined ? updated.relative_phone : relativePhoneInput.trim();
+      const newAddress = updated?.address !== undefined ? updated.address : addressInput.trim();
 
       // 1. Cập nhật thẻ liên hệ hiển thị tức thì
       setContactInfo((prev) => ({
         ...prev,
         phone: newPhone,
         relative_phone: newRelativePhone,
+        address: newAddress,
         cccd_url: updated?.cccd_url || prev.cccd_url,
       }));
 
@@ -206,13 +214,14 @@ function AdminContent() {
         ...prev,
         phone: newPhone,
         relative_phone: newRelativePhone,
+        address: newAddress,
       }));
 
       // 3. Cập nhật danh sách employees tổng để đồng bộ 100% không bao giờ bị cũ
       setEmployees((prevEmps) =>
         prevEmps.map((emp) =>
           emp.id === selectedEmployee.id
-            ? { ...emp, phone: newPhone, relative_phone: newRelativePhone }
+            ? { ...emp, phone: newPhone, relative_phone: newRelativePhone, address: newAddress }
             : emp
         )
       );
@@ -585,8 +594,10 @@ function AdminContent() {
     }
   }
 
-  // Rate History state
+  // Rate History & Lifetime Accumulation state
   const [empRates, setEmpRates] = useState([]);
+  const [allLifetimeSched, setAllLifetimeSched] = useState([]);
+  const [allLifetimePenalties, setAllLifetimePenalties] = useState([]);
   const [showAddRateModal, setShowAddRateModal] = useState(false);
   const [inputRateValue, setInputRateValue] = useState('24000');
   const [inputRateDate, setInputRateDate] = useState(getToday());
@@ -599,20 +610,50 @@ function AdminContent() {
       const mStr = String(month).padStart(2, '0');
       const startDate = `${year}-${mStr}-01`;
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
-      const [sched, penalties, rates] = await Promise.all([
+      const [sched, penalties, rates, myLifetimeSched, lifetimePenalties] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getPenaltiesByEmployee(selectedEmployee.id, selectedMonth),
         getEmployeeRates(selectedEmployee.id),
+        getScheduleByEmployee(selectedEmployee.id),
+        getPenaltiesByEmployee(selectedEmployee.id),
       ]);
-      const mySched = sched.filter(s => s.employee_id === selectedEmployee.id);
+      const mySched = (sched || []).filter(s => s.employee_id === selectedEmployee.id);
       setEmpSchedule(mySched);
-      setEmpPenalties(penalties);
-      setEmpRates(rates);
+      setEmpPenalties(penalties || []);
+      setEmpRates(rates || []);
+      setAllLifetimeSched(myLifetimeSched || []);
+      setAllLifetimePenalties(lifetimePenalties || []);
     } catch (err) {
       console.error(err);
       toast.error('Lỗi', 'Không thể tải dữ liệu nhân viên');
     }
   }
+
+  // Tính tổng tích lũy từ khi bắt đầu vào làm tới nay
+  const lifetimeData = useMemo(() => {
+    if (!selectedEmployee) return null;
+    const defaultRate = selectedEmployee.hourly_rate || 20000;
+    const { totalHours, grossSalary } = calculateSalaryFromShifts(allLifetimeSched, empRates, defaultRate);
+
+    let bonus = 0;
+    let penalty = 0;
+    allLifetimePenalties.forEach(p => {
+      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      if (isBonus) bonus += Math.abs(p.amount);
+      else penalty += Math.abs(p.amount);
+    });
+
+    const netSalary = grossSalary + bonus - penalty;
+
+    return {
+      totalShifts: allLifetimeSched.length,
+      totalHours,
+      grossSalary,
+      totalBonus: bonus,
+      totalPenalty: penalty,
+      netSalary,
+    };
+  }, [selectedEmployee, allLifetimeSched, empRates, allLifetimePenalties]);
 
   async function handleAddRate(e) {
     e.preventDefault();
@@ -1558,64 +1599,95 @@ function AdminContent() {
                           </div>
                         </div>
 
-                        {/* Bộ chuyển tháng */}
-                        <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1 rounded-2xl border border-purple-200 shadow-2xs">
-                          <button onClick={prevMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs bg-transparent border-0 cursor-pointer px-1">◀</button>
-                          <span className="font-black text-xs text-purple-950 min-w-[85px] text-center">{getMonthName(selectedMonth)}</span>
-                          <button onClick={nextMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs bg-transparent border-0 cursor-pointer px-1">▶</button>
-                        </div>
                       </div>
 
-                      {/* 5 THẺ THỐNG KÊ LƯƠNG GỌN GÀNG HÀNG NGANG */}
-                      {salaryData && (
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                          <div className="bg-purple-50/70 rounded-2xl p-2.5 border border-purple-200/80 text-center">
-                            <div className="text-[10px] text-purple-800 font-black uppercase">🗓️ Ca đã làm</div>
-                            <div className="text-xs sm:text-sm font-black text-purple-950 mt-0.5">{salaryData.totalShifts} ca ({salaryData.totalHours}h)</div>
+                      {/* 5 THẺ THỐNG KÊ TÍCH LŨY TOÀN BỘ TỪ TRƯỚC TỚI NAY (DÀNH CHO TAB QL NHÂN VIÊN) */}
+                      {lifetimeData && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] font-black text-purple-900 px-1">
+                            <span className="uppercase tracking-tight flex items-center gap-1">
+                              <span>⚡ TỔNG TÍCH LŨY TOÀN BỘ (TỪ KHI VÀO LÀM ĐẾN NAY)</span>
+                            </span>
+                            <span className="text-[10px] text-purple-700 font-extrabold bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                              Lũy kế toàn thời gian
+                            </span>
                           </div>
-                          <div className="bg-purple-50/70 rounded-2xl p-2.5 border border-purple-200/80 text-center">
-                            <div className="text-[10px] text-purple-800 font-black uppercase">💵 Lương Ca</div>
-                            <div className="text-xs sm:text-sm font-black text-purple-950 mt-0.5">{formatCurrency(salaryData.grossSalary)}</div>
-                          </div>
-                          <div
-                            onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
-                            className="bg-emerald-50/70 hover:bg-emerald-100 rounded-2xl p-2.5 border border-emerald-200/80 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.03]"
-                            title={`Bấm để chuyển sang trang Thưởng & Phạt của ${selectedEmployee?.name}`}
-                          >
-                            <div className="text-[10px] text-emerald-800 font-black uppercase">🎁 Thưởng</div>
-                            <div className="text-xs sm:text-sm font-black text-emerald-700 mt-0.5">+{formatCurrency(salaryData.totalBonus)}</div>
-                          </div>
-                          <div
-                            onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
-                            className="bg-rose-50/70 hover:bg-rose-100 rounded-2xl p-2.5 border border-rose-200/80 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.03]"
-                            title={`Bấm để chuyển sang trang Thưởng & Phạt của ${selectedEmployee?.name}`}
-                          >
-                            <div className="text-[10px] text-rose-800 font-black uppercase">⚠️ Phạt</div>
-                            <div className="text-xs sm:text-sm font-black text-rose-700 mt-0.5">-{formatCurrency(salaryData.totalPenalty)}</div>
-                          </div>
-                          <div
-                            onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
-                            className="col-span-2 sm:col-span-1 bg-purple-700 hover:bg-purple-800 rounded-2xl p-2.5 text-white text-center shadow-2xs cursor-pointer transition-all active:scale-95 hover:scale-[1.03]"
-                            title={`Bấm để chuyển sang trang Thưởng & Phạt của ${selectedEmployee?.name}`}
-                          >
-                            <div className="text-[10px] text-purple-200 font-black uppercase">🎉 THỰC NHẬN</div>
-                            <div className="text-xs sm:text-sm font-black mt-0.5">{formatCurrency(salaryData.netSalary)}</div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                            {/* Card 1: Tổng Ca & Giờ Tích Lũy */}
+                            <div className="bg-purple-50/80 rounded-2xl p-2.5 sm:p-3 border border-purple-200/90 text-center shadow-2xs space-y-0.5">
+                              <div className="text-[10px] text-purple-800 font-black uppercase">⌛ Ca đã làm</div>
+                              <div className="text-xs sm:text-sm font-black text-purple-950">
+                                {lifetimeData.totalShifts} ca
+                              </div>
+                              <div className="text-[10.5px] font-extrabold text-purple-700">
+                                ({lifetimeData.totalHours}h)
+                              </div>
+                            </div>
+
+                            {/* Card 2: Lương Ca Tích Lũy */}
+                            <div className="bg-purple-50/80 rounded-2xl p-2.5 sm:p-3 border border-purple-200/90 text-center shadow-2xs space-y-0.5">
+                              <div className="text-[10px] text-purple-800 font-black uppercase">💵 Lương Ca</div>
+                              <div className="text-xs sm:text-sm font-black text-emerald-700">
+                                {formatCurrency(lifetimeData.grossSalary)}
+                              </div>
+                              <div className="text-[10px] font-bold text-slate-500">Toàn thời gian</div>
+                            </div>
+
+                            {/* Card 3: Thưởng Tích Lũy */}
+                            <div
+                              onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
+                              className="bg-emerald-50/80 hover:bg-emerald-100/90 rounded-2xl p-2.5 sm:p-3 border border-emerald-200/90 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02] shadow-2xs space-y-0.5"
+                              title="Bấm để chuyển sang trang Thưởng & Phạt"
+                            >
+                              <div className="text-[10px] text-emerald-800 font-black uppercase">🎁 Tổng Thưởng</div>
+                              <div className="text-xs sm:text-sm font-black text-emerald-700">
+                                +{formatCurrency(lifetimeData.totalBonus)}
+                              </div>
+                              <div className="text-[9.5px] font-bold text-emerald-800">Bấm để quản lý ➔</div>
+                            </div>
+
+                            {/* Card 4: Phạt Tích Lũy */}
+                            <div
+                              onClick={() => handleGoToEmployeePenalty(selectedEmployee, selectedMonth)}
+                              className="bg-rose-50/80 hover:bg-rose-100/90 rounded-2xl p-2.5 sm:p-3 border border-rose-200/90 text-center cursor-pointer transition-all active:scale-95 hover:scale-[1.02] shadow-2xs space-y-0.5"
+                              title="Bấm để chuyển sang trang Thưởng & Phạt"
+                            >
+                              <div className="text-[10px] text-rose-800 font-black uppercase">⚠️ Tổng Phạt</div>
+                              <div className="text-xs sm:text-sm font-black text-rose-700">
+                                -{formatCurrency(lifetimeData.totalPenalty)}
+                              </div>
+                              <div className="text-[9.5px] font-bold text-rose-800">Bấm để quản lý ➔</div>
+                            </div>
+
+                            {/* Card 5: Thực Nhận Tích Lũy Toàn Thời Gian */}
+                            <div
+                              className="col-span-2 sm:col-span-1 bg-purple-900 hover:bg-purple-950 rounded-2xl p-2.5 sm:p-3 text-white text-center shadow-md border-2 border-purple-700 transition-all space-y-0.5"
+                            >
+                              <div className="text-[10px] text-amber-300 font-black uppercase">🚀 THỰC NHẬN</div>
+                              <div className="text-xs sm:text-sm font-black text-amber-300">
+                                {formatCurrency(lifetimeData.netSalary)}
+                              </div>
+                              <div className="text-[10px] font-extrabold text-purple-200">
+                                ({lifetimeData.totalHours}h • {lifetimeData.totalShifts} ca)
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
 
                       {/* SUB-GRID SONG SONG 2 CỘT: CA ĐÃ PHÂN CÔNG & MỐC TĂNG LƯƠNG */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        {/* Cột Trái: Ca làm tháng này */}
+                        {/* Cột Trái: Danh sách tất cả ca làm tích lũy */}
                         <div className="bg-purple-50/40 p-3 rounded-2xl border border-purple-200/70 space-y-2">
                           <h4 className="font-black text-xs text-purple-950 flex items-center justify-between">
-                            <span>📋 Ca làm tháng này ({empSchedule.length} ca)</span>
+                            <span>📋 Tất cả ca làm tích lũy ({allLifetimeSched.length} ca)</span>
                           </h4>
-                          {empSchedule.length === 0 ? (
+                          {allLifetimeSched.length === 0 ? (
                             <p className="text-xs text-purple-600 font-bold py-4 text-center">Chưa có ca làm nào</p>
                           ) : (
-                            <div className="grid grid-cols-2 gap-1.5 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
-                              {empSchedule.map((s) => {
+                            <div className="grid grid-cols-2 gap-1.5 max-h-[190px] overflow-y-auto pr-1 custom-scrollbar">
+                              {allLifetimeSched.map((s) => {
                                 const rawBranchName = s.branches?.name || '';
                                 const displayBranch = (rawBranchName.toLowerCase().includes('thạch lam') || rawBranchName.toLowerCase().includes('thach lam'))
                                   ? 'TL'
@@ -1747,6 +1819,16 @@ function AdminContent() {
                                   className="w-full px-2 py-1 bg-purple-50 border border-purple-200 rounded text-purple-950 text-xs font-bold outline-none"
                                 />
                               </div>
+                              <div>
+                                <label className="block text-[10px] font-black text-purple-900 mb-0.5">🏠 Địa Chỉ Nhà:</label>
+                                <input
+                                  type="text"
+                                  value={addressInput}
+                                  onChange={(e) => setAddressInput(e.target.value)}
+                                  placeholder="VD: 123 Nguyễn Thị Minh Khai, Q.3, TP.HCM"
+                                  className="w-full px-2 py-1 bg-purple-50 border border-purple-200 rounded text-purple-950 text-xs font-bold outline-none"
+                                />
+                              </div>
                               <div className="flex justify-end gap-1 pt-1">
                                 <button type="button" onClick={() => setEditingContactInfo(false)} className="px-2 py-0.5 rounded bg-purple-100 text-[10px] text-purple-900 font-bold border-0">Hủy</button>
                                 <button type="submit" className="px-2.5 py-0.5 rounded bg-purple-700 text-white text-[10px] font-black border-0">Lưu Thông Tin</button>
@@ -1769,6 +1851,16 @@ function AdminContent() {
                                 <span className="text-[11px] font-black text-purple-950">
                                   {contactInfo.relative_phone ? (
                                     <a href={`tel:${contactInfo.relative_phone.split(' ')[0]}`} className="hover:underline text-purple-900">{contactInfo.relative_phone}</a>
+                                  ) : (
+                                    <span className="text-purple-400 italic font-normal">Chưa nhập</span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="px-2.5 py-1.5 rounded-xl bg-white border border-purple-200/80 text-xs font-black text-purple-950 flex items-start justify-between shadow-2xs gap-2">
+                                <span className="text-purple-700 font-bold text-[11px] shrink-0">🏠 Địa Chỉ Nhà:</span>
+                                <span className="text-[11px] font-black text-purple-950 text-right min-w-0 break-words">
+                                  {contactInfo.address ? (
+                                    contactInfo.address
                                   ) : (
                                     <span className="text-purple-400 italic font-normal">Chưa nhập</span>
                                   )}

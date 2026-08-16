@@ -44,7 +44,11 @@ export async function POST(request) {
           }
         });
       });
-      req.on('error', (err) => reject(err));
+      req.setTimeout(6000, () => {
+        req.destroy();
+        resolve({ ok: false, error: 'TIMEOUT' });
+      });
+      req.on('error', (err) => resolve({ ok: false, error: err.message }));
       req.write(payloadData);
       req.end();
     });

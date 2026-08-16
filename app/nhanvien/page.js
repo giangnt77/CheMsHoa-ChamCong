@@ -228,12 +228,13 @@ function EmployeeContent() {
     try {
       const emp = await getEmployeeByName(name);
       if (!emp) {
-        toast.error('Tài khoản đã bị xóa', 'Không tìm thấy tài khoản! Bộ nhớ đệm thiết bị đã được dọn sạch.');
-        localStorage.clear();
+        toast.error('Tài khoản đã bị xóa', 'Không tìm thấy tài khoản nhân viên này.');
+        localStorage.removeItem('chemshoa_employee_name');
         setEmployee(null);
       } else if (emp.status === 'off' || emp.is_active === false) {
         toast.error('Tài khoản ngưng hoạt động', `Tài khoản của ${emp.name} đã ngưng hoạt động.`);
-        localStorage.clear();
+        localStorage.removeItem('chemshoa_employee_name');
+        localStorage.removeItem(`chemshoa_saved_pin_${emp.id}`);
         setEmployee(null);
       } else {
         // Kiểm tra nếu PIN đã bị Admin thay đổi trên hệ thống
@@ -248,7 +249,7 @@ function EmployeeContent() {
           toast.warning('Mã PIN thay đổi', 'Admin đã thay đổi mã PIN của bạn. Vui lòng nhập mã PIN mới!');
         } else {
           setEmployee(emp);
-          const todayStr = new Date().toISOString().slice(0, 10);
+          const todayStr = getToday();
           localStorage.setItem('chemshoa_employee_name', emp.name);
           localStorage.setItem('chemshoa_login_date', todayStr);
 
@@ -264,8 +265,8 @@ function EmployeeContent() {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi', 'Không thể tự động đăng nhập');
-      localStorage.clear();
+      toast.error('Lỗi', 'Không thể kết nối máy chủ để đăng nhập');
+      localStorage.removeItem('chemshoa_employee_name');
       setEmployee(null);
     } finally {
       setAuthLoading(false);

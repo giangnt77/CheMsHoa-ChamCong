@@ -37,9 +37,17 @@ CREATE TABLE employees (
   status TEXT DEFAULT 'active',        -- 'active' (Làm) | 'leave' (Xin nghỉ ngắn ngày) | 'off' (Nghỉ/Off)
   is_active BOOLEAN DEFAULT true,
   sort_order INTEGER DEFAULT 0,
-  off_start_date TEXT,
-  off_end_date TEXT,
-  resigned_at TEXT,
+  phone TEXT DEFAULT '',
+  relative_phone TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  cccd_url TEXT DEFAULT '',
+  bank_name TEXT DEFAULT '',
+  bank_account_number TEXT DEFAULT '',
+  bank_account_holder TEXT DEFAULT '',
+  bank_qr_code_url TEXT DEFAULT '',
+  off_start_date DATE,
+  off_end_date DATE,
+  resigned_at DATE,
   note TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
