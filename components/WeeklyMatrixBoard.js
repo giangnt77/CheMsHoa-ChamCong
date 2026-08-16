@@ -1230,58 +1230,60 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             )}
 
             {/* =========================================================================
-               HÀNG TỔNG LƯƠNG & TỔNG GIỜ LÀM THEO TỪNG NGÀY TRONG TUẦN (Y HỆT HÌNH MẪU)
+               HÀNG TỔNG LƯƠNG & TỔNG GIỜ LÀM THEO TỪNG NGÀY TRONG TUẦN (CHỈ HIỂN THỊ PHÍA ADMIN)
                ========================================================================= */}
-            <tr className="border-t-2 border-purple-900 font-black">
-              {/* Cột Đầu Tiên: TỔNG CẢ TUẦN (Cộng dồn tất cả 7 ngày trong tuần) */}
-              <td className="p-2 sm:p-2.5 bg-purple-200 text-purple-950 text-center font-black border-r-2 border-purple-300 space-y-0.5 min-w-[110px] sticky left-0 z-20 shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)]">
-                <div className="text-[10px] font-black uppercase tracking-wider text-purple-800">
-                  TỔNG CẢ TUẦN
-                </div>
-                <div className="text-xs sm:text-sm font-black text-purple-950 tracking-tight">
-                  {formatCurrency(weekTotalSalary)}
-                </div>
-                <div className="text-[11px] font-extrabold text-purple-800/90">
-                  {weekTotalHours > 0 ? `${weekTotalHours}h` : '0h'}
-                </div>
-              </td>
+            {!readOnly && (
+              <tr className="border-t-2 border-purple-900 font-black">
+                {/* Cột Đầu Tiên: TỔNG CẢ TUẦN (Cộng dồn tất cả 7 ngày trong tuần) */}
+                <td className="p-2 sm:p-2.5 bg-purple-200 text-purple-950 text-center font-black border-r-2 border-purple-300 space-y-0.5 min-w-[110px] sticky left-0 z-20 shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)]">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-purple-800">
+                    TỔNG CẢ TUẦN
+                  </div>
+                  <div className="text-xs sm:text-sm font-black text-purple-950 tracking-tight">
+                    {formatCurrency(weekTotalSalary)}
+                  </div>
+                  <div className="text-[11px] font-extrabold text-purple-800/90">
+                    {weekTotalHours > 0 ? `${weekTotalHours}h` : '0h'}
+                  </div>
+                </td>
 
-              {/* 7 Cột Tương Ứng T2 -> CN */}
-              {weekDays.map((dStr) => {
-                // 1. Lọc tất cả ca phân công trong ngày dStr từ localSchedule
-                const dayShifts = localSchedule.filter((s) => s.date === dStr);
+                {/* 7 Cột Tương Ứng T2 -> CN */}
+                {weekDays.map((dStr) => {
+                  // 1. Lọc tất cả ca phân công trong ngày dStr từ localSchedule
+                  const dayShifts = localSchedule.filter((s) => s.date === dStr);
 
-                // 2. Tính tổng giờ và tổng lương ngày đó
-                let dayTotalHours = 0;
-                let dayTotalSalary = 0;
+                  // 2. Tính tổng giờ và tổng lương ngày đó
+                  let dayTotalHours = 0;
+                  let dayTotalSalary = 0;
 
-                dayShifts.forEach((shift) => {
-                  const hours = calculateShiftHours(shift);
-                  dayTotalHours += hours;
+                  dayShifts.forEach((shift) => {
+                    const hours = calculateShiftHours(shift);
+                    dayTotalHours += hours;
 
-                  const emp = (employees || []).find((e) => e.id === shift.employee_id);
-                  const hourlyRate = emp?.hourly_rate || 20000;
-                  dayTotalSalary += hours * hourlyRate;
-                });
+                    const emp = (employees || []).find((e) => e.id === shift.employee_id);
+                    const hourlyRate = emp?.hourly_rate || 20000;
+                    dayTotalSalary += hours * hourlyRate;
+                  });
 
-                return (
-                  <td
-                    key={dStr}
-                    className="p-2 sm:p-2.5 bg-purple-950 text-center text-white border-r border-purple-900 shadow-inner space-y-0.5"
-                  >
-                    {/* Tổng Số Tiền Lương Ngày Hôm Đó (Chữ Xanh Lá Cây Sáng Nổi Bật) */}
-                    <div className="text-xs sm:text-sm font-black text-emerald-400 tracking-tight">
-                      {formatCurrency(dayTotalSalary)}
-                    </div>
+                  return (
+                    <td
+                      key={dStr}
+                      className="p-2 sm:p-2.5 bg-purple-950 text-center text-white border-r border-purple-900 shadow-inner space-y-0.5"
+                    >
+                      {/* Tổng Số Tiền Lương Ngày Hôm Đó (Chữ Xanh Lá Cây Sáng Nổi Bật) */}
+                      <div className="text-xs sm:text-sm font-black text-emerald-400 tracking-tight">
+                        {formatCurrency(dayTotalSalary)}
+                      </div>
 
-                    {/* Tổng Số Giờ Làm Trong Ngày Đó */}
-                    <div className="text-[11px] font-extrabold text-purple-200/90">
-                      {dayTotalHours > 0 ? `${dayTotalHours}h` : '0h'}
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
+                      {/* Tổng Số Giờ Làm Trong Ngày Đó */}
+                      <div className="text-[11px] font-extrabold text-purple-200/90">
+                        {dayTotalHours > 0 ? `${dayTotalHours}h` : '0h'}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
