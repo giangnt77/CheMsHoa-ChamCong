@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getScheduleByDateRange,
   getEmployeeRates,
@@ -13,7 +14,6 @@ import {
   formatCurrency,
   getCurrentMonth,
   getBranchColorStyle,
-  getInitials,
 } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
@@ -25,6 +25,13 @@ export default function ModalEmployeeSalaryDetail({
   onSelectPenaltyEmployee,
 }) {
   const toast = useToast();
+  const printableRef = useRef(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [selectedMonth] = useState(
     initialMonth || getCurrentMonth()
   );
@@ -54,12 +61,6 @@ export default function ModalEmployeeSalaryDetail({
       setBankQrUrlInput(employee.bank_qr_code_url || '');
     }
   }, [employee]);
-
-  useEffect(() => {
-    if (isOpen && empData && selectedMonth) {
-      loadDataForMonth();
-    }
-  }, [isOpen, empData?.id, selectedMonth]);
 
   async function loadDataForMonth() {
     if (!empData) return;
@@ -103,6 +104,27 @@ export default function ModalEmployeeSalaryDetail({
     }
   }
 
+  useEffect(() => {
+    if (isOpen && empData && selectedMonth) {
+      loadDataForMonth();
+    }
+  }, [isOpen, empData?.id, selectedMonth]);
+
+  // Tách riêng danh sách Phụ Cấp (Thưởng) và Khấu Trừ (Phạt)
+  const { bonusList, deductionList } = useMemo(() => {
+    const bonuses = [];
+    const deductions = [];
+    (penalties || []).forEach((p) => {
+      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      if (isBonus) {
+        bonuses.push(p);
+      } else {
+        deductions.push(p);
+      }
+    });
+    return { bonusList: bonuses, deductionList: deductions };
+  }, [penalties]);
+
   // Tính toán số liệu thống kê lương tháng
   const { totalHours, grossSalary, totalBonus, totalPenalty, netSalary, shiftCalculatedList } = useMemo(() => {
     const defaultRate = empData?.hourly_rate || 20000;
@@ -135,6 +157,22 @@ export default function ModalEmployeeSalaryDetail({
       shiftCalculatedList: shiftDetails || [],
     };
   }, [shifts, payRates, penalties, empData]);
+
+  // Sinh mã QR VietQR tự động nếu có số tài khoản và ngân hàng
+  const vietQrUrl = useMemo(() => {
+    if (empData?.bank_qr_code_url) return empData.bank_qr_code_url;
+    if (empData?.bank_account_number && empData?.bank_name) {
+      const bankClean = encodeURIComponent(empData.bank_name.trim().replace(/\s+/g, ''));
+      const accClean = encodeURIComponent(empData.bank_account_number.trim().replace(/\s+/g, ''));
+      const [y, m] = (selectedMonth || '').split('-');
+      const mNum = m ? parseInt(m, 10) : '';
+      const amountClean = netSalary > 0 ? netSalary : 0;
+      const transferDesc = encodeURIComponent(`Luong T${mNum} ${empData.name || ''}`.trim());
+      const accountHolder = encodeURIComponent((empData.bank_account_holder || empData.name || '').toUpperCase());
+      return `https://img.vietqr.io/image/${bankClean}-${accClean}-compact2.png?amount=${amountClean}&addInfo=${transferDesc}&accountName=${accountHolder}`;
+    }
+    return '';
+  }, [empData, selectedMonth, netSalary]);
 
   // Xử lý lưu thông tin ngân hàng & QR
   async function handleSaveBankInfo(e) {
@@ -192,43 +230,56 @@ export default function ModalEmployeeSalaryDetail({
     toast.success('Đã sao chép!', `Đã chép số tài khoản: ${accNum}`);
   }
 
-  if (!isOpen || !empData) return null;
+  // Chuyển nhanh tới Tab Thưởng Phạt
+  function handleGoToPenaltyTab() {
+    onClose();
+    if (onSelectPenaltyEmployee) {
+      onSelectPenaltyEmployee(empData, selectedMonth);
+    }
+  }
 
-  const monthNumber = selectedMonth ? parseInt(selectedMonth.split('-')[1], 10) : '';
 
-  return (
+
+
+  if (!isOpen || !empData || !mounted) return null;
+
+  const [yearStr, monthStr] = (selectedMonth || '').split('-');
+  const monthNumber = monthStr ? parseInt(monthStr, 10) : '';
+
+  const modalContent = (
     <div
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4 bg-purple-950/80 backdrop-blur-xs animate-fade-in print:p-0 print:bg-white print:static print:inset-auto"
     >
-      <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[94vh] flex flex-col border-2 border-purple-300 shadow-2xl overflow-hidden relative animate-scale-in">
+      <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[96vh] flex flex-col border-2 border-purple-300 shadow-2xl overflow-hidden relative animate-scale-in print:max-h-none print:border-none print:shadow-none print:rounded-none">
+        
         {/* =========================================================================
-           HEADER CARD: TÊN NHÂN VIÊN & NÚT ĐÓNG
+           TOP BAR: TIÊU ĐỀ PHIẾU TÍNH LƯƠNG & CÁC NÚT THAO TÁC (IN / XUẤT ẢNH / ĐÓNG)
            ========================================================================= */}
-        <div className="p-3.5 sm:p-4 bg-purple-900 text-white flex-shrink-0 border-b-2 border-purple-800">
-          <div className="flex items-center justify-between gap-3">
-            {/* Tên & Avatar Nhân Viên */}
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-amber-400 text-purple-950 font-black text-base flex items-center justify-center shrink-0 shadow-md">
-                {getInitials(empData.name)}
-              </div>
-              <div>
-                <h3 className="font-black text-lg sm:text-xl text-white truncate">
-                  {empData.name}
-                </h3>
-                <p className="text-[11px] font-bold text-purple-200">
-                  Bảng Lương Chi Tiết Tháng {selectedMonth.split('-').reverse().join('/')}
-                </p>
-              </div>
+        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-purple-950 via-purple-900 to-indigo-950 text-white flex-shrink-0 border-b-2 border-purple-800 flex items-center justify-between gap-3 print:hidden">
+          {/* Tiêu Đề Trung Tâm */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-xl sm:text-2xl">📋</span>
+            <div>
+              <h2 className="font-black text-sm sm:text-lg text-white uppercase tracking-wider leading-tight">
+                PHIẾU TÍNH LƯƠNG
+              </h2>
+              <p className="text-[11px] sm:text-xs font-black text-amber-300 tracking-wider">
+                THÁNG &lt;{monthNumber}/{yearStr}&gt;
+              </p>
             </div>
+          </div>
 
-            {/* Nút Đóng */}
+          {/* Cụm Nút Thao Tác Bên Phải */}
+          <div className="flex items-center gap-2">
+            {/* Nút Đóng Modal */}
             <button
               type="button"
               onClick={onClose}
-              className="w-9 h-9 rounded-full bg-purple-800 text-purple-200 hover:bg-rose-600 hover:text-white border-0 flex items-center justify-center cursor-pointer text-sm font-black transition-all active:scale-90"
+              className="w-8 h-8 rounded-full bg-purple-800/80 text-purple-200 hover:bg-rose-600 hover:text-white border-0 flex items-center justify-center cursor-pointer text-sm font-black transition-all active:scale-90 shadow-md"
+              title="Đóng phiếu lương"
             >
               ✕
             </button>
@@ -236,124 +287,345 @@ export default function ModalEmployeeSalaryDetail({
         </div>
 
         {/* =========================================================================
-           THÂN POPUP BÁO CÁO LƯƠNG THÁNG & CHUYỂN KHOẢN
+           VÙNG NỘI DUNG PHIẾU LƯƠNG
            ========================================================================= */}
-        <div className="overflow-y-auto p-4 sm:p-5 flex-1 space-y-4 custom-scrollbar bg-slate-50/50">
-          {/* 4 Ô THỐNG KÊ TỔNG QUAN (4 STAT CARDS) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div
+          ref={printableRef}
+          className="overflow-y-auto p-3.5 sm:p-6 flex-1 space-y-4 custom-scrollbar bg-slate-50/70"
+        >
+          {/* =========================================================================
+             THÔNG TIN NHÂN VIÊN & MÃ QR CHUYỂN KHOẢN (THIẾT KẾ TINH TẾ, SÁNG ĐẸP)
+             ========================================================================= */}
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-4.5 border border-purple-200/90 shadow-2xs">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              
+              {/* Cột Trái: Thông Tin Nhân Viên & Chi Tiết Ngân Hàng */}
+              <div className="space-y-2.5 flex-1 min-w-0">
+                {/* Dòng 1: Avatar + Tên + Vai Trò + SĐT */}
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-purple-700 to-indigo-600 text-white font-black text-sm sm:text-base flex items-center justify-center shadow-xs shrink-0 ring-2 ring-purple-200 uppercase">
+                    {empData.name ? empData.name.trim().split(/\s+/).slice(-2).map(w => w[0]).join('') : 'NV'}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center flex-wrap gap-2">
+                      <h3 className="text-base sm:text-lg font-black text-purple-950 uppercase tracking-tight truncate">
+                        {empData.name}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-black uppercase">
+                        {empData.role ? empData.role.toUpperCase() : 'NHÂN VIÊN'}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500 font-mono mt-0.5">
+                      📞 {empData.phone || empData.pin || `Mã: NV-${empData.id?.slice(0, 6)}`}
+                      {empData.relative_phone && (
+                        <span className="ml-2 text-slate-400 font-sans text-[11px]">
+                          (Người thân: {empData.relative_phone})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dòng 2: Hộp Thông Tin Tài Khoản Ngân Hàng Tinh Xảo */}
+                <div className="bg-purple-50/80 rounded-xl px-3 py-2 border border-purple-200/80 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-purple-950 font-black uppercase text-xs">
+                      🏛️ {empData.bank_name || 'MB BANK'}
+                    </span>
+                    <span className="font-mono text-purple-950 font-black text-xs sm:text-sm tracking-wider bg-white px-2 py-0.5 rounded-md border border-purple-200 shadow-2xs">
+                      {empData.bank_account_number || 'Chưa cập nhật'}
+                    </span>
+                    {empData.bank_account_number && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyAccNumber(empData.bank_account_number)}
+                        className="px-2 py-0.5 rounded-md bg-amber-400 hover:bg-amber-300 text-purple-950 text-[11px] font-black border-0 cursor-pointer transition-all active:scale-90 flex items-center gap-1 shadow-2xs"
+                        title="Sao chép số tài khoản"
+                      >
+                        <span>📋</span> Sao chép
+                      </button>
+                    )}
+                  </div>
+
+                  {empData.bank_account_holder && (
+                    <div className="text-slate-600 text-xs font-medium truncate">
+                      Chủ TK: <strong className="text-purple-950 uppercase font-black">{empData.bank_account_holder}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cột Phải: Widget Quét QR Chuyển Lương Tinh Tế */}
+              <div className="bg-purple-50/90 rounded-2xl p-2.5 sm:p-3 border border-purple-200 flex items-center gap-3 shrink-0 self-stretch sm:self-auto justify-between sm:justify-start">
+                {vietQrUrl ? (
+                  <div className="flex items-center gap-3">
+                    <div
+                      onClick={() => setPreviewQrModal(true)}
+                      className="cursor-pointer group relative bg-white p-1 rounded-xl border border-purple-300 shadow-2xs hover:border-purple-600 hover:scale-105 transition-all shrink-0"
+                      title="Bấm để xem mã QR phóng to"
+                    >
+                      <img
+                        src={vietQrUrl}
+                        alt="Mã QR Chuyển Khoản"
+                        className="w-13 h-13 sm:w-15 sm:h-15 object-contain rounded-lg"
+                      />
+                      <div className="absolute inset-0 bg-purple-950/20 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+                        <span className="text-[10px] font-black text-white bg-purple-900/90 px-1.5 py-0.5 rounded shadow">
+                          🔍
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-black text-purple-950 flex items-center gap-1">
+                        <span>📲</span> QR Chuyển Lương
+                      </div>
+                      <div className="text-sm sm:text-base font-black text-emerald-700 font-mono">
+                        {formatCurrency(netSalary)}
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewQrModal(true)}
+                          className="px-2 py-0.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-[10px] font-black border-0 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                        >
+                          👁️ Phóng To
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowEditBankModal(true)}
+                          className="px-2 py-0.5 rounded-lg bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 text-[10px] font-bold cursor-pointer transition-all active:scale-95 shadow-2xs"
+                        >
+                          ✏️ Sửa STK
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5 p-1">
+                    <div className="w-11 h-11 rounded-xl bg-purple-100 border border-dashed border-purple-300 flex items-center justify-center text-lg">
+                      💳
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-black text-purple-950">Chưa có mã QR STK</div>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditBankModal(true)}
+                        className="px-2.5 py-1 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-[10px] font-black border-0 cursor-pointer transition-all active:scale-95 shadow-xs"
+                      >
+                        ➕ Thêm STK & QR
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+
+          {/* =========================================================================
+             4 THẺ STAT CARDS TỔNG QUAN (TINH GỌN, CHUẨN TRÊN CẢ MOBILE & PC)
+             ========================================================================= */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
             {/* Card 1: CA & SỐ GIỜ LÀM */}
-            <div className="p-3 bg-white rounded-2xl border border-purple-200 shadow-2xs space-y-1">
+            <div className="p-2.5 bg-white rounded-2xl border border-purple-200 shadow-2xs space-y-0.5">
               <span className="text-[10px] font-black text-purple-800 uppercase block tracking-tight">
                 ⌛ CA & SỐ GIỜ LÀM
               </span>
               <div className="text-base sm:text-lg font-black text-purple-950">
                 {shifts.length} ca
               </div>
-              <div className="text-xs font-extrabold text-purple-700">
+              <div className="text-[10.5px] font-extrabold text-purple-700">
                 Tổng: {totalHours} tiếng
               </div>
             </div>
 
             {/* Card 2: LƯƠNG CA LÀM */}
-            <div className="p-3 bg-white rounded-2xl border border-purple-200 shadow-2xs space-y-1">
+            <div className="p-2.5 bg-white rounded-2xl border border-purple-200 shadow-2xs space-y-0.5">
               <span className="text-[10px] font-black text-emerald-800 uppercase block tracking-tight">
                 💵 LƯƠNG CA LÀM
               </span>
               <div className="text-base sm:text-lg font-black text-emerald-700">
                 {formatCurrency(grossSalary)}
               </div>
-              <div className="text-[10px] font-bold text-slate-500">Tính theo ca làm</div>
+              <div className="text-[10px] font-bold text-slate-500">
+                Tính theo ca làm
+              </div>
             </div>
 
-            {/* Card 3: THƯỞNG & PHẠT - BẤM VÀO ĐỂ NHẢY SANG TAB THƯỞNG PHẠT */}
-            <div
-              onClick={() => {
-                onClose();
-                if (onSelectPenaltyEmployee) {
-                  onSelectPenaltyEmployee(empData, selectedMonth);
-                }
-              }}
-              className="p-3 bg-white hover:bg-purple-50/70 rounded-2xl border border-purple-200 hover:border-purple-400 shadow-2xs space-y-1 cursor-pointer transition-all hover:scale-[1.02] group"
-              title="Bấm để chuyển sang tab Thưởng & Phạt của nhân viên này"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-700 group-hover:text-purple-900 uppercase block tracking-tight">
-                  🎁 THƯỞNG / ⚠️ PHẠT
-                </span>
-                <span className="text-[10px] text-purple-700 font-extrabold opacity-0 group-hover:opacity-100 transition-all">
-                  Mở ➔
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-black">
+            {/* Card 3: THƯỞNG / PHẠT */}
+            <div className="p-2.5 bg-white rounded-2xl border border-purple-200 shadow-2xs space-y-0.5">
+              <span className="text-[10px] font-black text-slate-700 uppercase block tracking-tight">
+                🎁 THƯỞNG / ⚠️ PHẠT
+              </span>
+              <div className="flex items-center gap-1 text-xs sm:text-sm font-black">
                 <span className="text-emerald-700">+{formatCurrency(totalBonus)}</span>
-                <span>/</span>
+                <span className="text-slate-400">/</span>
                 <span className="text-rose-700">-{formatCurrency(totalPenalty)}</span>
               </div>
-              <div className="text-[10px] font-bold text-purple-700 group-hover:underline">
+              <button
+                type="button"
+                onClick={handleGoToPenaltyTab}
+                className="text-[10px] font-extrabold text-purple-700 hover:text-purple-950 flex items-center gap-0.5 bg-transparent border-0 cursor-pointer p-0 underline transition-all print:hidden"
+                title="Bấm để chuyển tới tab Thưởng & Phạt"
+              >
                 Bấm để quản lý ➔
-              </div>
+              </button>
             </div>
 
-            {/* Card 4: THỰC NHẬN THÁNG X */}
-            <div className="p-3 bg-purple-900 text-white rounded-2xl border-2 border-purple-700 shadow-md space-y-1">
+            {/* Card 4: THỰC NHẬN THÁNG */}
+            <div className="p-2.5 bg-gradient-to-br from-purple-950 via-purple-900 to-indigo-950 text-white rounded-2xl border-2 border-purple-700 shadow-md space-y-0.5">
               <span className="text-[10px] font-black text-amber-300 uppercase block tracking-tight">
                 💰 THỰC NHẬN THÁNG {monthNumber}
               </span>
-              <div className="text-base sm:text-xl font-black text-amber-300">
+              <div className="text-base sm:text-xl font-black text-amber-300 tracking-tight">
                 {formatCurrency(netSalary)}
               </div>
-              <div className="text-[10.5px] font-extrabold text-purple-200">
+              <div className="text-[10px] font-extrabold text-purple-200">
                 ({totalHours}h • {shifts.length} ca)
               </div>
             </div>
           </div>
 
           {/* =========================================================================
-             KHUNG CHÍNH (CỘT TRÁI: CA LÀM THÁNG NÀY | CỘT PHẢI: KHUNG THÔNG TIN CHUYỂN KHOẢN)
+             KHUNG CHÍNH (CỘT TRÁI: PHỤ CẤP & KHẤU TRỪ | CỘT PHẢI: CÁC CA LÀM THÁNG)
              ========================================================================= */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-            {/* CỘT TRÁI (7/12): DANH SÁCH CA LÀM TRONG THÁNG */}
-            <div className="lg:col-span-7 bg-white rounded-3xl p-4 sm:p-5 border border-purple-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-purple-100 pb-2.5">
-                <h4 className="font-black text-sm sm:text-base text-purple-950 flex items-center gap-2">
-                  <span>📅</span> Các Ca Làm Tháng {selectedMonth.split('-').reverse().join('/')} ({shifts.length} ca)
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start">
+            
+            {/* CỘT TRÁI (5/12): PHỤ CẤP & KHẤU TRỪ */}
+            <div className="lg:col-span-5 space-y-3">
+              {/* KHUNG PHỤ CẤP */}
+              <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-emerald-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between border-b border-emerald-100 pb-1.5">
+                  <h4 className="font-black text-xs text-emerald-950 uppercase tracking-wide flex items-center gap-1">
+                    <span>🎁</span> PHỤ CẤP
+                  </h4>
+                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2 py-0.2 rounded-md border border-emerald-200">
+                    +{formatCurrency(totalBonus)}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 max-h-[180px] sm:max-h-[200px] overflow-y-auto pr-0.5 custom-scrollbar">
+                  {bonusList.length > 0 ? (
+                    bonusList.map((p) => {
+                      const cleanReason = (p.reason || '').replace('[THƯỞNG]', '').trim() || 'Phụ cấp / Thưởng';
+                      return (
+                        <div
+                          key={p.id}
+                          className="px-2.5 py-1.5 bg-emerald-50/70 hover:bg-emerald-100/70 rounded-xl border border-emerald-200/80 flex items-center justify-between gap-2 text-xs transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-black text-emerald-950 text-xs truncate" title={cleanReason}>
+                              {cleanReason}
+                            </div>
+                            <div className="text-[9.5px] font-bold text-emerald-700/80">
+                              📅 {p.date ? p.date.split('-').reverse().join('/') : 'Trong tháng'}
+                            </div>
+                          </div>
+
+                          <div className="font-black text-emerald-700 text-xs sm:text-sm whitespace-nowrap text-right">
+                            +{formatCurrency(Math.abs(p.amount))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-3 text-center text-[11px] text-slate-500 font-bold italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      Chưa có khoản phụ cấp nào.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* KHUNG KHẤU TRỪ */}
+              <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-rose-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between border-b border-rose-100 pb-1.5">
+                  <h4 className="font-black text-xs text-rose-950 uppercase tracking-wide flex items-center gap-1">
+                    <span>⚠️</span> KHẤU TRỪ
+                  </h4>
+                  <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-2 py-0.2 rounded-md border border-rose-200">
+                    -{formatCurrency(totalPenalty)}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 max-h-[180px] sm:max-h-[200px] overflow-y-auto pr-0.5 custom-scrollbar">
+                  {deductionList.length > 0 ? (
+                    deductionList.map((p) => {
+                      const cleanReason = (p.reason || '').trim() || 'Khấu trừ vi phạm';
+                      return (
+                        <div
+                          key={p.id}
+                          className="px-2.5 py-1.5 bg-rose-50/70 hover:bg-rose-100/70 rounded-xl border border-rose-200/80 flex items-center justify-between gap-2 text-xs transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="font-black text-rose-950 text-xs truncate" title={cleanReason}>
+                              {cleanReason}
+                            </div>
+                            <div className="text-[9.5px] font-bold text-rose-700/80">
+                              📅 {p.date ? p.date.split('-').reverse().join('/') : 'Trong tháng'}
+                            </div>
+                          </div>
+
+                          <div className="font-black text-rose-600 text-xs sm:text-sm whitespace-nowrap text-right">
+                            -{formatCurrency(Math.abs(p.amount))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-3 text-center text-[11px] text-slate-500 font-bold italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      Chưa có khoản khấu trừ nào.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* CỘT PHẢI (7/12): DANH SÁCH CÁC CA LÀM TRONG THÁNG (TINH GỌN, GRID 2-3 CỘT) */}
+            <div className="lg:col-span-7 bg-white rounded-2xl p-3 sm:p-3.5 border border-purple-200 shadow-2xs space-y-2">
+              <div className="flex items-center justify-between border-b border-purple-100 pb-1.5">
+                <h4 className="font-black text-xs sm:text-sm text-purple-950 flex items-center gap-1.5">
+                  <span>📅</span> Các Ca Làm Tháng {monthNumber < 10 ? `0${monthNumber}` : monthNumber}/{yearStr} ({shifts.length} ca)
                 </h4>
-                {loading && <span className="text-xs text-purple-600 font-bold animate-pulse">⏳ Đang tải...</span>}
+                {loading && <span className="text-[11px] text-purple-600 font-bold animate-pulse">⏳ Đang tải...</span>}
               </div>
 
               {shiftCalculatedList.length > 0 ? (
-                <div className="max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="max-h-[440px] sm:max-h-[460px] overflow-y-auto pr-1 custom-scrollbar">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                     {shiftCalculatedList.map((s) => {
                       const branchObj = branches.find((b) => b.id === s.branch_id) || s.branches;
                       const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
-                      const sTime = s.start_time ? s.start_time.slice(0, 5) : '09:00';
-                      const eTime = s.end_time ? s.end_time.slice(0, 5) : '14:00';
+                      const sTime = s.start_time ? s.start_time.slice(0, 5) : '08:30';
+                      const eTime = s.end_time ? s.end_time.slice(0, 5) : '22:00';
 
                       return (
                         <div
                           key={s.id}
-                          className="p-2.5 bg-purple-50/60 hover:bg-purple-100/70 rounded-2xl border border-purple-200/90 space-y-1 text-xs transition-all shadow-2xs"
+                          className="p-2 bg-purple-50/50 hover:bg-purple-100/70 rounded-xl border border-purple-200/80 space-y-1 text-xs transition-colors shadow-2xs"
                         >
+                          {/* Hàng 1: Ngày Làm & Chi Nhánh */}
                           <div className="flex items-center justify-between font-black text-purple-950">
-                            <span className="text-purple-950 font-black">
-                              📅 {s.date.split('-').reverse().join('/')}
+                            <span className="text-purple-950 font-black text-[11px] flex items-center gap-1">
+                              <span>📅</span> {s.date.split('-').reverse().slice(0, 2).join('/')}
                             </span>
                             <span
-                              className="px-2 py-0.5 rounded-md text-[10px] font-black text-white shadow-2xs"
+                              className="px-1.5 py-0.2 rounded text-[9px] font-black text-white shadow-2xs"
                               style={{ backgroundColor: branchStyle.hex }}
                             >
-                              {branchStyle.badgeText || branchObj?.name}
+                              {branchStyle.badgeText || branchObj?.name || 'A4'}
                             </span>
                           </div>
 
-                          <div className="flex items-center justify-between text-[11.5px] font-bold text-slate-700">
-                            <span>🕒 {sTime} - {eTime}</span>
-                            <span className="font-extrabold text-purple-900">⌛ {s.hours}h</span>
+                          {/* Hàng 2: Khung Giờ & Số Giờ */}
+                          <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-700">
+                            <span>🕒 {sTime}-{eTime}</span>
+                            <span className="font-black text-purple-900">⏳ {s.hours}h</span>
                           </div>
 
-                          <div className="flex items-center justify-between pt-1 border-t border-purple-200/70 text-[11px]">
-                            <span className="text-slate-500 font-medium">{formatCurrency(s.applicableRate)}/h</span>
+                          {/* Hàng 3: Thành Tiền */}
+                          <div className="flex items-center justify-end pt-0.5 border-t border-purple-200/60">
                             <span className="font-black text-emerald-700 text-xs">
                               ={formatCurrency(s.shiftSalary)}
                             </span>
@@ -364,213 +636,138 @@ export default function ModalEmployeeSalaryDetail({
                   </div>
                 </div>
               ) : (
-                <div className="p-8 text-center text-xs text-purple-600 font-bold italic bg-purple-50/60 rounded-2xl border border-purple-200">
-                  Chưa có ca làm nào trong tháng {selectedMonth.split('-').reverse().join('/')}.
-                </div>
-              )}
-            </div>
-
-            {/* CỘT PHẢI (5/12): KHUNG THÔNG TIN CHUYỂN KHOẢN TRẢ LƯƠNG (SĐT/STK/MÃ QR) */}
-            <div className="lg:col-span-5 bg-white rounded-3xl p-4 sm:p-5 border border-purple-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between border-b border-purple-100 pb-2.5">
-                <h4 className="font-black text-sm text-purple-950 flex items-center gap-1.5">
-                  <span>💳</span> Thông Tin Chuyển Khoản
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setShowEditBankModal(!showEditBankModal)}
-                  className="px-2.5 py-1 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-[10px] font-black cursor-pointer border-0 shadow-2xs transition-all active:scale-95 flex items-center gap-1"
-                >
-                  <span>✏️</span> {empData.bank_account_number || empData.bank_qr_code_url ? 'Sửa STK / QR' : '+ Thêm STK / QR'}
-                </button>
-              </div>
-
-              {/* FORM CHỈNH SỬA THÔNG TIN NGÂN HÀNG & MÃ QR */}
-              {showEditBankModal ? (
-                <form onSubmit={handleSaveBankInfo} className="p-3 bg-purple-50/70 rounded-2xl border border-purple-200 space-y-2.5 animate-fade-in">
-                  <div>
-                    <label className="block text-[10px] font-black text-purple-900 uppercase mb-0.5">
-                      Ngân hàng:
-                    </label>
-                    <input
-                      type="text"
-                      value={bankNameInput}
-                      onChange={(e) => setBankNameInput(e.target.value)}
-                      placeholder="VD: MBBank, Techcombank, Vietcombank..."
-                      className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-black text-purple-900 uppercase mb-0.5">
-                      Số tài khoản (STK):
-                    </label>
-                    <input
-                      type="text"
-                      value={bankAccNumInput}
-                      onChange={(e) => setBankAccNumInput(e.target.value)}
-                      placeholder="VD: 0356997895..."
-                      className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs font-black tracking-wider outline-none focus:border-purple-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-black text-purple-900 uppercase mb-0.5">
-                      Tên chủ tài khoản:
-                    </label>
-                    <input
-                      type="text"
-                      value={bankAccHolderInput}
-                      onChange={(e) => setBankAccHolderInput(e.target.value)}
-                      placeholder="VD: NGUYEN VAN A..."
-                      className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs font-black uppercase outline-none focus:border-purple-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-black text-purple-900 uppercase mb-1">
-                      📸 Mã QR Ngân Hàng (Hình ảnh / VietQR):
-                    </label>
-                    <label className="w-full p-2 bg-white border border-dashed border-purple-300 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-100/50 transition-all text-xs font-bold text-purple-800">
-                      <span>📸 Tải ảnh mã QR lên</span>
-                      <input type="file" accept="image/*" onChange={handleUploadQrImage} className="hidden" />
-                    </label>
-
-                    {bankQrUrlInput && (
-                      <div className="mt-2 text-center relative group">
-                        <img
-                          src={bankQrUrlInput}
-                          alt="Mã QR Chuyển Khoản"
-                          className="w-24 h-24 object-contain mx-auto rounded-xl border border-purple-200 bg-white p-1"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setBankQrUrlInput('')}
-                          className="mt-1 text-[10px] text-rose-600 font-bold hover:underline bg-transparent border-0 cursor-pointer"
-                        >
-                          ✕ Xóa ảnh QR này
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end gap-1.5 pt-1 border-t border-purple-200">
-                    <button
-                      type="button"
-                      onClick={() => setShowEditBankModal(false)}
-                      className="px-3 py-1 rounded-xl bg-purple-100 text-purple-900 text-xs font-bold border-0 cursor-pointer"
-                    >
-                      Hủy
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={savingBank}
-                      className="px-3.5 py-1 rounded-xl bg-purple-700 text-white text-xs font-black border-0 cursor-pointer hover:bg-purple-800 transition-all shadow-2xs"
-                    >
-                      {savingBank ? 'Đang lưu...' : '🚀 Lưu Chuyển Khoản'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* HIỂN THỊ THẺ THÔNG TIN NGÂN HÀNG & MÃ QR */
-                <div className="space-y-3">
-                  {/* THẺ SỐ TÀI KHOẢN SANH TRỌNG */}
-                  <div className="p-3.5 bg-gradient-to-br from-purple-900 via-purple-950 to-indigo-950 text-white rounded-2xl border border-purple-700 shadow-md space-y-2 relative overflow-hidden">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold text-amber-300 tracking-wider">
-                        {empData.bank_name ? empData.bank_name.toUpperCase() : 'NGÂN HÀNG'}
-                      </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-800/80 text-purple-200 font-bold border border-purple-700">
-                        💳 Trả Lương
-                      </span>
-                    </div>
-
-                    <div>
-                      <div className="text-[10px] text-purple-300 font-bold uppercase">Số tài khoản (STK):</div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-base sm:text-lg font-black text-white tracking-widest font-mono">
-                          {empData.bank_account_number || 'Chưa nhập STK'}
-                        </span>
-                        {empData.bank_account_number && (
-                          <button
-                            type="button"
-                            onClick={() => handleCopyAccNumber(empData.bank_account_number)}
-                            className="px-2 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-purple-950 text-[10px] font-black border-0 cursor-pointer transition-all active:scale-90 shrink-0 shadow-2xs"
-                            title="Sao chép số tài khoản"
-                          >
-                            📋 Copy
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="pt-1 border-t border-purple-800/80 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="text-[9.5px] text-purple-300 font-bold">Chủ tài khoản:</div>
-                        <div className="font-black text-amber-300 uppercase truncate">
-                          {empData.bank_account_holder || empData.name}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[9.5px] text-purple-300 font-bold">Thực nhận T{monthNumber}:</div>
-                        <div className="font-black text-emerald-400 text-xs sm:text-sm">
-                          {formatCurrency(netSalary)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* KHUNG HIỂN THỊ MÃ QR CHUYỂN KHOẢN */}
-                  {empData.bank_qr_code_url ? (
-                    <div className="p-3 bg-purple-50/60 rounded-2xl border border-purple-200 text-center space-y-1.5 shadow-2xs">
-                      <div className="text-xs font-black text-purple-950 flex items-center justify-center gap-1">
-                        <span>📸</span> Mã QR Chuyển Khoản Trực Tiếp
-                      </div>
-                      <div
-                        onClick={() => setPreviewQrModal(true)}
-                        className="relative inline-block cursor-pointer group rounded-2xl overflow-hidden border-2 border-purple-300 bg-white p-2 shadow-sm"
-                      >
-                        <img
-                          src={empData.bank_qr_code_url}
-                          alt="Mã QR Ngân Hàng"
-                          className="w-36 h-36 object-contain mx-auto transition-all group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-purple-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                          <span className="text-white text-[10px] font-black bg-purple-900/90 px-2.5 py-1 rounded-xl shadow-md">
-                            🔍 Xem To
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-[10px] font-bold text-slate-500">
-                        Quét mã QR bằng ứng dụng ngân hàng để chuyển lương ngay
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-purple-50/50 rounded-2xl border border-purple-200 text-center space-y-2">
-                      <p className="text-xs text-purple-700 font-bold">Chưa có hình ảnh Mã QR Chuyển Khoản</p>
-                      <button
-                        type="button"
-                        onClick={() => setShowEditBankModal(true)}
-                        className="px-3 py-1.5 rounded-xl bg-purple-700 text-white text-xs font-black border-0 cursor-pointer hover:bg-purple-800 transition-all shadow-2xs"
-                      >
-                        📸 Tải Ảnh Mã QR Chuyển Khoản
-                      </button>
-                    </div>
-                  )}
+                <div className="p-6 text-center text-xs text-purple-600 font-bold italic bg-purple-50/60 rounded-xl border border-purple-200">
+                  Chưa có ca làm nào trong tháng {monthNumber}/{yearStr}.
                 </div>
               )}
             </div>
           </div>
+
+
         </div>
       </div>
 
+      {/* MODAL SỬA THÔNG TIN NGÂN HÀNG & MÃ QR */}
+      {showEditBankModal && (
+        <div
+          onClick={() => setShowEditBankModal(false)}
+          className="fixed inset-0 z-[1000] bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 animate-fade-in print:hidden"
+        >
+          <div
+            className="bg-white rounded-3xl p-5 max-w-md w-full space-y-3 relative border-2 border-purple-300 shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+              <h4 className="font-black text-sm sm:text-base text-purple-950 flex items-center gap-1.5">
+                <span>💳</span> Cập Nhật STK & Mã QR - {empData.name}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowEditBankModal(false)}
+                className="w-7 h-7 rounded-full bg-purple-100 text-purple-900 font-black text-xs border-0 cursor-pointer hover:bg-rose-600 hover:text-white transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBankInfo} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-black text-purple-900 uppercase mb-1">
+                  Tên Ngân hàng:
+                </label>
+                <input
+                  type="text"
+                  value={bankNameInput}
+                  onChange={(e) => setBankNameInput(e.target.value)}
+                  placeholder="VD: MBBank, Techcombank, Vietcombank, ACB..."
+                  className="w-full px-3 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-purple-900 uppercase mb-1">
+                  Số tài khoản (STK):
+                </label>
+                <input
+                  type="text"
+                  value={bankAccNumInput}
+                  onChange={(e) => setBankAccNumInput(e.target.value)}
+                  placeholder="VD: 101010101233..."
+                  className="w-full px-3 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-purple-950 text-xs font-black tracking-wider outline-none focus:border-purple-600 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-purple-900 uppercase mb-1">
+                  Tên chủ tài khoản:
+                </label>
+                <input
+                  type="text"
+                  value={bankAccHolderInput}
+                  onChange={(e) => setBankAccHolderInput(e.target.value)}
+                  placeholder="VD: MA THI THUY TRANG..."
+                  className="w-full px-3 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-purple-950 text-xs font-black uppercase outline-none focus:border-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-purple-900 uppercase mb-1">
+                  📸 Tải ảnh mã QR riêng (Nếu có):
+                </label>
+                <label className="w-full p-2.5 bg-purple-50/60 border border-dashed border-purple-300 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-100/60 transition-all text-xs font-bold text-purple-800">
+                  <span>📸 Chọn ảnh mã QR từ máy</span>
+                  <input type="file" accept="image/*" onChange={handleUploadQrImage} className="hidden" />
+                </label>
+
+                {bankQrUrlInput && (
+                  <div className="mt-2 text-center relative group">
+                    <img
+                      src={bankQrUrlInput}
+                      alt="Mã QR Chuyển Khoản"
+                      className="w-28 h-28 object-contain mx-auto rounded-xl border border-purple-200 bg-white p-1 shadow-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setBankQrUrlInput('')}
+                      className="mt-1 text-[10px] text-rose-600 font-bold hover:underline bg-transparent border-0 cursor-pointer"
+                    >
+                      ✕ Xóa ảnh QR tùy chỉnh này (để tự động sinh VietQR)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-purple-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditBankModal(false)}
+                  className="px-3.5 py-1.5 rounded-xl bg-purple-100 text-purple-900 text-xs font-bold border-0 cursor-pointer hover:bg-purple-200"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingBank}
+                  className="px-4 py-1.5 rounded-xl bg-purple-700 text-white text-xs font-black border-0 cursor-pointer hover:bg-purple-800 transition-all shadow-2xs disabled:opacity-50"
+                >
+                  {savingBank ? 'Đang lưu...' : '💾 Lưu Thông Tin'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* POPUP PHÓNG TO MÃ QR NGÂN HÀNG */}
-      {previewQrModal && empData.bank_qr_code_url && (
+      {previewQrModal && vietQrUrl && (
         <div
           onClick={() => setPreviewQrModal(false)}
-          className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in print:hidden"
         >
-          <div className="bg-white rounded-3xl p-5 max-w-sm w-full text-center space-y-3 relative border-2 border-purple-400 shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="bg-white rounded-3xl p-5 max-w-sm w-full text-center space-y-3 relative border-2 border-purple-400 shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               onClick={() => setPreviewQrModal(false)}
@@ -585,13 +782,13 @@ export default function ModalEmployeeSalaryDetail({
 
             <div className="p-3 bg-slate-50 rounded-2xl border border-purple-200 inline-block">
               <img
-                src={empData.bank_qr_code_url}
+                src={vietQrUrl}
                 alt="Mã QR Ngân Hàng Xem To"
                 className="w-64 h-64 object-contain mx-auto"
               />
             </div>
 
-            <div className="text-xs font-bold text-purple-900 bg-purple-50 p-2 rounded-xl border border-purple-200 space-y-0.5">
+            <div className="text-xs font-bold text-purple-900 bg-purple-50 p-2.5 rounded-xl border border-purple-200 space-y-0.5 text-left">
               <div>STK: <strong className="font-mono text-purple-950 text-sm font-black">{empData.bank_account_number || 'Chưa nhập'}</strong> ({empData.bank_name || 'Ngân hàng'})</div>
               <div>Chủ TK: <strong className="uppercase font-black">{empData.bank_account_holder || empData.name}</strong></div>
               <div>Số tiền chuyển: <strong className="text-emerald-700 text-sm font-black">{formatCurrency(netSalary)}</strong></div>
@@ -601,4 +798,6 @@ export default function ModalEmployeeSalaryDetail({
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

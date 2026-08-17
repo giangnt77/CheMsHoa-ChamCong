@@ -159,14 +159,20 @@ ON CONFLICT (key) DO NOTHING;
 -- --------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_availability_employee ON availability(employee_id);
 CREATE INDEX IF NOT EXISTS idx_availability_date ON availability(date);
+CREATE INDEX IF NOT EXISTS idx_availability_emp_date ON availability(employee_id, date);
 CREATE INDEX IF NOT EXISTS idx_schedule_employee ON schedule(employee_id);
 CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule(date);
+CREATE INDEX IF NOT EXISTS idx_schedule_emp_date ON schedule(employee_id, date);
 CREATE INDEX IF NOT EXISTS idx_schedule_branch ON schedule(branch_id);
 CREATE INDEX IF NOT EXISTS idx_penalties_employee_id ON penalties(employee_id);
 CREATE INDEX IF NOT EXISTS idx_penalties_month ON penalties(month);
+CREATE INDEX IF NOT EXISTS idx_penalties_emp_month ON penalties(employee_id, month);
 CREATE INDEX IF NOT EXISTS idx_penalties_date ON penalties(date);
 CREATE INDEX IF NOT EXISTS idx_penalties_type ON penalties(type);
 CREATE INDEX IF NOT EXISTS idx_employee_rates_employee ON employee_rates(employee_id);
+CREATE INDEX IF NOT EXISTS idx_employee_rates_emp_date ON employee_rates(employee_id, effective_date DESC);
+CREATE INDEX IF NOT EXISTS idx_shift_swaps_status ON shift_swaps(status);
+CREATE INDEX IF NOT EXISTS idx_shift_swaps_shift_date ON shift_swaps(shift_date);
 
 -- --------------------------------------------
 -- BƯỚC 12: BẬT ROW LEVEL SECURITY & POLICY CHUẨN

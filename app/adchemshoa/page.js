@@ -892,7 +892,7 @@ function AdminContent() {
         employeeName={adminRole === 'manager' ? 'Quản Lý (Chỉ Xếp Lịch)' : 'Chủ Quán (Chị Hoa)'}
       />
 
-      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-4 sm:py-6">
+      <main className="flex-1 px-3 sm:px-4 md:px-6 py-4 sm:py-6">
         <div className="max-w-6xl mx-auto space-y-4">
           {/* Header Bar Mobile Friendly */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2">

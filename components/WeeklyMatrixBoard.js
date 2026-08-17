@@ -369,7 +369,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       shortLeaveEmployees: shortLeaveList,
       permanentOffEmployees: permanentOffList,
     };
-  }, [sortedEmployees, weekDays, availByEmpAndDate, scheduleByEmpAndDate]);
+  }, [sortedEmployees, weekDays, startDate, endDate, availByEmpAndDate, scheduleByEmpAndDate]);
 
   const [customMatrixOrder, setCustomMatrixOrder] = useState([]);
   const [draggedIdx, setDraggedIdx] = useState(null);

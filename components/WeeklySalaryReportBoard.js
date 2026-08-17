@@ -76,10 +76,6 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
     };
   }, [selectedMonth]);
 
-  useEffect(() => {
-    loadWeekSalaryData();
-  }, [currentMonday, selectedMonth, employees]);
-
   async function loadWeekSalaryData() {
     setLoading(true);
     try {
@@ -117,6 +113,10 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    loadWeekSalaryData();
+  }, [currentMonday, selectedMonth, employees]);
 
   function prevWeek() {
     const [y, m, d] = currentMonday.split('-').map(Number);
@@ -210,7 +210,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
         if (orderA !== orderB) return orderA - orderB;
         return a.name.localeCompare(b.name);
       });
-  }, [employees, endDate, weekDays, scheduleByEmpAndDate]);
+  }, [employees, startDate, endDate, weekDays, scheduleByEmpAndDate]);
 
   // Index map dữ liệu ca làm tháng theo employeeId_date (chỉ lọc các ca đúng thuộc selectedMonth)
   const monthScheduleByEmpAndDate = useMemo(() => {
@@ -447,9 +447,15 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                       <td
                         className={`py-2 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-28 sm:w-32`}
                       >
-                        <div className="truncate">
-                          <div className="font-black text-purple-950 truncate text-xs">{emp.name}</div>
-                          <div className="text-[10px] font-extrabold text-purple-700 mt-0.5">
+                        <div>
+                          <div
+                            onClick={() => setSelectedEmpForDetail(emp)}
+                            className="font-black text-purple-950 truncate text-xs cursor-pointer hover:text-purple-700 transition-colors"
+                            title={`Bấm để xem Phiếu Lương của ${emp.name}`}
+                          >
+                            {emp.name}
+                          </div>
+                          <div className="text-[10px] font-extrabold text-purple-700 truncate mt-0.5">
                             💵 {formatCurrency(currentWeeklyRate)}/h
                           </div>
                         </div>

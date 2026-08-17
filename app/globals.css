@@ -466,3 +466,32 @@ textarea {
   letter-spacing: normal;
   text-indent: 0;
 }
+
+/* ============================================
+   PRINT MEDIA STYLES - DÀNH CHO IN PHIẾU LƯƠNG
+   ============================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 8mm 8mm 8mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  header, nav, footer, button, .print-hidden {
+    display: none !important;
+  }
+
+  /* Giữ định dạng màu sắc nét khi in trên giấy */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

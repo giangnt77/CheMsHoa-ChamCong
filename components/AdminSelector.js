@@ -15,10 +15,6 @@ export default function AdminSelector({ onSelect }) {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
 
-  useEffect(() => {
-    loadAdminAccounts();
-  }, []);
-
   async function loadAdminAccounts() {
     setLoading(true);
     try {
@@ -44,6 +40,10 @@ export default function AdminSelector({ onSelect }) {
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    loadAdminAccounts();
+  }, []);
 
   function handleSelectCard(acc) {
     setSelectedAcc(acc);

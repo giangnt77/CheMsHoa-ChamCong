@@ -18,12 +18,6 @@ export default function ModalBlockOffDays({ isOpen, onClose, toast, onSaved }) {
   const [blockedMap, setBlockedMap] = useState({});
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadSettings();
-    }
-  }, [isOpen]);
-
   async function loadSettings() {
     try {
       const data = await getBlockedOffDays();
@@ -48,6 +42,12 @@ export default function ModalBlockOffDays({ isOpen, onClose, toast, onSaved }) {
       console.error(err);
     }
   }
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSettings();
+    }
+  }, [isOpen]);
 
   function toggleDay(dayIndex) {
     setBlockedMap((prev) => {
