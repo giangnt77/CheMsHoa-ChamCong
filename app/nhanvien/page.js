@@ -23,7 +23,7 @@ import {
   updateEmployeeNickname,
   checkNicknameCooldown,
 } from '@/lib/supabase';
-import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN } from '@/lib/utils';
+import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN, validateNickname } from '@/lib/utils';
 
 function EmployeeContent() {
   const toast = useToast();
@@ -253,10 +253,17 @@ function EmployeeContent() {
       return;
     }
 
+    const valRes = validateNickname(nicknameInput);
+    if (!valRes.isValid) {
+      toast.warning('Biệt danh không hợp lệ', valRes.error);
+      return;
+    }
+
     setSavingNickname(true);
     try {
-      const updated = await updateEmployeeNickname(employee.id, nicknameInput);
-      const clean = updated?.nickname !== undefined ? updated.nickname : nicknameInput.trim();
+      const clean = nicknameInput.trim();
+      const updated = await updateEmployeeNickname(employee.id, clean);
+      const updatedNick = updated?.nickname !== undefined ? updated.nickname : clean;
       const updatedTime = updated?.nickname_updated_at || new Date().toISOString();
 
       setEmployee((prev) => ({
@@ -959,18 +966,26 @@ function EmployeeContent() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-purple-950 uppercase mb-1">
-                      Biệt Danh Muốn Gọi
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-black text-purple-950 uppercase">
+                        Biệt Danh Muốn Gọi (2 - 12 ký tự)
+                      </label>
+                      <span className={`text-[10px] font-black ${nicknameInput.trim().length > 12 ? 'text-rose-600' : 'text-purple-600'}`}>
+                        {nicknameInput.trim().length}/12
+                      </span>
+                    </div>
                     <input
                       type="text"
-                      maxLength={20}
+                      maxLength={12}
                       value={nicknameInput}
                       onChange={(e) => setNicknameInput(e.target.value)}
                       placeholder="VD: Bé Heo, Cún, Mèo, Sam, Bin..."
                       className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400 shadow-2xs"
                       autoFocus
                     />
+                    <span className="text-[10px] text-purple-600 font-bold block mt-1">
+                      ✨ Yêu cầu: Tên lịch sự, không tục tĩu, tối đa 12 ký tự để vừa đẹp ô bảng lịch.
+                    </span>
                   </div>
 
                   {/* Thông báo quy định thời gian khóa 2 tháng */}
