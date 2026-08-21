@@ -51,6 +51,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="vi"
+      suppressHydrationWarning
       className={`${inter.variable} ${playfair.variable} h-full antialiased`}
     >
       <head>
@@ -65,7 +66,7 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {/* Animated Background Orbs */}
         <div className="bg-orb bg-orb-1" aria-hidden="true" />
         <div className="bg-orb bg-orb-2" aria-hidden="true" />
