@@ -31,6 +31,8 @@ CREATE TABLE system_settings (
 CREATE TABLE employees (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
+  nickname TEXT DEFAULT '',
+  nickname_updated_at TIMESTAMPTZ,
   role TEXT DEFAULT 'staff',            -- 'staff' | 'manager' | 'owner'
   hourly_rate INTEGER DEFAULT 20000,
   pin TEXT DEFAULT '1234',

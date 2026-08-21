@@ -1191,8 +1191,8 @@ function AdminContent() {
                                         >
                                           {getInitials(emp.name)}
                                         </div>
-                                        <span className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
-                                          {emp.name}
+                                        <span className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`} title={emp.nickname ? `Biệt danh: ${emp.nickname} - Tên thật: ${emp.name}` : `Tên: ${emp.name}`}>
+                                          {emp.nickname ? `${emp.nickname} (${emp.name})` : emp.name}
                                         </span>
                                         {emp.status === 'leave' ? (
                                           <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-black border border-amber-300 flex-shrink-0">🟡 Off</span>
@@ -1473,15 +1473,20 @@ function AdminContent() {
                                 </div>
                               ) : (
                                 <>
-                                  <h3 className="font-black text-base text-purple-950 flex items-center gap-1.5">
+                                  <h3 className="font-black text-base text-purple-950 flex items-center gap-1.5 flex-wrap">
                                     <span>{selectedEmployee.name}</span>
+                                    {selectedEmployee.nickname && (
+                                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-purple-950 text-xs font-black border border-amber-300 shadow-2xs" title={`Biệt danh hiển thị: ${selectedEmployee.nickname}`}>
+                                        🎭 {selectedEmployee.nickname}
+                                      </span>
+                                    )}
                                     <button
                                       onClick={() => {
                                         setEditingName(true);
                                         setNewNameInput(selectedEmployee.name);
                                       }}
                                       className="text-purple-400 hover:text-purple-800 bg-transparent border-0 cursor-pointer text-xs"
-                                      title="Sửa tên"
+                                      title="Sửa tên thật"
                                     >
                                       ✏️
                                     </button>

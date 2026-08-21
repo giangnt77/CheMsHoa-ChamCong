@@ -1196,10 +1196,23 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                             ≡
                           </span>
                         )}
-                        {isMe && <span className="text-purple-700 text-xs" title="Tài khoản của tôi">⭐</span>}
-                        <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'}>
-                          {emp.name}
-                        </span>
+                        {isMe && <span className="text-purple-700 text-xs shrink-0" title="Tài khoản của tôi">⭐</span>}
+                        <div className="truncate min-w-0 flex flex-col justify-center">
+                          {emp.nickname ? (
+                            <>
+                              <span className="text-purple-950 font-black text-xs sm:text-sm truncate leading-tight" title={`Biệt danh: ${emp.nickname} - Tên thật: ${emp.name}`}>
+                                {emp.nickname}
+                              </span>
+                              <span className="text-[9.5px] font-bold text-purple-700/80 truncate leading-none mt-0.5">
+                                ({emp.name})
+                              </span>
+                            </>
+                          ) : (
+                            <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'} title={`Tên nhân viên: ${emp.name}`}>
+                              {emp.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
 

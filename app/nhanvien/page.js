@@ -20,6 +20,8 @@ import {
   getShiftSwapsByEmployee,
   getPenaltiesByEmployee,
   getHolidaySettings,
+  updateEmployeeNickname,
+  checkNicknameCooldown,
 } from '@/lib/supabase';
 import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN } from '@/lib/utils';
 
@@ -60,6 +62,19 @@ function EmployeeContent() {
   const [monthlySalary, setMonthlySalary] = useState(0);
   const [empRates, setEmpRates] = useState([]);
   const [empPenalties, setEmpPenalties] = useState([]);
+  
+  // Password change modal
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [oldPin, setOldPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinSuccess, setPinSuccess] = useState(false);
+
+  // Nickname state
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState('');
+  const [savingNickname, setSavingNickname] = useState(false);
   const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
 
   // State Thông Báo Quan Trọng Dành Cho Nhân Viên
@@ -212,17 +227,64 @@ function EmployeeContent() {
     setSelectedMonth(`${year}-${month}`);
   }
 
-  async function handleSaveRate() {
-    const rate = parseInt(rateInput);
-    if (!rate || rate <= 0) return;
+  function handleOpenNicknameModal() {
+    const cooldown = checkNicknameCooldown(employee?.nickname_updated_at);
+    if (cooldown.isLocked) {
+      toast.info(
+        'Giới hạn đổi biệt danh',
+        `Bạn vừa đổi biệt danh gần đây. Bạn có thể đổi lại sau ${cooldown.daysLeft} ngày nữa (${cooldown.unlockDateStr}).`
+      );
+      return;
+    }
+    setNicknameInput(employee?.nickname || '');
+    setShowNicknameModal(true);
+  }
+
+  async function handleSaveNickname(e) {
+    if (e) e.preventDefault();
+    if (!employee) return;
+
+    const cooldown = checkNicknameCooldown(employee?.nickname_updated_at);
+    if (cooldown.isLocked) {
+      toast.warning(
+        'Chưa đến hạn đổi',
+        `Bạn cần đợi thêm ${cooldown.daysLeft} ngày nữa (${cooldown.unlockDateStr}) mới được đổi biệt danh tiếp!`
+      );
+      return;
+    }
+
+    setSavingNickname(true);
     try {
-      const updated = await updateEmployeeRate(employee.id, rate);
-      setEmployee(updated);
-      setEditingRate(false);
-      toast.success('Cập nhật', `Lương của bạn đã đặt: ${formatCurrency(rate)}/giờ`);
+      const updated = await updateEmployeeNickname(employee.id, nicknameInput);
+      const clean = updated?.nickname !== undefined ? updated.nickname : nicknameInput.trim();
+      const updatedTime = updated?.nickname_updated_at || new Date().toISOString();
+
+      setEmployee((prev) => ({
+        ...prev,
+        nickname: clean,
+        nickname_updated_at: updatedTime,
+      }));
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === employee.id
+            ? { ...emp, nickname: clean, nickname_updated_at: updatedTime }
+            : emp
+        )
+      );
+      setShowNicknameModal(false);
+      if (clean) {
+        toast.success(
+          'Đã đặt biệt danh thành công!',
+          `Biệt danh: "${clean}". Bạn có thể đổi lại sau 2 tháng!`
+        );
+      } else {
+        toast.info('Đã xóa biệt danh', 'Đã quay lại hiển thị tên thật');
+      }
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi', 'Không thể cập nhật lương');
+      toast.error('Lỗi', 'Không thể lưu biệt danh');
+    } finally {
+      setSavingNickname(false);
     }
   }
 
@@ -335,10 +397,48 @@ function EmployeeContent() {
         <div className="max-w-5xl mx-auto space-y-3 w-full">
           {/* Top Header Row: Greeting & Xem Lương Button */}
           <div className="py-1">
-            <div className="flex items-center justify-between gap-2">
-              <h1 className="text-base sm:text-2xl font-black text-purple-950 tracking-tight shrink">
-                Xin chào, <span className="text-purple-700 font-black">{employee.name}</span>!
-              </h1>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-sm sm:text-base font-extrabold text-purple-950 truncate flex items-center gap-1.5 flex-wrap">
+                  <span>Xin chào,</span>
+                  <span className="text-purple-700 font-black">
+                    {employee.nickname ? `${employee.nickname} (${employee.name})` : employee.name}
+                  </span>
+                </h1>
+
+                {(() => {
+                  const cooldown = checkNicknameCooldown(employee?.nickname_updated_at);
+                  if (cooldown.isLocked) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          toast.info(
+                            'Giới hạn đổi biệt danh',
+                            `Bạn vừa đổi biệt danh gần đây. Bạn có thể đổi lại sau ${cooldown.daysLeft} ngày nữa (${cooldown.unlockDateStr}).`
+                          )
+                        }
+                        className="px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-black border border-slate-300 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                        title={`Đang khóa: Bạn được đổi lại vào ngày ${cooldown.unlockDateStr}`}
+                      >
+                        <span>🔒</span>
+                        <span>Đổi lại sau {cooldown.daysLeft} ngày</span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      type="button"
+                      onClick={handleOpenNicknameModal}
+                      className="px-2.5 py-0.5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-900 text-[11px] font-black border border-purple-300 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                      title="Bấm để đặt hoặc đổi biệt danh hiển thị trên bảng xếp ca (Giới hạn 2 tháng/lần)"
+                    >
+                      <span>🎭</span>
+                      <span>{employee.nickname ? 'Đổi Biệt Danh' : '+ Đặt Biệt Danh'}</span>
+                    </button>
+                  );
+                })()}
+              </div>
 
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
@@ -815,6 +915,104 @@ function EmployeeContent() {
                     ✕ Đóng Màn Hình
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+          {/* MODAL ĐẶT BIỆT DANH CHO NHÂN VIÊN */}
+          {showNicknameModal && (
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setShowNicknameModal(false);
+              }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+            >
+              <div className="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-purple-200/90 space-y-4 animate-scale-in">
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🎭</span>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-purple-950 tracking-tight">
+                        Đặt Biệt Danh
+                      </h3>
+                      <p className="text-[11px] text-purple-700 font-bold">
+                        Hiển thị trên Bảng Xếp Lịch Làm Việc
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNicknameModal(false)}
+                    className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 hover:bg-rose-600 hover:text-white border-0 flex items-center justify-center cursor-pointer text-xs font-black transition-all"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveNickname} className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-black text-purple-950 uppercase mb-1">
+                      Tên Thật Của Bạn
+                    </label>
+                    <div className="px-3 py-2 bg-slate-100 rounded-xl text-xs sm:text-sm font-black text-slate-700 border border-slate-200">
+                      {employee.name} <span className="text-[10px] text-slate-500 font-bold block mt-0.5">(Tên gốc dùng để tính lương & quản lý)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-purple-950 uppercase mb-1">
+                      Biệt Danh Muốn Gọi
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={20}
+                      value={nicknameInput}
+                      onChange={(e) => setNicknameInput(e.target.value)}
+                      placeholder="VD: Bé Heo, Cún, Mèo, Sam, Bin..."
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400 shadow-2xs"
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Thông báo quy định thời gian khóa 2 tháng */}
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-[11px] font-bold space-y-1">
+                    <div className="font-black text-amber-900 flex items-center gap-1">
+                      <span>⏳</span>
+                      <span>Quy định thời gian đổi biệt danh:</span>
+                    </div>
+                    <p className="text-amber-800 leading-snug">
+                      Sau khi bấm <strong>"Lưu Biệt Danh"</strong>, bạn sẽ <strong>không thể đổi lại trong vòng 2 tháng (60 ngày)</strong> tiếp theo. Hãy chọn biệt danh thật ưng ý nhé!
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    {employee.nickname && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNicknameInput('');
+                          updateEmployeeNickname(employee.id, '').then(() => {
+                            setEmployee((prev) => ({ ...prev, nickname: '' }));
+                            setEmployees((prev) =>
+                              prev.map((emp) => (emp.id === employee.id ? { ...emp, nickname: '' } : emp))
+                            );
+                            setShowNicknameModal(false);
+                            toast.success('Đã bỏ biệt danh', 'Đã quay lại hiển thị tên thật');
+                          });
+                        }}
+                        className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 font-black text-xs border border-slate-200 cursor-pointer transition-all active:scale-95"
+                      >
+                        Xóa
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={savingNickname}
+                      className="flex-1 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs sm:text-sm border-0 shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <span>{savingNickname ? '⏳ Đang lưu...' : '✓ Lưu Biệt Danh'}</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
