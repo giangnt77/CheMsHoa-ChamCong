@@ -264,7 +264,7 @@ export default function ModalEmployeeSalaryDetail({
             <span className="text-xl sm:text-2xl">📋</span>
             <div>
               <h2 className="font-black text-sm sm:text-lg text-white uppercase tracking-wider leading-tight">
-                PHIẾU TÍNH LƯƠNG
+                CHÈ MSHOA - PHIẾU TÍNH LƯƠNG
               </h2>
               <p className="text-[11px] sm:text-xs font-black text-amber-300 tracking-wider">
                 THÁNG &lt;{monthNumber}/{yearStr}&gt;
@@ -454,10 +454,10 @@ export default function ModalEmployeeSalaryDetail({
               </div>
             </div>
 
-            {/* Card 3: THƯỞNG / PHẠT */}
+            {/* Card 3: PHỤ CẤP / KHẤU TRỪ */}
             <div className="p-2.5 bg-white rounded-2xl border border-purple-200 shadow-2xs space-y-0.5">
               <span className="text-[10px] font-black text-slate-700 uppercase block tracking-tight">
-                🎁 THƯỞNG / ⚠️ PHẠT
+                🎁 PHỤ CẤP / ⚠️ KHẤU TRỪ
               </span>
               <div className="flex items-center gap-1 text-xs sm:text-sm font-black">
                 <span className="text-emerald-700">+{formatCurrency(totalBonus)}</span>
@@ -468,7 +468,7 @@ export default function ModalEmployeeSalaryDetail({
                 type="button"
                 onClick={handleGoToPenaltyTab}
                 className="text-[10px] font-extrabold text-purple-700 hover:text-purple-950 flex items-center gap-0.5 bg-transparent border-0 cursor-pointer p-0 underline transition-all print:hidden"
-                title="Bấm để chuyển tới tab Thưởng & Phạt"
+                title="Bấm để chuyển tới tab Phụ Cấp & Khấu Trừ"
               >
                 Bấm để quản lý ➔
               </button>
@@ -509,7 +509,12 @@ export default function ModalEmployeeSalaryDetail({
                 <div className="space-y-1.5 max-h-[180px] sm:max-h-[200px] overflow-y-auto pr-0.5 custom-scrollbar">
                   {bonusList.length > 0 ? (
                     bonusList.map((p) => {
-                      const cleanReason = (p.reason || '').replace('[THƯỞNG]', '').trim() || 'Phụ cấp / Thưởng';
+                      const cleanReason = (p.reason || '')
+                        .replace(/\[THƯỞNG\]/gi, '')
+                        .replace(/\[PHẠT\]/gi, '')
+                        .replace(/\[PHỤ CẤP\]/gi, '')
+                        .replace(/\[KHẤU TRỪ\]/gi, '')
+                        .trim() || 'Phụ cấp';
                       return (
                         <div
                           key={p.id}
@@ -552,7 +557,12 @@ export default function ModalEmployeeSalaryDetail({
                 <div className="space-y-1.5 max-h-[180px] sm:max-h-[200px] overflow-y-auto pr-0.5 custom-scrollbar">
                   {deductionList.length > 0 ? (
                     deductionList.map((p) => {
-                      const cleanReason = (p.reason || '').trim() || 'Khấu trừ vi phạm';
+                      const cleanReason = (p.reason || '')
+                        .replace(/\[PHẠT\]/gi, '')
+                        .replace(/\[THƯỞNG\]/gi, '')
+                        .replace(/\[KHẤU TRỪ\]/gi, '')
+                        .replace(/\[PHỤ CẤP\]/gi, '')
+                        .trim() || 'Khấu trừ';
                       return (
                         <div
                           key={p.id}

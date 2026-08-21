@@ -744,11 +744,6 @@ function AdminContent() {
     try {
       const isBonus = recordType === 'bonus';
       const cleanReason = penaltyReason.trim();
-      const prefix = isBonus ? '[THƯỞNG]' : '[PHẠT]';
-      const finalReason = cleanReason.startsWith('[THƯỞNG]') || cleanReason.startsWith('[PHẠT]')
-        ? cleanReason
-        : `${prefix} ${cleanReason}`;
-
       const targetMonth = penaltyDate ? penaltyDate.slice(0, 7) : selectedMonth;
 
       await createPenalty({
@@ -757,15 +752,15 @@ function AdminContent() {
         date: penaltyDate || getToday(),
         amount,
         type: isBonus ? 'bonus' : 'penalty',
-        reason: finalReason,
+        reason: cleanReason,
       });
 
       const formattedDate = penaltyDate ? penaltyDate.split('-').reverse().join('/') : '';
 
       if (isBonus) {
-        toast.success('Đã thêm thưởng!', `🎁 +${formatCurrency(amount)} - ${cleanReason} (${formattedDate})`);
+        toast.success('Đã thêm phụ cấp!', `🎁 +${formatCurrency(amount)} - ${cleanReason} (${formattedDate})`);
       } else {
-        toast.warning('Đã thêm phạt!', `⚠️ -${formatCurrency(amount)} - ${cleanReason} (${formattedDate})`);
+        toast.warning('Đã thêm khấu trừ!', `⚠️ -${formatCurrency(amount)} - ${cleanReason} (${formattedDate})`);
       }
 
       setPenaltyAmount('');
@@ -870,7 +865,7 @@ function AdminContent() {
       setSelectedMonth(monthStr);
     }
     changeActiveTab('penalty');
-    toast.info('Thưởng & Phạt', `Đã chuyển đến quản lý Thưởng & Phạt của ${empObj?.name || 'nhân viên'}`);
+    toast.info('Phụ Cấp & Khấu Trừ', `Đã chuyển đến quản lý Phụ Cấp & Khấu Trừ của ${empObj?.name || 'nhân viên'}`);
   }
 
   // ========================================
@@ -945,7 +940,7 @@ function AdminContent() {
               { id: 'shift_swaps', label: 'QL Ca Đổi', icon: '🔄' },
               { id: 'salary', label: 'QL Tính Lương', icon: '💰' },
               { id: 'employees', label: 'QL Nhân Viên', icon: '👥' },
-              { id: 'penalty', label: 'Thưởng & Phạt', icon: '🎁' },
+              { id: 'penalty', label: 'Phụ Cấp / Trừ', icon: '🎁' },
               { id: 'branches', label: 'Chi Nhánh', icon: '🏪' },
             ].map((tab) => {
               const isRestricted = adminRole === 'manager' && tab.id !== 'schedule';
@@ -1916,13 +1911,13 @@ function AdminContent() {
             </div>
           )}
 
-          {/* ============ TAB: REWARD & PENALTY (THƯỞNG & PHẠT GỘP CHUNG) ============ */}
+          {/* ============ TAB: REWARD & PENALTY (PHỤ CẤP & KHẤU TRỪ GỘP CHUNG) ============ */}
           {adminRole === 'owner' && activeTab === 'penalty' && (
             <div className="animate-fade-in">
               {!selectedEmployee ? (
                 <div className="text-center py-16 text-purple-600 font-bold bg-white rounded-3xl border border-purple-200">
                   <div className="text-4xl mb-3 opacity-60">🎁</div>
-                  <p>Chọn nhân viên để xem hoặc thêm tiền Thưởng / Phạt</p>
+                  <p>Chọn nhân viên để xem hoặc thêm Phụ Cấp / Khấu Trừ</p>
                 </div>
               ) : (
                 <div className="space-y-5 max-w-4xl mx-auto">
@@ -2031,20 +2026,20 @@ function AdminContent() {
                           <span>{selectedEmployee.name}</span>
                         </h3>
                         <p className="text-xs text-purple-700 font-black">
-                          Thống kê Thưởng & Phạt • <span className="text-purple-950 font-black">{getMonthName(selectedMonth)}</span>
+                          Thống kê Phụ Cấp & Khấu Trừ • <span className="text-purple-950 font-black">{getMonthName(selectedMonth)}</span>
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Form Thêm Khoản Thưởng / Phạt */}
+                  {/* Form Thêm Khoản Phụ Cấp / Khấu Trừ */}
                   <div className="bg-white rounded-3xl p-6 border border-purple-200/90 shadow-2xs">
                     <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                       <h3 className="font-black text-base text-purple-950 flex items-center gap-2">
-                        <span>➕</span> Ghi Nhận Khoản Tiền Cho {selectedEmployee.name}
+                        <span>➕</span> Ghi Nhận Phụ Cấp / Khấu Trừ Cho {selectedEmployee.name}
                       </h3>
 
-                      {/* Nút Toggle Loại Khoản: Thưởng (+) vs Phạt (-) */}
+                      {/* Nút Toggle Loại Khoản: Phụ Cấp (+) vs Khấu Trừ (-) */}
                       <div className="flex bg-purple-100/70 p-1 rounded-2xl border border-purple-200/80">
                         <button
                           type="button"
@@ -2054,7 +2049,7 @@ function AdminContent() {
                             : 'text-purple-900 hover:text-purple-700 font-bold'
                             }`}
                         >
-                          <span>🎁</span> THƯỞNG (+)
+                          <span>🎁</span> PHỤ CẤP (+)
                         </button>
                         <button
                           type="button"
@@ -2064,7 +2059,7 @@ function AdminContent() {
                             : 'text-purple-900 hover:text-purple-700 font-bold'
                             }`}
                         >
-                          <span>⚠️</span> PHẠT (-)
+                          <span>⚠️</span> KHẤU TRỪ (-)
                         </button>
                       </div>
                     </div>
@@ -2096,7 +2091,7 @@ function AdminContent() {
                           type="text"
                           value={penaltyReason}
                           onChange={(e) => setPenaltyReason(e.target.value)}
-                          placeholder={recordType === 'bonus' ? 'VD: Làm tốt, doanh số...' : 'VD: Đi trễ, vi phạm...'}
+                          placeholder={recordType === 'bonus' ? 'VD: Làm tốt, tăng ca, phụ cấp...' : 'VD: Bảo hiểm, ứng lương, khấu trừ...'}
                           className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs sm:text-sm font-black outline-none focus:border-purple-600 placeholder:text-purple-400 h-[38px]"
                         />
                       </div>
@@ -2110,85 +2105,168 @@ function AdminContent() {
                             : 'bg-rose-600 hover:bg-rose-700 text-white'
                             }`}
                         >
-                          {recordType === 'bonus' ? '🎁 Thêm Tiền Thưởng' : '⚠️ Thêm Tiền Phạt'}
+                          {recordType === 'bonus' ? '🎁 Thêm Phụ Cấp' : '⚠️ Thêm Khấu Trừ'}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Danh Sách Khoản Thưởng & Phạt */}
-                  <div className="bg-white rounded-3xl p-6 border border-purple-200/90 shadow-2xs">
-                    <h3 className="font-black text-base text-purple-950 mb-4 flex items-center gap-2">
-                      <span>📋</span> Danh sách Thưởng & Phạt - {getMonthName(selectedMonth)} ({empPenalties.length} khoản)
-                    </h3>
-                    {empPenalties.length === 0 ? (
-                      <p className="text-xs text-purple-600 font-extrabold text-center py-6">
-                        Chưa có khoản Thưởng hoặc Phạt nào trong tháng này ✨
-                      </p>
-                    ) : (
-                      <div className="space-y-2.5">
-                        {empPenalties.map((p) => {
-                          const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
-                          const displayReason = p.reason ? p.reason.replace('[THƯỞNG] ', '') : '';
+                  {/* Danh Sách Khoản Phụ Cấp & Khấu Trừ (CHIA 2 CỘT: PHỤ CẤP 1 BÊN, KHẤU TRỪ 1 BÊN) */}
+                  {(() => {
+                    const bonusItems = [];
+                    const deductionItems = [];
+                    let totalBonusAmount = 0;
+                    let totalDeductionAmount = 0;
 
-                          // Format ngày áp dụng và thời gian ghi nhận (created_at)
-                          const effectiveDateStr = p.date
-                            ? formatDateFull(p.date)
-                            : (p.created_at ? formatDateFull(p.created_at.slice(0, 10)) : 'Chưa rõ');
+                    (empPenalties || []).forEach((p) => {
+                      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+                      if (isBonus) {
+                        bonusItems.push(p);
+                        totalBonusAmount += Math.abs(p.amount);
+                      } else {
+                        deductionItems.push(p);
+                        totalDeductionAmount += Math.abs(p.amount);
+                      }
+                    });
 
-                          const createdAtFormatted = p.created_at
-                            ? `${new Date(p.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} • ${formatDateFull(p.created_at.slice(0, 10))}`
-                            : null;
-
-                          return (
-                            <div
-                              key={p.id}
-                              className={`p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-2xs ${isBonus
-                                ? 'bg-emerald-50 border-emerald-200'
-                                : 'bg-rose-50 border-rose-200'
-                                }`}
-                            >
-                              <div className="flex items-start gap-3">
-                                <span className="text-2xl mt-0.5">{isBonus ? '🎁' : '⚠️'}</span>
-                                <div className="space-y-1">
-                                  <div className={`font-black text-sm ${isBonus ? 'text-emerald-950' : 'text-rose-950'}`}>
-                                    {displayReason}
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-wrap text-[11px] font-extrabold">
-                                    <span className={`px-2 py-0.5 rounded-md ${isBonus ? 'bg-emerald-200/70 text-emerald-900 border border-emerald-300' : 'bg-rose-200/70 text-rose-900 border border-rose-300'}`}>
-                                      {isBonus ? 'Khoản Thưởng' : 'Khoản Phạt'}
-                                    </span>
-                                    <span className="text-purple-900 font-bold bg-white/80 px-2 py-0.5 rounded-md border border-purple-200">
-                                      📅 Ngày áp dụng: <strong>{effectiveDateStr}</strong>
-                                    </span>
-                                    {createdAtFormatted && (
-                                      <span className="text-purple-700 font-medium">
-                                        🕒 Tạo lúc: {createdAtFormatted}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-3">
-                                <span className={`font-black text-base ${isBonus ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                  {isBonus ? `+${formatCurrency(p.amount)}` : `-${formatCurrency(p.amount)}`}
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                        {/* CỘT 1 (BÊN TRÁI): PHỤ CẤP */}
+                        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-emerald-200 shadow-2xs space-y-3">
+                          <div className="flex items-center justify-between border-b border-emerald-100 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">🎁</span>
+                              <div>
+                                <h4 className="font-black text-sm text-emerald-950 uppercase tracking-tight">
+                                  PHỤ CẤP ({bonusItems.length})
+                                </h4>
+                                <span className="text-[11px] font-extrabold text-emerald-700">
+                                  Tổng cộng: +{formatCurrency(totalBonusAmount)}
                                 </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeletePenalty(p.id)}
-                                  className="w-8 h-8 rounded-xl bg-white hover:bg-rose-600 hover:text-white text-rose-700 text-xs font-black border border-rose-200 cursor-pointer flex items-center justify-center transition-all shadow-2xs"
-                                  title="Xóa khoản này"
-                                >
-                                  🗑️
-                                </button>
                               </div>
                             </div>
-                          );
-                        })}
+                          </div>
+
+                          {bonusItems.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-slate-400 font-bold italic bg-emerald-50/40 rounded-2xl border border-dashed border-emerald-200">
+                              Chưa có khoản phụ cấp nào trong tháng này ✨
+                            </div>
+                          ) : (
+                            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                              {bonusItems.map((p) => {
+                                const displayReason = (p.reason || '')
+                                  .replace(/\[THƯỞNG\]/gi, '')
+                                  .replace(/\[PHẠT\]/gi, '')
+                                  .replace(/\[PHỤ CẤP\]/gi, '')
+                                  .replace(/\[KHẤU TRỪ\]/gi, '')
+                                  .trim() || 'Phụ cấp';
+                                const effectiveDateStr = p.date
+                                  ? formatDateFull(p.date)
+                                  : (p.created_at ? formatDateFull(p.created_at.slice(0, 10)) : 'Chưa rõ');
+
+                                return (
+                                  <div
+                                    key={p.id}
+                                    className="p-3 bg-emerald-50/80 hover:bg-emerald-100/80 rounded-2xl border border-emerald-200/90 flex items-center justify-between gap-2.5 transition-all shadow-2xs"
+                                  >
+                                    <div className="min-w-0 flex-1 space-y-1">
+                                      <div className="font-black text-emerald-950 text-xs sm:text-sm truncate" title={displayReason}>
+                                        {displayReason}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-emerald-800">
+                                        <span>📅 {effectiveDateStr}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="font-black text-xs sm:text-sm text-emerald-700">
+                                        +{formatCurrency(p.amount)}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeletePenalty(p.id)}
+                                        className="w-7 h-7 rounded-xl bg-white hover:bg-rose-600 hover:text-white text-rose-700 text-xs font-black border border-rose-200 cursor-pointer flex items-center justify-center transition-all shadow-2xs active:scale-95"
+                                        title="Xóa khoản này"
+                                      >
+                                        🗑️
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* CỘT 2 (BÊN PHẢI): KHẤU TRỪ */}
+                        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-rose-200 shadow-2xs space-y-3">
+                          <div className="flex items-center justify-between border-b border-rose-100 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">⚠️</span>
+                              <div>
+                                <h4 className="font-black text-sm text-rose-950 uppercase tracking-tight">
+                                  KHẤU TRỪ ({deductionItems.length})
+                                </h4>
+                                <span className="text-[11px] font-extrabold text-rose-700">
+                                  Tổng cộng: -{formatCurrency(totalDeductionAmount)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {deductionItems.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-slate-400 font-bold italic bg-rose-50/40 rounded-2xl border border-dashed border-rose-200">
+                              Chưa có khoản khấu trừ nào trong tháng này ✨
+                            </div>
+                          ) : (
+                            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+                              {deductionItems.map((p) => {
+                                const displayReason = (p.reason || '')
+                                  .replace(/\[PHẠT\]/gi, '')
+                                  .replace(/\[THƯỞNG\]/gi, '')
+                                  .replace(/\[KHẤU TRỪ\]/gi, '')
+                                  .replace(/\[PHỤ CẤP\]/gi, '')
+                                  .trim() || 'Khấu trừ';
+                                const effectiveDateStr = p.date
+                                  ? formatDateFull(p.date)
+                                  : (p.created_at ? formatDateFull(p.created_at.slice(0, 10)) : 'Chưa rõ');
+
+                                return (
+                                  <div
+                                    key={p.id}
+                                    className="p-3 bg-rose-50/80 hover:bg-rose-100/80 rounded-2xl border border-rose-200/90 flex items-center justify-between gap-2.5 transition-all shadow-2xs"
+                                  >
+                                    <div className="min-w-0 flex-1 space-y-1">
+                                      <div className="font-black text-rose-950 text-xs sm:text-sm truncate" title={displayReason}>
+                                        {displayReason}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-[10.5px] font-bold text-rose-800">
+                                        <span>📅 {effectiveDateStr}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="font-black text-xs sm:text-sm text-rose-700">
+                                        -{formatCurrency(p.amount)}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeletePenalty(p.id)}
+                                        className="w-7 h-7 rounded-xl bg-white hover:bg-rose-600 hover:text-white text-rose-700 text-xs font-black border border-rose-200 cursor-pointer flex items-center justify-center transition-all shadow-2xs active:scale-95"
+                                        title="Xóa khoản này"
+                                      >
+                                        🗑️
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
