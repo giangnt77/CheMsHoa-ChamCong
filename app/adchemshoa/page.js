@@ -38,6 +38,7 @@ import {
   saveAnnouncementNotice,
   getSpecialEventMode,
   saveSpecialEventMode,
+  getHolidaySettings,
 } from '@/lib/supabase';
 import {
   getCurrentMonth,
@@ -139,6 +140,7 @@ function AdminContent() {
   const [schedDate, setSchedDate] = useState(getToday());
   const [availabilities, setAvailabilities] = useState([]);
   const [daySchedule, setDaySchedule] = useState([]);
+  const [holidays, setHolidays] = useState([]);
 
   // Loading
   const [loading, setLoading] = useState(true);
@@ -545,12 +547,14 @@ function AdminContent() {
   async function loadInitialData() {
     setLoading(true);
     try {
-      const [empData, branchData] = await Promise.all([
+      const [empData, branchData, holidayData] = await Promise.all([
         getAllEmployees(),
         getBranches(),
+        getHolidaySettings(),
       ]);
       setEmployees(empData);
       setBranches(branchData);
+      setHolidays(Array.isArray(holidayData) ? holidayData : []);
       // Lọc bỏ Owner/Manager ngay từ đầu khi chọn nhân viên mặc định
       const filteredStaff = (empData || []).filter((e) => {
         if (e.role === 'owner' || e.role === 'manager') return false;
@@ -633,7 +637,7 @@ function AdminContent() {
   const lifetimeData = useMemo(() => {
     if (!selectedEmployee) return null;
     const defaultRate = selectedEmployee.hourly_rate || 20000;
-    const { totalHours, grossSalary } = calculateSalaryFromShifts(allLifetimeSched, empRates, defaultRate);
+    const { totalHours, grossSalary } = calculateSalaryFromShifts(allLifetimeSched, empRates, defaultRate, holidays);
 
     let bonus = 0;
     let penalty = 0;
@@ -793,7 +797,8 @@ function AdminContent() {
     const { totalHours, grossSalary, shiftDetails } = calculateSalaryFromShifts(
       empSchedule,
       empRates,
-      defaultRate
+      defaultRate,
+      holidays
     );
 
     let totalBonus = 0;

@@ -106,6 +106,8 @@ function formatAvailTextForView(empAvail, isReadOnly) {
 
 import ModalSortEmployees from './ModalSortEmployees';
 import ModalBlockOffDays from './ModalBlockOffDays';
+import ModalHolidaySettings from './ModalHolidaySettings';
+import { getHolidaySettings, getHolidayForDate, getBlockedOffDays } from '@/lib/supabase';
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -122,6 +124,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const [loading, setLoading] = useState(true);
   const [showSortModal, setShowSortModal] = useState(false);
   const [showBlockOffModal, setShowBlockOffModal] = useState(false);
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidays, setHolidays] = useState([]);
+  const [blockedMap, setBlockedMap] = useState({});
 
   // Modal State
   const [modalState, setModalState] = useState({
@@ -165,10 +170,12 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       setLoading(true);
     }
     try {
-      const [branchData, schedData, availData] = await Promise.all([
+      const [branchData, schedData, availData, holidayData, blockedData] = await Promise.all([
         getBranches(),
         getScheduleByDateRange(startDate, endDate),
         getAvailabilityByDateRange(startDate, endDate),
+        getHolidaySettings(),
+        getBlockedOffDays(),
       ]);
       setBranches(branchData);
       setSchedule(schedData);
@@ -177,6 +184,25 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       setHasUnsavedChanges(false);
       setAvailability(availData);
       setLocalAvailability(availData);
+      setHolidays(Array.isArray(holidayData) ? holidayData : []);
+
+      if (blockedData && typeof blockedData === 'object' && !Array.isArray(blockedData)) {
+        if (Array.isArray(blockedData.blockedDays)) {
+          const map = {};
+          blockedData.blockedDays.forEach((dIdx) => {
+            map[dIdx] = blockedData.reason || 'Ngày cao điểm đông khách, quán yêu cầu đi làm đầy đủ!';
+          });
+          setBlockedMap(map);
+        } else {
+          setBlockedMap(blockedData);
+        }
+      } else if (Array.isArray(blockedData)) {
+        const map = {};
+        blockedData.forEach((dIdx) => {
+          map[dIdx] = 'Ngày cao điểm đông khách, quán yêu cầu đi làm đầy đủ!';
+        });
+        setBlockedMap(map);
+      }
     } catch (err) {
       console.error(err);
       if (toast) toast.error('Lỗi', 'Không thể tải lịch tuần');
@@ -858,6 +884,17 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
   }
 
+  const weekHolidays = useMemo(() => {
+    const list = [];
+    weekDays.forEach((dStr) => {
+      const h = getHolidayForDate(dStr, holidays);
+      if (h && !list.find((item) => item.name === h.name)) {
+        list.push(h);
+      }
+    });
+    return list;
+  }, [weekDays, holidays]);
+
   return (
     <div className="space-y-2.5">
       {/* THANH CẢNH BÁO THAY ĐỔI CHƯA LƯU & NÚT LƯU BATCH 1 LẦN */}
@@ -896,23 +933,23 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         </div>
       )}
 
-      {/* Thanh điều hướng Tuần & Chú thích Chi Nhánh - Compact 1-Line Row */}
-      {/* Thanh điều hướng Tuần & Chú thích Chi Nhánh - Mobile Friendly Compact Row */}
-      <div className="bg-white rounded-2xl p-2 sm:px-4 sm:py-3 border border-purple-200/90 shadow-2xs space-y-2">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          {/* Bộ chuyển tuần 1 dòng */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Thanh điều hướng Tuần, Cụm Nút Thao Tác & Chú thích Chi Nhánh — Thiết Kế Cân Đối, Sang Trọng */}
+      <div className="bg-white rounded-3xl p-3 sm:px-5 sm:py-3.5 border border-purple-200/90 shadow-2xs space-y-2.5">
+        {/* HÀNG 1: ĐIỀU HƯỚNG TUẦN (TRÁI) & CÁC NÚT HÀNH ĐỘNG (PHẢI) */}
+        <div className="flex items-center justify-between flex-wrap gap-2.5">
+          {/* Cụm chuyển tuần */}
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={prevWeek}
-              className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
               title="Tuần trước"
             >
               ◀
             </button>
 
-            <div className="text-xs sm:text-base font-black text-purple-950 px-1 text-center">
-              <span className="text-purple-800 font-black">
+            <div className="text-xs sm:text-base font-black text-purple-950 px-1.5 text-center min-w-[120px]">
+              <span className="text-purple-900 font-black">
                 {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().slice(0, 2).join('/')}
               </span>
             </div>
@@ -920,7 +957,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             <button
               type="button"
               onClick={nextWeek}
-              className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 font-black border border-purple-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 text-xs shadow-2xs"
               title="Tuần sau"
             >
               ▶
@@ -929,22 +966,22 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             <button
               type="button"
               onClick={goTodayWeek}
-              className="px-2.5 py-1 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-[11px] sm:text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95"
+              className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95"
             >
               Tuần này
             </button>
           </div>
 
-          {/* Nhóm Nút Thao Tác (Cấm Off, Sắp Xếp) */}
+          {/* Nhóm Nút Thao Tác Bên Phải: Phân Nhóm Rõ Ràng & Bắt Mắt */}
           {!readOnly && (
             <div className="flex items-center gap-1.5 flex-wrap ml-auto">
-              {/* NÚT TẢI BẢNG LỊCH DẠNG FILE ẢNH PNG (1 HÌNH BẢNG GỌN GÀNG, SẮC NÉT 2K) */}
+              {/* Nhóm 1: Xuất & Xem */}
               <button
                 type="button"
                 onClick={handleDownloadImage}
                 disabled={isExportingPDF}
-                className="px-2.5 py-1 rounded-xl bg-purple-900 hover:bg-purple-950 text-white text-[11px] sm:text-xs font-black border border-purple-800 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 disabled:opacity-50"
-                title="Bấm để Tải ngay File Bức Ảnh PNG Bảng Phân Công Lịch Tuần trọn gói về máy"
+                className="px-3 py-1.5 rounded-xl bg-purple-900 hover:bg-purple-950 text-white text-xs font-black border border-purple-800 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
+                title="Tải File Bức Ảnh PNG Bảng Phân Công Lịch Tuần trọn gói về máy"
               >
                 <span>🖼️</span>
                 <span>{isExportingPDF ? '⏳ Đang Tải...' : 'Tải Ảnh (PNG)'}</span>
@@ -953,21 +990,32 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               <button
                 type="button"
                 onClick={() => setShowPDFPreview(true)}
-                className="px-2.5 py-1 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-[11px] sm:text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
-                title="Bấm để Xem Trước Bản Bảng Lịch Tuần"
+                className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 text-xs font-black border border-purple-200 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                title="Xem Trước Bản Bảng Lịch Tuần"
               >
                 <span>👁️</span>
                 <span>Xem Trước</span>
               </button>
 
+              {/* Nhóm 2: Cài Đặt Quản Trị */}
+              <button
+                type="button"
+                onClick={() => setShowHolidayModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 text-xs font-black border border-amber-500 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                title="Cấu hình các ngày lễ tết và hệ số nhân lương (x2, x3...)"
+              >
+                <span>🎉</span>
+                <span>Ngày Lễ (x2, x3)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setShowBlockOffModal(true)}
-                className="px-2.5 py-1 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-950 text-[11px] sm:text-xs font-black border border-rose-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-900 text-xs font-black border border-rose-200 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
                 title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
               >
                 <span>🚫</span>
-                <span className="hidden sm:inline">Cấm Off</span>
+                <span>Cấm Off</span>
               </button>
 
               <button
@@ -980,7 +1028,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   }
                 }}
                 disabled={savingSort}
-                className={`px-3 py-1 rounded-xl text-[11px] sm:text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 border-0 ${isSortMode
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 border-0 ${isSortMode
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse shadow-md font-black'
                   : 'bg-purple-700 hover:bg-purple-800 text-white font-black'
                   }`}
@@ -1002,20 +1050,46 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           )}
         </div>
 
-        {/* Chú thích màu Chi Nhánh - Tự động đồng bộ 100% từ DB */}
-        <div className="flex items-center flex-wrap gap-1.5 text-xs font-black justify-center sm:justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-purple-100">
-          {branches.map((b) => {
-            const style = getBranchColorStyle(b.name, b.color);
-            return (
-              <div
-                key={b.id}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-black border shadow-2xs"
-                style={style.badgeStyle}
-              >
-                <span>{formatBranchDisplayName(b.name)}</span>
-              </div>
-            );
-          })}
+        {/* HÀNG 2: THÔNG BÁO NGÀY LỄ TRONG TUẦN (TRÁI) & CHÚ THÍCH CHI NHÁNH (PHẢI) */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-purple-100">
+          {/* Thông báo ngày lễ nếu tuần này có ngày lễ */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {weekHolidays.length > 0 ? (
+              weekHolidays.map((h, hIdx) => (
+                <span
+                  key={hIdx}
+                  className="px-2.5 py-0.5 rounded-full bg-amber-100 text-purple-950 border border-amber-300 text-[11px] font-black flex items-center gap-1 shadow-2xs"
+                >
+                  <span>🎉</span>
+                  <span>{h.name}:</span>
+                  <strong className="text-amber-800">x{h.multiplier} Lương</strong>
+                </span>
+              ))
+            ) : !readOnly ? (
+              <span className="text-[11px] font-extrabold text-purple-600/80">
+                ✨ Bấm vào ô của nhân viên để xếp ca nhanh
+              </span>
+            ) : null}
+          </div>
+
+          {/* Chú thích màu Chi Nhánh — Đặt gọn gàng bên phải */}
+          <div className="flex items-center flex-wrap gap-1.5 text-xs font-black justify-end ml-auto">
+            <span className="text-[11px] font-extrabold text-purple-800 mr-0.5">
+              🏢 Chi nhánh:
+            </span>
+            {branches.map((b) => {
+              const style = getBranchColorStyle(b.name, b.color);
+              return (
+                <div
+                  key={b.id}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-black border shadow-2xs"
+                  style={style.badgeStyle}
+                >
+                  <span>{formatBranchDisplayName(b.name)}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -1023,29 +1097,44 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
          BẢNG MA TRẬN PHÂN CÔNG CHÈ Ms HOA • HEADER 1 DÒNG TỐI ƯU • TỰ ĐỘNG CUỘN TỚI HÔM NAY
          ========================================================================= */}
       <div ref={tableContainerRef} className="bg-white rounded-3xl p-0 border border-purple-200 shadow-xl overflow-x-auto custom-scrollbar relative">
-        <table className="w-full min-w-[980px] border-collapse text-xs">
+        <table className="table-fixed w-full min-w-[1000px] border-collapse text-xs">
           <thead>
             {/* Hàng 1: Tên Thứ (T2 -> CN) */}
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-2 px-1 border-r-2 border-purple-300 w-20 sm:w-32 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-[11px] sm:text-xs">
+              <th className="py-2 px-2 border-r-2 border-purple-300 w-[14%] min-w-[110px] max-w-[140px] text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
                 NHÂN VIÊN
               </th>
               {weekDays.map((dStr, idx) => {
                 const isToday = dStr === getToday();
+                const holiday = !readOnly ? getHolidayForDate(dStr, holidays) : null;
+
                 return (
                   <th
                     key={dStr}
                     data-date={dStr}
-                    className={`py-2.5 px-2 border-r border-purple-800 text-center font-black uppercase text-xs sm:text-sm transition-all ${isToday
-                      ? 'bg-amber-400 text-purple-950 font-black border-x-2 border-amber-500 shadow-inner'
-                      : 'text-amber-300'
-                      }`}
+                    className={`py-2.5 px-1 border-r border-purple-800 text-center font-black uppercase text-xs w-[12.28%] min-w-[115px] max-w-[135px] transition-all ${
+                      isToday
+                        ? 'bg-amber-400 text-purple-950 font-black border-x-2 border-amber-500 shadow-inner'
+                        : 'text-amber-300'
+                    }`}
                   >
                     <div className="flex items-center justify-center gap-1">
                       <span>{DAY_LABELS[idx]}</span>
                       {isToday && (
                         <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-black animate-pulse">
                           HÔM NAY
+                        </span>
+                      )}
+                      {!readOnly && holiday && (
+                        <span
+                          className={`px-1.5 py-0.5 rounded-full text-[10.5px] font-black shadow-xs tracking-tight transition-all ${
+                            isToday
+                              ? 'bg-purple-950 text-amber-300 border border-purple-900'
+                              : 'bg-amber-400 text-purple-950 border border-amber-300 shadow-sm font-black ring-1 ring-amber-300/80'
+                          }`}
+                          title={`${holiday.name} (x${holiday.multiplier} Lương)`}
+                        >
+                          x{holiday.multiplier}
                         </span>
                       )}
                     </div>
@@ -1095,7 +1184,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                       onTouchStart={(e) => !readOnly && isSortMode && handleDirectTouchStart(e, idx)}
                       onTouchMove={(e) => !readOnly && isSortMode && handleDirectTouchMove(e)}
                       onTouchEnd={handleDirectTouchEnd}
-                      className={`py-2 px-1 border-r-2 border-purple-300 font-black text-purple-950 text-[11px] sm:text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-20 sm:w-32 ${isSortMode
+                      className={`py-2 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-[14%] min-w-[110px] max-w-[140px] truncate ${isSortMode
                         ? 'cursor-grab active:cursor-grabbing bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
                         : ''
                         } ${draggedIdx === idx ? 'bg-purple-200/90 opacity-75 border-purple-500 shadow-xl scale-98' : ''}`}
@@ -1128,7 +1217,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                         <td
                           key={dStr}
                           onClick={() => openCellModal(emp, dStr, empShifts[0] || null)}
-                          className={`py-2 px-1 border-r border-purple-100 text-center align-middle transition-all min-w-[105px] max-w-[125px] overflow-hidden group ${readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:bg-purple-100/60'
+                          className={`p-1.5 border-r border-purple-100 text-center align-middle transition-all w-[12.28%] min-w-[115px] max-w-[135px] overflow-hidden group ${readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:bg-purple-100/60'
                             }`}
                         >
                           {empShifts.length > 0 ? (
@@ -1493,6 +1582,22 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           isOpen={showBlockOffModal}
           onClose={() => setShowBlockOffModal(false)}
           toast={toast}
+          onSaved={(newBlockedMap) => {
+            setBlockedMap(newBlockedMap || {});
+            loadWeekData(true);
+          }}
+        />
+      )}
+
+      {/* MODAL CẤU HÌNH NGÀY LỄ (x2, x3 LƯƠNG) CHO ADMIN */}
+      {showHolidayModal && (
+        <ModalHolidaySettings
+          isOpen={showHolidayModal}
+          onClose={() => setShowHolidayModal(false)}
+          toast={toast}
+          onHolidaysUpdated={(newHolidays) => {
+            setHolidays(newHolidays);
+          }}
         />
       )}
     </div>

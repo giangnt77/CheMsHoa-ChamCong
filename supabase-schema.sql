@@ -151,7 +151,8 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO system_settings (key, value) VALUES
   ('blocked_off_days', '[]'::jsonb),
   ('announcement_notice', '"📌 THÔNG BÁO TỪ QUẢN LÝ:\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!"'::jsonb),
-  ('special_event_mode', 'false'::jsonb)
+  ('special_event_mode', 'false'::jsonb),
+  ('holiday_rates', '[]'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
 -- --------------------------------------------

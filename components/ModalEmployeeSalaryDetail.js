@@ -9,6 +9,7 @@ import {
   getBranches,
   calculateSalaryFromShifts,
   updateEmployeeBankInfo,
+  getHolidaySettings,
 } from '@/lib/supabase';
 import {
   formatCurrency,
@@ -41,6 +42,7 @@ export default function ModalEmployeeSalaryDetail({
   const [payRates, setPayRates] = useState([]);
   const [penalties, setPenalties] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Bank Info state
@@ -74,11 +76,12 @@ export default function ModalEmployeeSalaryDetail({
       const lastDayNum = new Date(year, month, 0).getDate();
       const endDate = `${selectedMonth}-${String(lastDayNum).padStart(2, '0')}`;
 
-      const [schedData, ratesData, penaltiesData, branchList] = await Promise.all([
+      const [schedData, ratesData, penaltiesData, branchList, holidayData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getEmployeeRates(empData.id),
         getPenaltiesByEmployee(empData.id, selectedMonth),
         getBranches(),
+        getHolidaySettings(),
       ]);
 
       // Lọc ca làm của nhân viên này trong tháng
@@ -97,6 +100,7 @@ export default function ModalEmployeeSalaryDetail({
       setPayRates(ratesData || []);
       setPenalties(penaltiesData || []);
       setBranches(branchList || []);
+      setHolidays(Array.isArray(holidayData) ? holidayData : []);
     } catch (err) {
       console.error('Lỗi khi tải chi tiết lương tháng:', err);
     } finally {
@@ -131,7 +135,8 @@ export default function ModalEmployeeSalaryDetail({
     const { totalHours: hrs, grossSalary: gross, shiftDetails } = calculateSalaryFromShifts(
       shifts,
       payRates,
-      defaultRate
+      defaultRate,
+      holidays
     );
 
     let bonus = 0;
@@ -613,7 +618,11 @@ export default function ModalEmployeeSalaryDetail({
                       return (
                         <div
                           key={s.id}
-                          className="p-2 bg-purple-50/50 hover:bg-purple-100/70 rounded-xl border border-purple-200/80 space-y-1 text-xs transition-colors shadow-2xs"
+                          className={`p-2 rounded-xl border space-y-1 text-xs transition-colors shadow-2xs ${
+                            s.multiplier > 1
+                              ? 'bg-gradient-to-b from-amber-50/90 to-amber-100/70 border-amber-300 ring-1 ring-amber-300/60'
+                              : 'bg-purple-50/50 hover:bg-purple-100/70 border-purple-200/80'
+                          }`}
                         >
                           {/* Hàng 1: Ngày Làm & Chi Nhánh */}
                           <div className="flex items-center justify-between font-black text-purple-950">
@@ -628,6 +637,14 @@ export default function ModalEmployeeSalaryDetail({
                             </span>
                           </div>
 
+                          {/* Huy hiệu Ngày Lễ x2, x3 nếu có */}
+                          {s.multiplier > 1 && (
+                            <div className="flex items-center justify-between text-[10px] font-black text-purple-950 bg-amber-200/90 px-1.5 py-0.5 rounded-md border border-amber-400">
+                              <span>🎉 x{s.multiplier} LƯƠNG</span>
+                              <span className="truncate max-w-[110px]" title={s.holidayName}>{s.holidayName}</span>
+                            </div>
+                          )}
+
                           {/* Hàng 2: Khung Giờ & Số Giờ */}
                           <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-700">
                             <span>🕒 {sTime}-{eTime}</span>
@@ -635,7 +652,12 @@ export default function ModalEmployeeSalaryDetail({
                           </div>
 
                           {/* Hàng 3: Thành Tiền */}
-                          <div className="flex items-center justify-end pt-0.5 border-t border-purple-200/60">
+                          <div className="flex items-center justify-between pt-0.5 border-t border-purple-200/60">
+                            {s.multiplier > 1 ? (
+                              <span className="text-[10px] font-bold text-amber-800">
+                                ({formatCurrency(s.applicableRate)} x{s.multiplier})
+                              </span>
+                            ) : <span />}
                             <span className="font-black text-emerald-700 text-xs">
                               ={formatCurrency(s.shiftSalary)}
                             </span>

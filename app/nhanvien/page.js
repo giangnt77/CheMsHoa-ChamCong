@@ -19,6 +19,7 @@ import {
   getAnnouncementNotice,
   getShiftSwapsByEmployee,
   getPenaltiesByEmployee,
+  getHolidaySettings,
 } from '@/lib/supabase';
 import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN } from '@/lib/utils';
 
@@ -150,10 +151,11 @@ function EmployeeContent() {
       const startDate = `${year}-${mStr}-01`;
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
 
-      const [schedData, rates, penaltiesData] = await Promise.all([
+      const [schedData, rates, penaltiesData, holidayData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getEmployeeRates(employee.id),
         getPenaltiesByEmployee(employee.id, selectedMonth),
+        getHolidaySettings(),
       ]);
 
       setEmpRates(rates);
@@ -169,7 +171,8 @@ function EmployeeContent() {
       const { totalHours, grossSalary } = calculateSalaryFromShifts(
         myShifts,
         rates,
-        employee.hourly_rate || 20000
+        employee.hourly_rate || 20000,
+        holidayData || []
       );
 
       setMonthlyHours(totalHours);

@@ -8,6 +8,7 @@ import {
   calculateSalaryFromShifts,
   updateEmployeesSortOrders,
   getAllPenaltiesByMonth,
+  getHolidaySettings,
 } from '@/lib/supabase';
 import {
   formatCurrency,
@@ -60,6 +61,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   const [branches, setBranches] = useState([]);
   const [ratesMap, setRatesMap] = useState({});
   const [penaltiesMap, setPenaltiesMap] = useState({});
+  const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmpForDetail, setSelectedEmpForDetail] = useState(null);
 
@@ -79,15 +81,17 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   async function loadWeekSalaryData() {
     setLoading(true);
     try {
-      const [schedData, monthSchedData, branchData, allPenalties] = await Promise.all([
+      const [schedData, monthSchedData, branchData, allPenalties, holidayData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getScheduleByDateRange(monthStartDate, monthEndDate),
         getBranches(),
         getAllPenaltiesByMonth(selectedMonth),
+        getHolidaySettings(),
       ]);
       setSchedule(schedData);
       setMonthSchedule(monthSchedData || []);
       setBranches(branchData || []);
+      setHolidays(Array.isArray(holidayData) ? holidayData : []);
 
       // Tạo map thưởng/phạt theo employee_id
       const pMap = {};
@@ -250,7 +254,8 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
       const { totalHours, grossSalary } = calculateSalaryFromShifts(
         empShifts,
         empRates,
-        defaultRate
+        defaultRate,
+        holidays
       );
 
       // Tính thưởng & phạt cho nhân viên này
@@ -291,7 +296,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
       grandTotalMonthlyPenalty: totalPen,
       grandTotalMonthlyNet: totalSal + totalBon - totalPen,
     };
-  }, [sortedEmployees, monthScheduleByEmpAndDate, ratesMap, selectedMonth, penaltiesMap]);
+  }, [sortedEmployees, monthScheduleByEmpAndDate, ratesMap, selectedMonth, penaltiesMap, holidays]);
 
 
 
@@ -308,7 +313,8 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
       const { totalHours, grossSalary } = calculateSalaryFromShifts(
         empShifts,
         empRates,
-        emp.hourly_rate || 20000
+        emp.hourly_rate || 20000,
+        holidays
       );
 
       empTotals[emp.id] = { totalHours, grossSalary, shiftCount: empShifts.length };
@@ -321,7 +327,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
       grandTotalSalary: totalSal,
       grandTotalHours: totalHrs,
     };
-  }, [sortedEmployees, weekDays, scheduleByEmpAndDate, ratesMap]);
+  }, [sortedEmployees, weekDays, scheduleByEmpAndDate, ratesMap, holidays]);
 
   return (
     <div className="space-y-3 animate-fade-in">
@@ -476,7 +482,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
 
                                   const branchObj = branches.find((b) => b.id === shift.branch_id) || shift.branches;
                                   const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
-                                  const { grossSalary: shiftSalary } = calculateSalaryFromShifts([shift], empRates, defaultRate);
+                                  const { grossSalary: shiftSalary } = calculateSalaryFromShifts([shift], empRates, defaultRate, holidays);
 
                                   return (
                                     <div
@@ -554,7 +560,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                       const empRates = ratesMap[shift.employee_id] || [];
                       const emp = sortedEmployees.find((e) => e.id === shift.employee_id);
                       const defaultRate = emp?.hourly_rate || 20000;
-                      const { grossSalary, totalHours: shiftHrs } = calculateSalaryFromShifts([shift], empRates, defaultRate);
+                      const { grossSalary, totalHours: shiftHrs } = calculateSalaryFromShifts([shift], empRates, defaultRate, holidays);
                       daySal += grossSalary;
                       dayHrs += shiftHrs;
                     });

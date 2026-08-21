@@ -6,6 +6,8 @@ import {
   upsertAvailability,
   deleteAvailability,
   getBlockedOffDays,
+  getHolidaySettings,
+  getHolidayForDate,
 } from '@/lib/supabase';
 import { useToast } from '@/components/Toast';
 
@@ -88,6 +90,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   const [hasChanges, setHasChanges] = useState(false);
   // blockedMap: { [dayIndex]: reasonString }
   const [blockedMap, setBlockedMap] = useState({});
+  const [holidays, setHolidays] = useState([]);
 
   useEffect(() => {
     const { getSpecialEventMode } = require('@/lib/supabase');
@@ -101,9 +104,10 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   async function loadAvailability() {
     setLoading(true);
     try {
-      const [data, blockedData] = await Promise.all([
+      const [data, blockedData, holidayData] = await Promise.all([
         getAvailabilityByEmployee(employee.id, days[0], days[days.length - 1]),
         getBlockedOffDays(),
+        getHolidaySettings(),
       ]);
       const map = {};
       const notes = {};
@@ -114,6 +118,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
       setAvailability(map);
       setInitialAvailability(map);
       setNoteInputs(notes);
+      setHolidays(Array.isArray(holidayData) ? holidayData : []);
 
       if (blockedData && typeof blockedData === 'object' && !Array.isArray(blockedData)) {
         if (Array.isArray(blockedData.blockedDays)) {
@@ -256,6 +261,18 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     return dayOfWeek === 0 && weekType === 'next'; // Khóa vào Chủ Nhật đối với Tuần Sau mặc định
   }, [weekType]);
 
+  // Danh sách các ngày lễ trong tuần/tháng đang chọn
+  const weekHolidays = useMemo(() => {
+    const list = [];
+    days.forEach((dStr) => {
+      const h = getHolidayForDate(dStr, holidays);
+      if (h && !list.find((item) => item.name === h.name)) {
+        list.push(h);
+      }
+    });
+    return list;
+  }, [days, holidays]);
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl p-6 text-center border border-purple-200 shadow-2xs">
@@ -268,7 +285,7 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-6 space-y-5 border border-purple-200/90 shadow-2xs">
       {/* Header */}
-      <div className="border-b border-purple-100 pb-3 space-y-2">
+      <div className="border-b border-purple-100 pb-3 space-y-2.5">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h3 className="font-black text-lg sm:text-xl flex items-center gap-2 text-purple-950 tracking-tight">
             <span className="text-xl">✋</span> Đăng Ký Lịch Làm
@@ -342,28 +359,44 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
           const dayIdx = dateObj.getDay();
           const isOffBlocked = blockedMap[dayIdx] !== undefined;
           const blockedReason = blockedMap[dayIdx] || 'Ngày cao điểm đông khách, quán yêu cầu đi làm đầy đủ!';
+          const holiday = getHolidayForDate(dateStr, holidays);
 
           return (
             <div
               key={dateStr}
-              className={`rounded-2xl p-3.5 sm:p-4 border transition-all ${status === 'full'
-                  ? 'border-emerald-300 bg-emerald-50/90 shadow-2xs'
-                  : status === 'option'
-                    ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
-                    : status === 'off'
-                      ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
-                      : 'border-purple-100 bg-purple-50/30'
-                } ${isLocked ? 'opacity-90' : ''}`}
+              className={`rounded-2xl p-3.5 sm:p-4 border transition-all ${
+                holiday
+                  ? status === 'full'
+                    ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-emerald-50 shadow-xs ring-1 ring-amber-400'
+                    : status === 'option'
+                      ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-purple-50 shadow-xs ring-1 ring-amber-400'
+                      : status === 'off'
+                        ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
+                        : 'border-amber-300 bg-amber-50/60 ring-1 ring-amber-300/60'
+                  : status === 'full'
+                    ? 'border-emerald-300 bg-emerald-50/90 shadow-2xs'
+                    : status === 'option'
+                      ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
+                      : status === 'off'
+                        ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
+                        : 'border-purple-100 bg-purple-50/30'
+              } ${isLocked ? 'opacity-90' : ''}`}
             >
               {/* Day Header */}
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between mb-2.5 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-black text-base sm:text-lg text-purple-950">
-                    {DAY_NAMES[idx]}
+                    {DAY_NAMES[idx % 7]}
                   </span>
                   <span className="text-xs sm:text-sm text-purple-800 font-black">
                     ({formatDateLabel(dateStr)})
                   </span>
+                  {holiday && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-purple-950 text-xs font-black border border-amber-500 shadow-2xs flex items-center gap-1">
+                      <span>🎉</span>
+                      <span>{holiday.name} (x{holiday.multiplier} LƯƠNG)</span>
+                    </span>
+                  )}
                 </div>
                 {status && (
                   <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-white text-purple-950 border border-purple-200 shadow-2xs flex items-center gap-1">
