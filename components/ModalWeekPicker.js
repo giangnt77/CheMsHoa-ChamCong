@@ -108,11 +108,8 @@ export default function ModalWeekPicker({ isOpen, onClose, currentMonday, onSele
             <span className="text-2xl">📅</span>
             <div>
               <h3 className="text-base sm:text-lg font-black text-purple-950 tracking-tight">
-                Chọn Nhanh Tuần & Năm Làm Việc
+                Chọn Tuần & Năm
               </h3>
-              <p className="text-[11px] text-purple-700 font-bold">
-                Bấm vào bất kỳ tuần nào để nhảy đến xem/xếp lịch ngay lập tức
-              </p>
             </div>
           </div>
           <button
@@ -142,11 +139,10 @@ export default function ModalWeekPicker({ isOpen, onClose, currentMonday, onSele
                 key={yr}
                 type="button"
                 onClick={() => setSelectedYear(yr)}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-black cursor-pointer transition-all border ${
-                  selectedYear === yr
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-black cursor-pointer transition-all border ${selectedYear === yr
                     ? 'bg-purple-700 text-white border-purple-800 shadow-md scale-[1.02]'
                     : 'bg-purple-50 hover:bg-purple-100 text-purple-950 border-purple-200'
-                }`}
+                  }`}
               >
                 Năm {yr}
               </button>
@@ -163,11 +159,10 @@ export default function ModalWeekPicker({ isOpen, onClose, currentMonday, onSele
             <button
               type="button"
               onClick={() => setSelectedMonthFilter('all')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap transition-all border shrink-0 ${
-                selectedMonthFilter === 'all'
+              className={`px-2.5 py-1 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap transition-all border shrink-0 ${selectedMonthFilter === 'all'
                   ? 'bg-amber-400 text-purple-950 border-amber-500 shadow-2xs font-black'
                   : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-50'
-              }`}
+                }`}
             >
               Tất Cả 52 Tuần
             </button>
@@ -176,11 +171,10 @@ export default function ModalWeekPicker({ isOpen, onClose, currentMonday, onSele
                 key={m}
                 type="button"
                 onClick={() => setSelectedMonthFilter(String(m))}
-                className={`px-2.5 py-1 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap transition-all border shrink-0 ${
-                  selectedMonthFilter === String(m)
+                className={`px-2.5 py-1 rounded-lg text-xs font-black cursor-pointer whitespace-nowrap transition-all border shrink-0 ${selectedMonthFilter === String(m)
                     ? 'bg-amber-400 text-purple-950 border-amber-500 shadow-2xs font-black'
                     : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-50'
-                }`}
+                  }`}
               >
                 Tháng {m}
               </button>
@@ -204,13 +198,12 @@ export default function ModalWeekPicker({ isOpen, onClose, currentMonday, onSele
                   key={w.mondayStr}
                   type="button"
                   onClick={() => handleSelectWeek(w.mondayStr)}
-                  className={`p-2.5 rounded-2xl border text-left cursor-pointer transition-all active:scale-98 flex items-center justify-between gap-2 shadow-2xs ${
-                    isSelected
+                  className={`p-2.5 rounded-2xl border text-left cursor-pointer transition-all active:scale-98 flex items-center justify-between gap-2 shadow-2xs ${isSelected
                       ? 'bg-purple-900 text-white border-purple-800 ring-2 ring-purple-400 font-black shadow-md'
                       : isCurrentWeek
-                      ? 'bg-amber-50 text-purple-950 border-amber-300 hover:bg-amber-100 font-bold'
-                      : 'bg-purple-50/60 hover:bg-purple-100/80 text-purple-950 border-purple-200/80'
-                  }`}
+                        ? 'bg-amber-50 text-purple-950 border-amber-300 hover:bg-amber-100 font-bold'
+                        : 'bg-purple-50/60 hover:bg-purple-100/80 text-purple-950 border-purple-200/80'
+                    }`}
                 >
                   <div>
                     <div className="flex items-center gap-1.5">
