@@ -16,6 +16,12 @@ import {
   getCurrentMonth,
   getBranchColorStyle,
 } from '@/lib/utils';
+import {
+  VIETNAM_BANKS,
+  getVietQRBankCode,
+  generateVietQRUrl,
+  getBankDisplayInfo,
+} from '@/lib/vietqr';
 import { useToast } from '@/components/Toast';
 
 export default function ModalEmployeeSalaryDetail({
@@ -163,21 +169,40 @@ export default function ModalEmployeeSalaryDetail({
     };
   }, [shifts, payRates, penalties, empData]);
 
-  // Sinh mã QR VietQR tự động nếu có số tài khoản và ngân hàng
+  // Sinh mã QR VietQR tự động chuẩn xác 100% nếu có số tài khoản và ngân hàng
   const vietQrUrl = useMemo(() => {
     if (empData?.bank_qr_code_url) return empData.bank_qr_code_url;
     if (empData?.bank_account_number && empData?.bank_name) {
-      const bankClean = encodeURIComponent(empData.bank_name.trim().replace(/\s+/g, ''));
-      const accClean = encodeURIComponent(empData.bank_account_number.trim().replace(/\s+/g, ''));
       const [y, m] = (selectedMonth || '').split('-');
       const mNum = m ? parseInt(m, 10) : '';
       const amountClean = netSalary > 0 ? netSalary : 0;
-      const transferDesc = encodeURIComponent(`Luong T${mNum} ${empData.name || ''}`.trim());
-      const accountHolder = encodeURIComponent((empData.bank_account_holder || empData.name || '').toUpperCase());
-      return `https://img.vietqr.io/image/${bankClean}-${accClean}-compact2.png?amount=${amountClean}&addInfo=${transferDesc}&accountName=${accountHolder}`;
+      const transferDesc = `Luong T${mNum} ${empData.name || ''}`.trim();
+      const accountHolder = (empData.bank_account_holder || empData.name || '').toUpperCase();
+
+      return generateVietQRUrl({
+        bankName: empData.bank_name,
+        accountNumber: empData.bank_account_number,
+        accountHolder,
+        amount: amountClean,
+        memo: transferDesc,
+      });
     }
     return '';
   }, [empData, selectedMonth, netSalary]);
+
+  // Live QR Preview ngay trong Modal Cập nhật STK
+  const livePreviewQrUrl = useMemo(() => {
+    if (bankAccNumInput && bankNameInput) {
+      return generateVietQRUrl({
+        bankName: bankNameInput,
+        accountNumber: bankAccNumInput,
+        accountHolder: bankAccHolderInput || empData?.name || '',
+        amount: netSalary > 0 ? netSalary : 0,
+        memo: `Luong ${empData?.name || ''}`,
+      });
+    }
+    return '';
+  }, [bankNameInput, bankAccNumInput, bankAccHolderInput, netSalary, empData]);
 
   // Xử lý lưu thông tin ngân hàng & QR
   async function handleSaveBankInfo(e) {
@@ -334,9 +359,9 @@ export default function ModalEmployeeSalaryDetail({
 
                 {/* Dòng 2: Hộp Thông Tin Tài Khoản Ngân Hàng Tinh Xảo */}
                 <div className="bg-purple-50/80 rounded-xl px-3 py-2 border border-purple-200/80 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-purple-950 font-black uppercase text-xs">
-                      🏛️ {empData.bank_name || 'MB BANK'}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-purple-950 font-black uppercase text-xs flex items-center gap-1">
+                      <span>🏛️</span> {getBankDisplayInfo(empData.bank_name).name}
                     </span>
                     <span className="font-mono text-purple-950 font-black text-xs sm:text-sm tracking-wider bg-white px-2 py-0.5 rounded-md border border-purple-200 shadow-2xs">
                       {empData.bank_account_number || 'Chưa cập nhật'}
@@ -704,16 +729,62 @@ export default function ModalEmployeeSalaryDetail({
 
             <form onSubmit={handleSaveBankInfo} className="space-y-3">
               <div>
-                <label className="block text-[10px] font-black text-purple-900 uppercase mb-1">
-                  Tên Ngân hàng:
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-black text-purple-900 uppercase">
+                    Tên Ngân hàng:
+                  </label>
+                  {bankNameInput && (
+                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      ✓ Mã VietQR: {getVietQRBankCode(bankNameInput)}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
+                  list="vietnam-banks-list"
                   value={bankNameInput}
                   onChange={(e) => setBankNameInput(e.target.value)}
-                  placeholder="VD: MBBank, Techcombank, Vietcombank, ACB..."
+                  placeholder="Gõ hoặc chọn: BVBank, MBBank, Techcombank, VCB, Cake, Timo..."
                   className="w-full px-3 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-600"
                 />
+                <datalist id="vietnam-banks-list">
+                  {VIETNAM_BANKS.map((b) => (
+                    <option key={b.code} value={b.name}>
+                      {b.fullName} (Mã: {b.shortName})
+                    </option>
+                  ))}
+                </datalist>
+
+                {/* Gợi ý chọn nhanh ngân hàng phổ biến */}
+                <div className="flex items-center gap-1 flex-wrap mt-1.5">
+                  <span className="text-[10px] font-bold text-purple-700">Chọn nhanh:</span>
+                  {[
+                    { label: 'BVBank (Bản Việt)', val: 'BVBank (Bản Việt)' },
+                    { label: 'MB Bank', val: 'MB Bank (Quân Đội)' },
+                    { label: 'Vietcombank', val: 'Vietcombank' },
+                    { label: 'Techcombank', val: 'Techcombank' },
+                    { label: 'BIDV', val: 'BIDV' },
+                    { label: 'VietinBank', val: 'VietinBank' },
+                    { label: 'ACB', val: 'ACB (Á Châu)' },
+                    { label: 'VPBank', val: 'VPBank' },
+                    { label: 'TPBank', val: 'TPBank' },
+                    { label: 'Cake', val: 'CAKE by VPBank' },
+                    { label: 'Timo', val: 'Timo by BanVietBank' },
+                  ].map((item) => (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => setBankNameInput(item.val)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-black border cursor-pointer transition-all ${
+                        bankNameInput === item.val
+                          ? 'bg-purple-700 text-white border-purple-800 shadow-2xs'
+                          : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -724,7 +795,7 @@ export default function ModalEmployeeSalaryDetail({
                   type="text"
                   value={bankAccNumInput}
                   onChange={(e) => setBankAccNumInput(e.target.value)}
-                  placeholder="VD: 101010101233..."
+                  placeholder="VD: 101010101233 hoặc 99MM24132M..."
                   className="w-full px-3 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-purple-950 text-xs font-black tracking-wider outline-none focus:border-purple-600 font-mono"
                 />
               </div>
@@ -736,17 +807,49 @@ export default function ModalEmployeeSalaryDetail({
                 <input
                   type="text"
                   value={bankAccHolderInput}
-                  onChange={(e) => setBankAccHolderInput(e.target.value)}
-                  placeholder="VD: MA THI THUY TRANG..."
+                  onChange={(e) => setBankAccHolderInput(e.target.value.toUpperCase())}
+                  placeholder="VD: MA THI THUY CHANG..."
                   className="w-full px-3 py-2 bg-purple-50/50 border border-purple-200 rounded-xl text-purple-950 text-xs font-black uppercase outline-none focus:border-purple-600"
                 />
               </div>
 
+              {/* LIVE QR PREVIEW BOX NGAY TRONG MODAL */}
+              {livePreviewQrUrl && !bankQrUrlInput && (
+                <div className="p-3 bg-purple-50/90 rounded-2xl border border-purple-200 flex items-center gap-3 animate-fade-in">
+                  <div className="relative bg-white p-1 rounded-xl border border-purple-300 shadow-2xs shrink-0">
+                    <img
+                      src={livePreviewQrUrl}
+                      alt="Mã QR Chuyển Khoản Tự Động"
+                      className="w-16 h-16 object-contain rounded-lg"
+                      onError={(e) => {
+                        console.error('Lỗi tải ảnh QR:', e);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="text-xs font-black text-emerald-800 flex items-center gap-1">
+                      <span>✓</span> Đã tạo mã QR VietQR tự động
+                    </div>
+                    <div className="text-[11px] font-black text-purple-950 truncate">
+                      🏛️ {getBankDisplayInfo(bankNameInput).name}
+                    </div>
+                    <div className="text-[11px] font-mono text-purple-800 font-bold truncate">
+                      STK: {bankAccNumInput}
+                    </div>
+                    {bankAccHolderInput && (
+                      <div className="text-[10px] text-purple-600 font-bold truncate">
+                        Chủ TK: {bankAccHolderInput.toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-[10px] font-black text-purple-900 uppercase mb-1">
-                  📸 Tải ảnh mã QR riêng (Nếu có):
+                  📸 Hoặc tải ảnh mã QR riêng từ ngân hàng (Nếu có):
                 </label>
-                <label className="w-full p-2.5 bg-purple-50/60 border border-dashed border-purple-300 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-100/60 transition-all text-xs font-bold text-purple-800">
+                <label className="w-full p-2 bg-purple-50/60 border border-dashed border-purple-300 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-purple-100/60 transition-all text-xs font-bold text-purple-800">
                   <span>📸 Chọn ảnh mã QR từ máy</span>
                   <input type="file" accept="image/*" onChange={handleUploadQrImage} className="hidden" />
                 </label>
@@ -756,7 +859,7 @@ export default function ModalEmployeeSalaryDetail({
                     <img
                       src={bankQrUrlInput}
                       alt="Mã QR Chuyển Khoản"
-                      className="w-28 h-28 object-contain mx-auto rounded-xl border border-purple-200 bg-white p-1 shadow-xs"
+                      className="w-24 h-24 object-contain mx-auto rounded-xl border border-purple-200 bg-white p-1 shadow-xs"
                     />
                     <button
                       type="button"
