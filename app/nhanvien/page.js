@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import Navbar from '@/components/Navbar';
 import EmployeeSelector from '@/components/EmployeeSelector';
 import WeeklyAvailability from '@/components/WeeklyAvailability';
@@ -400,7 +401,7 @@ function EmployeeContent() {
         homeTitle="Đăng Xuất"
       />
 
-      <main className="flex-1 relative z-10 px-3 sm:px-4 md:px-6 py-3 sm:py-4 w-full">
+      <main className="flex-1 px-3 sm:px-4 md:px-6 py-3 sm:py-4 w-full">
         <div className="max-w-5xl mx-auto space-y-3 w-full">
           {/* Top Header Row: Greeting & Xem Lương Button */}
           <div className="py-1">
@@ -794,7 +795,7 @@ function EmployeeContent() {
           {/* =========================================================================
              POPUP THÔNG BÁO QUAN TRỌNG DÀNH CHO NHÂN VIÊN (TỪ CHỦ QUÁN / ADMIN)
              ========================================================================= */}
-          {showNoticeModal && (
+          {showNoticeModal && typeof document !== 'undefined' && createPortal(
             <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
                 {/* Header Popup */}
@@ -848,11 +849,12 @@ function EmployeeContent() {
                   </div>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* ================= MODAL XEM CHI TIẾT NỘI DUNG LỖI PHẠT ================= */}
-          {showPenaltyDetailModal && (
+          {showPenaltyDetailModal && typeof document !== 'undefined' && createPortal(
             <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full border border-rose-200 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
                 {/* Header Modal */}
@@ -923,10 +925,11 @@ function EmployeeContent() {
                   </button>
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
           {/* MODAL ĐẶT BIỆT DANH CHO NHÂN VIÊN */}
-          {showNicknameModal && (
+          {showNicknameModal && typeof document !== 'undefined' && createPortal(
             <div
               onClick={(e) => {
                 if (e.target === e.currentTarget) setShowNicknameModal(false);
@@ -1029,7 +1032,8 @@ function EmployeeContent() {
                   </div>
                 </form>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </main>

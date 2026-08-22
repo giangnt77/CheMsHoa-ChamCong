@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import Navbar from '@/components/Navbar';
 import ScheduleCalendar from '@/components/ScheduleCalendar';
 import WeeklyMatrixBoard from '@/components/WeeklyMatrixBoard';
@@ -2460,7 +2461,7 @@ function AdminContent() {
               </div>
 
               {/* MODAL THÊM / SỬA CHI NHÁNH */}
-              {showBranchModal && (
+              {showBranchModal && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
                   <div className="bg-white rounded-3xl p-6 border border-purple-200 shadow-xl max-w-md w-full space-y-4 animate-scale-up">
                     <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -2537,7 +2538,8 @@ function AdminContent() {
                       </div>
                     </form>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           )}
@@ -2557,7 +2559,7 @@ function AdminContent() {
             }}
           />
           {/* MODAL PHÓNG TO XEM ẢNH CCCD SẮC NÉT (KÍCH THƯỚC LỚN RÕ RÀNG) */}
-          {previewCccdUrl && (
+          {previewCccdUrl && typeof document !== 'undefined' && createPortal(
             <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xs animate-fade-in" onClick={() => setPreviewCccdUrl(null)}>
               <div className="relative max-w-4xl w-full max-h-[92vh] bg-white rounded-3xl p-4 shadow-2xl space-y-3 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between w-full border-b border-purple-100 pb-2.5 px-1 shrink-0">
@@ -2570,13 +2572,14 @@ function AdminContent() {
                   <img src={previewCccdUrl} alt="CCCD Phóng To" className="max-h-[80vh] max-w-full w-auto h-auto rounded-2xl object-contain shadow-xl border border-purple-200" />
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* =========================================================================
              POPUP THÔNG BÁO QUAN TRỌNG ADMIN (CÓ NÚT ẨN TRONG 4 GIỜ)
              ========================================================================= */}
-          {showNoticeModal && (
+          {showNoticeModal && typeof document !== 'undefined' && createPortal(
             <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
                 {/* Header Popup */}
@@ -2665,11 +2668,12 @@ function AdminContent() {
                   </div>
                 )}
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* POPUP CẤU HÌNH THỜI GIAN XIN OFF / NGHỈ VIỆC */}
-          {showStatusModal && selectedEmployee && (
+          {showStatusModal && selectedEmployee && typeof document !== 'undefined' && createPortal(
             <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="relative max-w-md w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
                 <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -2751,12 +2755,13 @@ function AdminContent() {
                   </div>
                 )}
               </div>
-            </div>
+            </div>,
+            document.body
           )}
           {/* =========================================================================
              POPUP QUẢN LÝ BIỆT DANH NHÂN VIÊN DÀNH CHO ADMIN
              ========================================================================= */}
-          {showAdminNicknameModal && targetNicknameEmp && (
+          {showAdminNicknameModal && targetNicknameEmp && typeof document !== 'undefined' && createPortal(
             <div
               onClick={(e) => {
                 if (e.target === e.currentTarget) setShowAdminNicknameModal(false);
@@ -2865,7 +2870,8 @@ function AdminContent() {
                   </div>
                 </form>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </main>

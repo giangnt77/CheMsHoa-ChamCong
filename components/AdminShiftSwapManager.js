@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { getAllShiftSwaps, updateShiftSwapStatus } from '@/lib/supabase';
 import { formatDateWithDayVN, getCurrentMonth } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
@@ -383,8 +384,8 @@ export default function AdminShiftSwapManager() {
       )}
 
       {/* POPUP NHẬP LÝ DO TỪ CHỐI DUYỆT ĐỔI CA */}
-      {rejectingSwap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+      {rejectingSwap && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
           <div className="relative max-w-md w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-rose-300 animate-scale-in">
             <div className="flex items-center justify-between border-b border-purple-100 pb-2">
               <h3 className="font-black text-rose-900 text-base flex items-center gap-1.5">
@@ -431,12 +432,13 @@ export default function AdminShiftSwapManager() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* POPUP CẤU HÌNH BOT TELEGRAM THÔNG BÁO TỰ ĐỘNG */}
-      {showTelegramModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+      {showTelegramModal && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
           <div className="relative max-w-md w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-sky-300 animate-scale-in">
             <div className="flex items-center justify-between border-b border-purple-100 pb-3">
               <div className="flex items-center gap-2">
@@ -501,7 +503,8 @@ export default function AdminShiftSwapManager() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

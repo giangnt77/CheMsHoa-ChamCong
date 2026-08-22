@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getBranches,
   getAvailabilityByDateRange,
@@ -1477,8 +1478,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       )}
 
       {/* MODAL XEM TRƯỚC BẢNG NGUYÊN BẢN TRƯỚC KHI TẢI FILE PDF / IN */}
-      {showPDFPreview && (
-        <div className="fixed inset-0 z-50 bg-purple-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in">
+      {showPDFPreview && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in">
           <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl border-2 border-purple-300 overflow-hidden">
             {/* Header Modal */}
             <div className="p-3.5 sm:p-5 bg-purple-900 text-white flex items-center justify-between gap-3 shrink-0">
@@ -1604,7 +1605,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL CẤU HÌNH CẤM XIN NGHỈ CHO ADMIN */}
