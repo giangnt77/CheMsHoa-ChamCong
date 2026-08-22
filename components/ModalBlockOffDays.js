@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getBlockedOffDays, saveBlockedOffDays } from '@/lib/supabase';
 
 const DAYS_OPTIONS = [
@@ -14,6 +15,11 @@ const DAYS_OPTIONS = [
 ];
 
 export default function ModalBlockOffDays({ isOpen, onClose, toast, onSaved }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // blockedMap: { [dayIndex]: reasonString }
   const [blockedMap, setBlockedMap] = useState({});
   const [saving, setSaving] = useState(false);
@@ -86,10 +92,10 @@ export default function ModalBlockOffDays({ isOpen, onClose, toast, onSaved }) {
     setSaving(false);
   }
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-purple-200/90 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -206,6 +212,7 @@ export default function ModalBlockOffDays({ isOpen, onClose, toast, onSaved }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -39,6 +39,8 @@ import {
   getSpecialEventMode,
   saveSpecialEventMode,
   getHolidaySettings,
+  adminUpdateEmployeeNickname,
+  checkNicknameCooldown,
 } from '@/lib/supabase';
 import {
   getCurrentMonth,
@@ -168,6 +170,85 @@ function AdminContent() {
   const [addressInput, setAddressInput] = useState('');
   const [contactInfo, setContactInfo] = useState({ phone: '', relative_phone: '', address: '', cccd_url: '' });
   const [previewCccdUrl, setPreviewCccdUrl] = useState(null);
+
+  // Quản lý Biệt Danh (Nickname) dành cho Admin
+  const [showAdminNicknameModal, setShowAdminNicknameModal] = useState(false);
+  const [adminNicknameInput, setAdminNicknameInput] = useState('');
+  const [adminSavingNickname, setAdminSavingNickname] = useState(false);
+  const [targetNicknameEmp, setTargetNicknameEmp] = useState(null);
+
+  function handleOpenAdminNicknameModal(emp) {
+    setTargetNicknameEmp(emp);
+    setAdminNicknameInput(emp?.nickname || '');
+    setShowAdminNicknameModal(true);
+  }
+
+  async function handleSaveAdminNickname(e) {
+    if (e) e.preventDefault();
+    if (!targetNicknameEmp) return;
+    setAdminSavingNickname(true);
+    try {
+      const cleanNick = adminNicknameInput.trim();
+      const updated = await adminUpdateEmployeeNickname(targetNicknameEmp.id, cleanNick, false);
+      toast.success(
+        'Thành công',
+        cleanNick ? `Đã đặt biệt danh "${cleanNick}" cho ${targetNicknameEmp.name}` : `Đã xóa biệt danh của ${targetNicknameEmp.name}`
+      );
+      if (selectedEmployee?.id === targetNicknameEmp.id) {
+        setSelectedEmployee((prev) => ({
+          ...prev,
+          nickname: cleanNick,
+          nickname_updated_at: updated?.nickname_updated_at,
+        }));
+      }
+      setShowAdminNicknameModal(false);
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', err.message || 'Không thể lưu biệt danh');
+    } finally {
+      setAdminSavingNickname(false);
+    }
+  }
+
+  async function handleDeleteAdminNickname() {
+    if (!targetNicknameEmp) return;
+    if (!confirm(`Bạn có chắc muốn XÓA biệt danh của nhân viên "${targetNicknameEmp.name}"?`)) return;
+    setAdminSavingNickname(true);
+    try {
+      await adminUpdateEmployeeNickname(targetNicknameEmp.id, '', true);
+      toast.success('Đã xóa biệt danh', `Nhân viên ${targetNicknameEmp.name} sẽ hiển thị bằng tên thật.`);
+      if (selectedEmployee?.id === targetNicknameEmp.id) {
+        setSelectedEmployee((prev) => ({ ...prev, nickname: '', nickname_updated_at: null }));
+      }
+      setShowAdminNicknameModal(false);
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể xóa biệt danh');
+    } finally {
+      setAdminSavingNickname(false);
+    }
+  }
+
+  async function handleResetCooldownAdmin() {
+    if (!targetNicknameEmp) return;
+    setAdminSavingNickname(true);
+    try {
+      await adminUpdateEmployeeNickname(targetNicknameEmp.id, targetNicknameEmp.nickname || '', true);
+      toast.success('Đã mở khóa', `Đã xóa giới hạn 60 ngày. ${targetNicknameEmp.name} có thể tự đổi lại biệt danh.`);
+      if (selectedEmployee?.id === targetNicknameEmp.id) {
+        setSelectedEmployee((prev) => ({ ...prev, nickname_updated_at: null }));
+      }
+      setShowAdminNicknameModal(false);
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi', 'Không thể mở khóa');
+    } finally {
+      setAdminSavingNickname(false);
+    }
+  }
 
   // Load contact info & CCCD khi chọn nhân viên 100% từ Supabase
   useEffect(() => {
@@ -1475,11 +1556,6 @@ function AdminContent() {
                                 <>
                                   <h3 className="font-black text-base text-purple-950 flex items-center gap-1.5 flex-wrap">
                                     <span>{selectedEmployee.name}</span>
-                                    {selectedEmployee.nickname && (
-                                      <span className="px-2 py-0.5 rounded-full bg-amber-100 text-purple-950 text-xs font-black border border-amber-300 shadow-2xs" title={`Biệt danh hiển thị: ${selectedEmployee.nickname}`}>
-                                        🎭 {selectedEmployee.nickname}
-                                      </span>
-                                    )}
                                     <button
                                       onClick={() => {
                                         setEditingName(true);
@@ -1491,6 +1567,35 @@ function AdminContent() {
                                       ✏️
                                     </button>
                                   </h3>
+
+                                  {/* Khung Quản Lý Biệt Danh của Nhân Viên */}
+                                  {selectedEmployee.nickname ? (
+                                    <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 px-2.5 py-0.5 rounded-full shadow-2xs">
+                                      <span className="text-xs font-black text-purple-950 flex items-center gap-1">
+                                        <span>🎭 Biệt danh:</span>
+                                        <strong className="text-purple-900">{selectedEmployee.nickname}</strong>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenAdminNicknameModal(selectedEmployee)}
+                                        className="text-purple-600 hover:text-purple-950 bg-transparent border-0 cursor-pointer text-xs p-0 ml-0.5 font-bold"
+                                        title="Chỉnh sửa hoặc xóa biệt danh này"
+                                      >
+                                        ✏️
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenAdminNicknameModal(selectedEmployee)}
+                                      className="px-2.5 py-0.5 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-900 text-[11px] font-black border border-dashed border-purple-300 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                                      title="Bấm để đặt biệt danh cho nhân viên này"
+                                    >
+                                      <span>🎭</span>
+                                      <span>+ Đặt Biệt Danh</span>
+                                    </button>
+                                  )}
+
                                   <span className="text-[10px] bg-purple-100 text-purple-950 px-2 py-0.5 rounded-md font-extrabold">
                                     PIN: {selectedEmployee.pin || '1234'}
                                   </span>
@@ -2356,7 +2461,7 @@ function AdminContent() {
 
               {/* MODAL THÊM / SỬA CHI NHÁNH */}
               {showBranchModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-fade-in">
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
                   <div className="bg-white rounded-3xl p-6 border border-purple-200 shadow-xl max-w-md w-full space-y-4 animate-scale-up">
                     <div className="flex items-center justify-between border-b border-purple-100 pb-3">
                       <h3 className="font-black text-base text-purple-950 flex items-center gap-2">
@@ -2453,7 +2558,7 @@ function AdminContent() {
           />
           {/* MODAL PHÓNG TO XEM ẢNH CCCD SẮC NÉT (KÍCH THƯỚC LỚN RÕ RÀNG) */}
           {previewCccdUrl && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xs animate-fade-in" onClick={() => setPreviewCccdUrl(null)}>
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xs animate-fade-in" onClick={() => setPreviewCccdUrl(null)}>
               <div className="relative max-w-4xl w-full max-h-[92vh] bg-white rounded-3xl p-4 shadow-2xl space-y-3 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between w-full border-b border-purple-100 pb-2.5 px-1 shrink-0">
                   <h3 className="font-black text-sm sm:text-base text-purple-950 flex items-center gap-2">
@@ -2472,7 +2577,7 @@ function AdminContent() {
              POPUP THÔNG BÁO QUAN TRỌNG ADMIN (CÓ NÚT ẨN TRONG 4 GIỜ)
              ========================================================================= */}
           {showNoticeModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
                 {/* Header Popup */}
                 <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -2565,7 +2670,7 @@ function AdminContent() {
 
           {/* POPUP CẤU HÌNH THỜI GIAN XIN OFF / NGHỈ VIỆC */}
           {showStatusModal && selectedEmployee && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="relative max-w-md w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
                 <div className="flex items-center justify-between border-b border-purple-100 pb-3">
                   <div className="flex items-center gap-2">
@@ -2645,6 +2750,120 @@ function AdminContent() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+          {/* =========================================================================
+             POPUP QUẢN LÝ BIỆT DANH NHÂN VIÊN DÀNH CHO ADMIN
+             ========================================================================= */}
+          {showAdminNicknameModal && targetNicknameEmp && (
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setShowAdminNicknameModal(false);
+              }}
+              className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+            >
+              <div
+                className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-purple-200/90 space-y-4 animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">🎭</span>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-purple-950 tracking-tight">
+                        Quản Lý Biệt Danh
+                      </h3>
+                      <p className="text-[11px] text-purple-700 font-bold">
+                        Nhân viên: <strong className="text-purple-950">{targetNicknameEmp.name}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminNicknameModal(false)}
+                    className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 hover:bg-rose-600 hover:text-white border-0 flex items-center justify-center cursor-pointer text-xs font-black transition-all"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveAdminNickname} className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-black text-purple-950 uppercase mb-1">
+                      Biệt danh hiển thị trên Bảng Xếp Lịch:
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={12}
+                      value={adminNicknameInput}
+                      onChange={(e) => setAdminNicknameInput(e.target.value)}
+                      placeholder="VD: Bé Heo, Đậu Đậu, Khoa XXY..."
+                      className="w-full px-3.5 py-2.5 rounded-2xl bg-purple-50/60 border-2 border-purple-200 text-purple-950 text-sm font-black outline-none focus:border-purple-600 transition-all placeholder:text-purple-300"
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-between mt-1 text-[11px] text-purple-700 font-bold px-1">
+                      <span>Độ dài: 2 - 12 ký tự</span>
+                      <span>{adminNicknameInput.length}/12 ký tự</span>
+                    </div>
+                  </div>
+
+                  {/* Trạng thái khóa Cooldown */}
+                  {(() => {
+                    const cooldown = checkNicknameCooldown(targetNicknameEmp.nickname_updated_at);
+                    if (cooldown.isLocked) {
+                      return (
+                        <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5 font-bold">
+                          <div className="flex items-center gap-1 text-amber-950 font-black">
+                            <span>🔒</span> Trạng thái khóa phía Nhân viên:
+                          </div>
+                          <div>
+                            Nhân viên vừa đổi tên gần đây, hiện đang bị khóa tự đổi đến ngày <strong>{cooldown.unlockDateStr}</strong> (còn {cooldown.daysLeft} ngày).
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleResetCooldownAdmin}
+                            disabled={adminSavingNickname}
+                            className="mt-1 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-[11px] border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                          >
+                            <span>🔓</span> Mở Khóa Đổi Tên Ngay Cho Nhân Viên (Reset 60 ngày)
+                          </button>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  <div className="pt-2 border-t border-purple-100 flex items-center justify-between gap-2">
+                    {targetNicknameEmp.nickname ? (
+                      <button
+                        type="button"
+                        onClick={handleDeleteAdminNickname}
+                        disabled={adminSavingNickname}
+                        className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs border border-rose-200 cursor-pointer transition-all active:scale-95"
+                      >
+                        🗑️ Xóa Biệt Danh
+                      </button>
+                    ) : <div />}
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminNicknameModal(false)}
+                        className="px-4 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black border-0 cursor-pointer transition-all"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={adminSavingNickname}
+                        className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {adminSavingNickname ? 'Đang lưu...' : '💾 Lưu Biệt Danh'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
               </div>
             </div>
           )}

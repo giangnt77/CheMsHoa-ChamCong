@@ -107,6 +107,7 @@ function formatAvailTextForView(empAvail, isReadOnly) {
 import ModalSortEmployees from './ModalSortEmployees';
 import ModalBlockOffDays from './ModalBlockOffDays';
 import ModalHolidaySettings from './ModalHolidaySettings';
+import ModalWeekPicker from './ModalWeekPicker';
 import { getHolidaySettings, getHolidayForDate, getBlockedOffDays } from '@/lib/supabase';
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -125,6 +126,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const [showSortModal, setShowSortModal] = useState(false);
   const [showBlockOffModal, setShowBlockOffModal] = useState(false);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
   const [holidays, setHolidays] = useState([]);
   const [blockedMap, setBlockedMap] = useState({});
 
@@ -948,11 +950,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               ◀
             </button>
 
-            <div className="text-xs sm:text-base font-black text-purple-950 px-1.5 text-center min-w-[120px]">
-              <span className="text-purple-900 font-black">
+            <button
+              type="button"
+              onClick={() => setShowWeekPickerModal(true)}
+              className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-purple-100/90 hover:bg-purple-200 text-purple-950 font-black border border-purple-300 flex items-center gap-1 sm:gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-95 text-xs sm:text-sm min-w-[125px] sm:min-w-[145px] justify-center"
+              title="Bấm để mở bảng chọn nhanh bất kỳ Tuần & Năm nào (Ví dụ: Tuần 2 năm 2025)"
+            >
+              <span>📅</span>
+              <span className="text-purple-950 font-black">
                 {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().slice(0, 2).join('/')}
               </span>
-            </div>
+              <span className="text-[10px] text-purple-700 font-bold">▾</span>
+            </button>
 
             <button
               type="button"
@@ -1200,15 +1209,24 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                         <div className="truncate min-w-0 flex flex-col justify-center">
                           {emp.nickname ? (
                             <>
-                              <span className="text-purple-950 font-black text-xs sm:text-sm truncate leading-tight" title={`Biệt danh: ${emp.nickname} - Tên thật: ${emp.name}`}>
+                              <span
+                                className="text-purple-950 font-black text-xs sm:text-sm truncate leading-tight"
+                                title={!readOnly ? `Biệt danh: ${emp.nickname} - Tên thật: ${emp.name}` : `Biệt danh: ${emp.nickname}`}
+                              >
                                 {emp.nickname}
                               </span>
-                              <span className="text-[9.5px] font-bold text-purple-700/80 truncate leading-none mt-0.5">
-                                ({emp.name})
-                              </span>
+                              {/* Phía Admin: Hiện tên thật bên dưới trong ngoặc. Phía Nhân Viên: Chỉ hiện Biệt Danh! */}
+                              {!readOnly && (
+                                <span className="text-[9.5px] font-bold text-purple-700/80 truncate leading-none mt-0.5">
+                                  ({emp.name})
+                                </span>
+                              )}
                             </>
                           ) : (
-                            <span className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'} title={`Tên nhân viên: ${emp.name}`}>
+                            <span
+                              className={isMe ? 'text-purple-950 font-black text-xs sm:text-sm truncate' : 'text-purple-950 font-extrabold text-xs sm:text-sm truncate'}
+                              title={`Tên nhân viên: ${emp.name}`}
+                            >
                               {emp.name}
                             </span>
                           )}
@@ -1610,6 +1628,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           toast={toast}
           onHolidaysUpdated={(newHolidays) => {
             setHolidays(newHolidays);
+          }}
+        />
+      )}
+
+      {/* MODAL CHỌN NHANH TUẦN & NĂM */}
+      {showWeekPickerModal && (
+        <ModalWeekPicker
+          isOpen={showWeekPickerModal}
+          onClose={() => setShowWeekPickerModal(false)}
+          currentMonday={currentMonday}
+          onSelectMonday={(mStr) => {
+            setCurrentMonday(mStr);
           }}
         />
       )}

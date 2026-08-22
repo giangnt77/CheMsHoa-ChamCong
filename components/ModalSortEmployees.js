@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { updateEmployeesSortOrders } from '@/lib/supabase';
 
 export default function ModalSortEmployees({ isOpen, onClose, employees = [], onSaveSuccess }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [items, setItems] = useState([]);
   const [draggedIdx, setDraggedIdx] = useState(null);
 
@@ -23,7 +29,7 @@ export default function ModalSortEmployees({ isOpen, onClose, employees = [], on
     }
   }, [employees, isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   // Lưu ngầm thứ tự mới lên Supabase Database 100%
   async function persistOrdersToSupabase(newItems) {
@@ -110,8 +116,8 @@ export default function ModalSortEmployees({ isOpen, onClose, employees = [], on
     setDraggedIdx(null);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
       <div className="bg-white rounded-3xl p-4 sm:p-6 w-full max-w-xl border border-purple-200 shadow-2xl space-y-3">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -256,6 +262,7 @@ export default function ModalSortEmployees({ isOpen, onClose, employees = [], on
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

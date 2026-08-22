@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { getBranchColorStyle } from '@/lib/utils';
 
 /**
@@ -23,6 +24,11 @@ export default function ModalXepLichQuick({
   editItem = null, // Nếu editItem != null -> Chế độ chỉnh sửa ca làm đã có
   initialEmployee = null,
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isEditing = !!editItem;
 
   // Selected values
@@ -123,12 +129,14 @@ export default function ModalXepLichQuick({
     setEndTime(et);
   }
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <div
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/40 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in"
     >
       <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col border border-purple-200 shadow-2xl overflow-hidden relative">
         {/* Header Cố Định Nổi Bật Nút X */}
@@ -587,6 +595,7 @@ export default function ModalXepLichQuick({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

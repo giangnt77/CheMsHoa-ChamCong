@@ -281,7 +281,7 @@ export default function ModalEmployeeSalaryDetail({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-[999] flex items-center justify-center p-2 sm:p-4 bg-purple-950/80 backdrop-blur-xs animate-fade-in print:p-0 print:bg-white print:static print:inset-auto"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-purple-950/80 backdrop-blur-xs animate-fade-in print:p-0 print:bg-white print:static print:inset-auto"
     >
       <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[96vh] flex flex-col border-2 border-purple-300 shadow-2xl overflow-hidden relative animate-scale-in print:max-h-none print:border-none print:shadow-none print:rounded-none">
         
@@ -708,7 +708,7 @@ export default function ModalEmployeeSalaryDetail({
       {showEditBankModal && (
         <div
           onClick={() => setShowEditBankModal(false)}
-          className="fixed inset-0 z-[1000] bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 animate-fade-in print:hidden"
+          className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in print:hidden"
         >
           <div
             className="bg-white rounded-3xl p-5 max-w-md w-full space-y-3 relative border-2 border-purple-300 shadow-2xl animate-scale-in"
@@ -897,7 +897,7 @@ export default function ModalEmployeeSalaryDetail({
       {previewQrModal && vietQrUrl && (
         <div
           onClick={() => setPreviewQrModal(false)}
-          className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in print:hidden"
+          className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in print:hidden"
         >
           <div
             className="bg-white rounded-3xl p-5 max-w-sm w-full text-center space-y-3 relative border-2 border-purple-400 shadow-2xl animate-scale-in"

@@ -1,11 +1,17 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { getEmployees, getScheduleByDateRange, createShiftSwap } from '@/lib/supabase';
 import { getToday, formatDateFull, formatDateWithDayVN, calculateHours, sendTelegramNotification, getInitials } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
 export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const toast = useToast();
   const [step, setStep] = useState(1); // 1: Lý do đổi, 2: Chọn ngày & Đồng nghiệp rảnh, 3: Xác nhận gửi
   const [allEmployees, setAllEmployees] = useState([]);
@@ -254,8 +260,10 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
       <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in my-auto">
         {/* Header Modal */}
         <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -507,6 +515,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

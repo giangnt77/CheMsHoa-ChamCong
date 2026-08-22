@@ -17,6 +17,7 @@ import {
 } from '@/lib/utils';
 
 import ModalEmployeeSalaryDetail from '@/components/ModalEmployeeSalaryDetail';
+import ModalWeekPicker from '@/components/ModalWeekPicker';
 
 function getMondayOfCurrentWeek() {
   const today = new Date();
@@ -64,6 +65,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmpForDetail, setSelectedEmpForDetail] = useState(null);
+  const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
 
   const weekDays = useMemo(() => getWeekDaysFromMonday(currentMonday), [currentMonday]);
   const startDate = weekDays[0];
@@ -344,11 +346,18 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
           >
             ◀
           </button>
-          <div className="px-3.5 py-1.5 bg-purple-100/70 border border-purple-300 rounded-xl text-center">
+          <button
+            type="button"
+            onClick={() => setShowWeekPickerModal(true)}
+            className="px-2.5 sm:px-3 py-1.5 bg-purple-100/90 hover:bg-purple-200 border border-purple-300 rounded-xl text-center cursor-pointer transition-all active:scale-95 shadow-2xs flex items-center gap-1.5"
+            title="Bấm để chọn nhanh bất kỳ Tuần & Năm nào (Ví dụ: Tuần 2 năm 2025)"
+          >
+            <span>📅</span>
             <span className="text-xs sm:text-sm font-black text-purple-950">
               Tuần: {startDate.split('-').reverse().slice(0, 2).join('/')} — {endDate.split('-').reverse().slice(0, 2).join('/')}/{endDate.split('-')[0]}
             </span>
-          </div>
+            <span className="text-[10px] text-purple-700 font-bold">▾</span>
+          </button>
           <button
             type="button"
             onClick={nextWeek}
@@ -601,6 +610,18 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
           employee={selectedEmpForDetail}
           initialMonth={selectedMonth}
           onSelectPenaltyEmployee={onSelectPenaltyEmployee}
+        />
+      )}
+
+      {/* MODAL CHỌN NHANH TUẦN & NĂM */}
+      {showWeekPickerModal && (
+        <ModalWeekPicker
+          isOpen={showWeekPickerModal}
+          onClose={() => setShowWeekPickerModal(false)}
+          currentMonday={currentMonday}
+          onSelectMonday={(mStr) => {
+            setCurrentMonday(mStr);
+          }}
         />
       )}
     </div>

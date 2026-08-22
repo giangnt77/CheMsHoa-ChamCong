@@ -795,7 +795,7 @@ function EmployeeContent() {
              POPUP THÔNG BÁO QUAN TRỌNG DÀNH CHO NHÂN VIÊN (TỪ CHỦ QUÁN / ADMIN)
              ========================================================================= */}
           {showNoticeModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-purple-950/70 backdrop-blur-xs animate-fade-in">
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in">
                 {/* Header Popup */}
                 <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -853,7 +853,7 @@ function EmployeeContent() {
 
           {/* ================= MODAL XEM CHI TIẾT NỘI DUNG LỖI PHẠT ================= */}
           {showPenaltyDetailModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-purple-950/60 backdrop-blur-xs animate-fade-in">
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
               <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full border border-rose-200 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
                 {/* Header Modal */}
                 <div className="flex items-center justify-between border-b border-rose-100 pb-3">
@@ -931,7 +931,7 @@ function EmployeeContent() {
               onClick={(e) => {
                 if (e.target === e.currentTarget) setShowNicknameModal(false);
               }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+              className="fixed inset-0 z-[99999] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
             >
               <div className="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-purple-200/90 space-y-4 animate-scale-in">
                 <div className="flex items-center justify-between border-b border-purple-100 pb-3">

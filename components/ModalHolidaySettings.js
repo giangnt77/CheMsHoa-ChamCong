@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getHolidaySettings, saveHolidaySettings } from '@/lib/supabase';
 import { formatDateFull, getToday } from '@/lib/utils';
 import VnDatePicker from './VnDatePicker';
@@ -39,6 +40,11 @@ const POPULAR_HOLIDAYS_SUGGESTIONS = [
 ];
 
 export default function ModalHolidaySettings({ isOpen, onClose, toast, onHolidaysUpdated }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -153,14 +159,14 @@ export default function ModalHolidaySettings({ isOpen, onClose, toast, onHoliday
     }
   }
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-4 bg-purple-950/80 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-fade-in"
     >
       <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col border-2 border-purple-300 shadow-2xl overflow-hidden animate-scale-in">
         {/* Header Bar */}
@@ -380,7 +386,8 @@ export default function ModalHolidaySettings({ isOpen, onClose, toast, onHoliday
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
