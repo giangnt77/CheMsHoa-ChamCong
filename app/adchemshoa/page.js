@@ -35,6 +35,7 @@ import {
   deleteEmployeeRate,
   calculateSalaryFromShifts,
   updateEmployeeContactInfo,
+  getEmployeeCccd,
   getAnnouncementNotice,
   saveAnnouncementNotice,
   getSpecialEventMode,
@@ -251,7 +252,39 @@ function AdminContent() {
     }
   }
 
-  // Load contact info & CCCD khi chọn nhân viên 100% từ Supabase
+  // Hàm nén ảnh tự động bằng HTML Canvas (Giảm dung lượng từ vài MB xuống dưới 100KB)
+  function compressImage(file, maxWidth = 900, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = (err) => reject(err);
+        img.src = event.target?.result;
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Load contact info & CCCD khi chọn nhân viên 100% từ Supabase (On-demand load CCCD để tiết kiệm 99% Egress)
   useEffect(() => {
     if (selectedEmployee) {
       const currentPhone = selectedEmployee.phone || '';
@@ -267,8 +300,20 @@ function AdminContent() {
       setRelativePhoneInput(currentRelativePhone);
       setAddressInput(currentAddress);
       setEditingContactInfo(false);
+
+      // Lazy load ảnh CCCD theo yêu cầu chỉ cho nhân viên đang chọn
+      if (!selectedEmployee.cccd_url && selectedEmployee.id) {
+        getEmployeeCccd(selectedEmployee.id)
+          .then((cccd) => {
+            if (cccd) {
+              setContactInfo((prev) => ({ ...prev, cccd_url: cccd }));
+              setSelectedEmployee((prev) => (prev ? { ...prev, cccd_url: cccd } : prev));
+            }
+          })
+          .catch(() => {});
+      }
     }
-  }, [selectedEmployee]);
+  }, [selectedEmployee?.id]);
 
   async function handleSaveContactInfo(e) {
     e.preventDefault();
@@ -325,24 +370,23 @@ function AdminContent() {
   async function handleUploadCccdImage(e) {
     const file = e.target.files?.[0];
     if (!file || !selectedEmployee) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target?.result;
-      if (dataUrl) {
-        try {
-          const updated = await updateEmployeeContactInfo(selectedEmployee.id, {
-            cccd_url: dataUrl,
-          });
-          setContactInfo((prev) => ({ ...prev, cccd_url: updated.cccd_url || dataUrl }));
-          setSelectedEmployee((prev) => ({ ...prev, cccd_url: updated.cccd_url || dataUrl }));
-          toast.success('Đã lưu Supabase', 'Đã lưu ảnh Căn cước công dân lên Supabase!');
-        } catch (err) {
-          console.error(err);
-          toast.error('Lỗi', 'Không thể lưu ảnh CCCD lên Supabase!');
-        }
-      }
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      toast.info('Đang nén ảnh...', 'Đang tối ưu dung lượng ảnh để tiết kiệm băng thông...');
+      // Nén ảnh tự động xuống max 900px, chất lượng 0.7 (giảm dung lượng từ 5MB xuống ~80KB)
+      const compressedDataUrl = await compressImage(file, 900, 0.7);
+
+      const updated = await updateEmployeeContactInfo(selectedEmployee.id, {
+        cccd_url: compressedDataUrl,
+      });
+
+      setContactInfo((prev) => ({ ...prev, cccd_url: updated.cccd_url || compressedDataUrl }));
+      setSelectedEmployee((prev) => ({ ...prev, cccd_url: updated.cccd_url || compressedDataUrl }));
+      toast.success('Đã lưu Supabase', 'Đã nén và lưu ảnh CCCD tối ưu lên Supabase!');
+    } catch (err) {
+      console.error('handleUploadCccdImage error:', err);
+      toast.error('Lỗi', 'Không thể nén hoặc lưu ảnh CCCD lên Supabase!');
+    }
   }
 
   // Create New Employee State
