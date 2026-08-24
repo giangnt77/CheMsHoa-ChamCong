@@ -310,7 +310,7 @@ function AdminContent() {
               setSelectedEmployee((prev) => (prev ? { ...prev, cccd_url: cccd } : prev));
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
   }, [selectedEmployee?.id]);
@@ -616,15 +616,15 @@ function AdminContent() {
   async function handlePinSubmit(e) {
     e.preventDefault();
     const ownerPin = process.env.NEXT_PUBLIC_ADMIN_PIN || '123456';
-    
+
     // Đọc danh sách nhân viên để check role của PIN trong DB
     let allEmps = [];
     try {
       allEmps = await getAllEmployees();
-    } catch (err) {}
+    } catch (err) { }
 
     const matchedEmp = allEmps.find((emp) => String(emp.pin) === String(pinInput));
-    
+
     if (pinInput === '666666' || (matchedEmp && matchedEmp.role === 'manager')) {
       // Vai trò QUẢN LÝ (Chỉ Xếp Lịch)
       setIsUnlocked(true);
@@ -1039,11 +1039,10 @@ function AdminContent() {
                     toast.info('Đã tắt Dịp Đặc Biệt', 'Hệ thống quay về đăng ký theo tuần mặc định');
                   }
                 }}
-                className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-black border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ${
-                  specialEventMode
+                className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-black border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ${specialEventMode
                     ? 'bg-rose-600 text-white border-rose-700 animate-pulse'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                }`}
+                  }`}
                 title="Bấm để BẬT/TẮT cho nhân viên đăng ký 1 Tháng (Tết/Lễ)"
               >
                 <span>🎆</span>
@@ -1068,7 +1067,7 @@ function AdminContent() {
           <div className="flex gap-1.5 bg-purple-100/80 rounded-2xl p-1.5 border border-purple-200/90 mb-4 overflow-x-auto custom-scrollbar whitespace-nowrap shadow-2xs">
             {[
               { id: 'schedule', label: 'Xếp Lịch', icon: '📅' },
-              { id: 'shift_swaps', label: 'QL Ca Đổi', icon: '🔄' },
+              { id: 'shift_swaps', label: 'QL Đổi Ca & Báo Giờ', icon: '📋' },
               { id: 'salary', label: 'QL Tính Lương', icon: '💰' },
               { id: 'employees', label: 'QL Nhân Viên', icon: '👥' },
               { id: 'penalty', label: 'Phụ Cấp / Trừ', icon: '🎁' },
@@ -1080,13 +1079,12 @@ function AdminContent() {
                   key={tab.id}
                   type="button"
                   onClick={() => changeActiveTab(tab.id)}
-                  className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                    activeTab === tab.id
+                  className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${activeTab === tab.id
                       ? 'bg-purple-700 text-white shadow-xs font-black'
                       : isRestricted
-                      ? 'bg-purple-50/50 text-purple-400 font-bold'
-                      : 'text-purple-950 hover:bg-purple-200/60 font-bold'
-                  }`}
+                        ? 'bg-purple-50/50 text-purple-400 font-bold'
+                        : 'text-purple-950 hover:bg-purple-200/60 font-bold'
+                    }`}
                   title={isRestricted ? 'Quyền Quản Lý bị hạn chế tính năng này' : ''}
                 >
                   <span>{isRestricted ? '🔒' : tab.icon}</span>
@@ -1300,20 +1298,18 @@ function AdminContent() {
                                 return (
                                   <div
                                     key={emp.id}
-                                    className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all ${
-                                      isSelected
+                                    className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all ${isSelected
                                         ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50'
                                         : 'bg-white text-purple-950 border-purple-200/90 hover:bg-purple-50'
-                                    }`}
+                                      }`}
                                     onClick={() => setSelectedEmployee(emp)}
                                   >
                                     {/* Hàng 1: Avatar + Tên + Trạng Thái + Nút Thao Tác */}
                                     <div className="flex items-center justify-between gap-1.5">
                                       <div className="flex items-center gap-2 min-w-0 flex-1">
                                         <div
-                                          className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                                            isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-purple-700 text-white'
-                                          }`}
+                                          className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-purple-700 text-white'
+                                            }`}
                                         >
                                           {getInitials(emp.name)}
                                         </div>
@@ -1367,9 +1363,8 @@ function AdminContent() {
                                                 setEditingPinEmpId(emp.id);
                                                 setNewPinInput(emp.pin || '123456');
                                               }}
-                                              className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
-                                                isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                                              }`}
+                                              className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                                }`}
                                               title="Đổi PIN nhân viên"
                                             >
                                               🔑
@@ -1389,9 +1384,8 @@ function AdminContent() {
                                                   }
                                                 }
                                               }}
-                                              className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
-                                                isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                                              }`}
+                                              className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                                }`}
                                               title="Xóa nhân viên"
                                             >
                                               🗑️
@@ -1406,9 +1400,8 @@ function AdminContent() {
                                       <div className={`truncate ${isSelected ? 'text-purple-200' : 'text-purple-700'}`}>
                                         💰 {formatCurrency(emp.hourly_rate || 20000)}/h • Làm từ {formatDateFull(emp.created_at)}
                                       </div>
-                                      <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${
-                                        isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-purple-100 text-purple-900'
-                                      }`}>
+                                      <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-purple-100 text-purple-900'
+                                        }`}>
                                         PIN: {emp.pin || '123456'}
                                       </div>
                                     </div>
@@ -1445,20 +1438,18 @@ function AdminContent() {
                                   return (
                                     <div
                                       key={emp.id}
-                                      className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all opacity-85 hover:opacity-100 ${
-                                        isSelected
+                                      className={`rounded-2xl p-2.5 sm:p-3 border cursor-pointer transition-all opacity-85 hover:opacity-100 ${isSelected
                                           ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50'
                                           : 'bg-rose-50/50 text-purple-950 border-rose-200 hover:bg-rose-100/50'
-                                      }`}
+                                        }`}
                                       onClick={() => setSelectedEmployee(emp)}
                                     >
                                       {/* Hàng 1: Avatar + Tên + Badge Nghỉ Việc */}
                                       <div className="flex items-center justify-between gap-1.5">
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                           <div
-                                            className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                                              isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-rose-700 text-white'
-                                            }`}
+                                            className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${isSelected ? 'bg-amber-400 text-purple-950 font-black' : 'bg-rose-700 text-white'
+                                              }`}
                                           >
                                             {getInitials(emp.name)}
                                           </div>
@@ -1510,9 +1501,8 @@ function AdminContent() {
                                                   setEditingPinEmpId(emp.id);
                                                   setNewPinInput(emp.pin || '123456');
                                                 }}
-                                                className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
-                                                  isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                                                }`}
+                                                className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${isSelected ? 'bg-purple-800 text-amber-300 hover:bg-purple-700' : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+                                                  }`}
                                                 title="Đổi PIN nhân viên"
                                               >
                                                 🔑
@@ -1532,9 +1522,8 @@ function AdminContent() {
                                                     }
                                                   }
                                                 }}
-                                                className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${
-                                                  isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                                                }`}
+                                                className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                                  }`}
                                                 title="Xóa hẳn khỏi hệ thống"
                                               >
                                                 🗑️
@@ -1549,9 +1538,8 @@ function AdminContent() {
                                         <div className={`truncate ${isSelected ? 'text-purple-200' : 'text-rose-900'}`}>
                                           📅 Nghỉ việc từ: <strong>{emp.resigned_at ? emp.resigned_at.split('-').reverse().join('/') : 'Trước đó'}</strong>
                                         </div>
-                                        <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${
-                                          isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-rose-100 text-rose-900'
-                                        }`}>
+                                        <div className={`text-[10px] px-1.5 py-0.2 rounded font-black flex-shrink-0 ml-1 ${isSelected ? 'bg-purple-800 text-amber-300 border border-purple-700' : 'bg-rose-100 text-rose-900'
+                                          }`}>
                                           PIN: {emp.pin || '123456'}
                                         </div>
                                       </div>
@@ -1654,13 +1642,12 @@ function AdminContent() {
                                           : (selectedEmployee.status || (selectedEmployee.is_active !== false ? 'active' : 'off'))
                                       }
                                       onChange={(e) => handleSelectStatusChange(e.target.value)}
-                                      className={`px-2 py-0.5 rounded-lg text-[11px] font-black outline-none border cursor-pointer ${
-                                        (selectedEmployee.status === 'leave' && (!selectedEmployee.off_end_date || getToday() <= selectedEmployee.off_end_date))
+                                      className={`px-2 py-0.5 rounded-lg text-[11px] font-black outline-none border cursor-pointer ${(selectedEmployee.status === 'leave' && (!selectedEmployee.off_end_date || getToday() <= selectedEmployee.off_end_date))
                                           ? 'bg-amber-100 text-amber-900 border-amber-300'
                                           : (selectedEmployee.status === 'off' || selectedEmployee.is_active === false)
                                             ? 'bg-rose-100 text-rose-900 border-rose-300'
                                             : 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                      }`}
+                                        }`}
                                     >
                                       <option value="active" className="text-emerald-950 font-bold bg-white">🟢 Làm</option>
                                       <option value="leave" className="text-amber-950 font-bold bg-white">🟡 Xin off (Tạm nghỉ)</option>
@@ -1675,7 +1662,7 @@ function AdminContent() {
                                         className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 hover:bg-amber-200 text-[10px] font-black border border-amber-300 cursor-pointer"
                                         title="Chỉnh sửa mốc ngày xin off"
                                       >
-                                        📅 {selectedEmployee.off_start_date ? `${selectedEmployee.off_start_date.split('-').reverse().slice(0,2).join('/')}-${selectedEmployee.off_end_date ? selectedEmployee.off_end_date.split('-').reverse().slice(0,2).join('/') : ''}` : 'Sửa mốc off'} ✏️
+                                        📅 {selectedEmployee.off_start_date ? `${selectedEmployee.off_start_date.split('-').reverse().slice(0, 2).join('/')}-${selectedEmployee.off_end_date ? selectedEmployee.off_end_date.split('-').reverse().slice(0, 2).join('/') : ''}` : 'Sửa mốc off'} ✏️
                                       </button>
                                     )}
 
@@ -2144,17 +2131,15 @@ function AdminContent() {
                             <div
                               key={emp.id}
                               onClick={() => setSelectedEmployee(emp)}
-                              className={`rounded-2xl py-2 px-3 border cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                                isSelected
+                              className={`rounded-2xl py-2 px-3 border cursor-pointer transition-all flex items-center justify-between gap-3 ${isSelected
                                   ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50 scale-[1.01]'
                                   : 'bg-white text-purple-950 border-purple-200/90 hover:bg-purple-50'
-                              }`}
+                                }`}
                             >
                               <div className="flex items-center gap-3 truncate">
                                 <div
-                                  className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
-                                    isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-700 text-white'
-                                  }`}
+                                  className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-700 text-white'
+                                    }`}
                                 >
                                   {getInitials(emp.name)}
                                 </div>
@@ -2477,31 +2462,31 @@ function AdminContent() {
                         </span>
                       </div>
 
-                    {b.address && (
-                      <p className="text-xs font-extrabold text-purple-800 flex items-center gap-1">
-                        📍 <span>{b.address}</span>
-                      </p>
-                    )}
+                      {b.address && (
+                        <p className="text-xs font-extrabold text-purple-800 flex items-center gap-1">
+                          📍 <span>{b.address}</span>
+                        </p>
+                      )}
 
-                    <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-purple-100">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditBranch(b)}
-                        className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
-                      >
-                        ✏️ Sửa
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteBranchItem(b.id, b.name)}
-                        className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white text-xs font-black border border-rose-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
-                      >
-                        🗑️ Xóa
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-purple-100">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditBranch(b)}
+                          className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                        >
+                          ✏️ Sửa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBranchItem(b.id, b.name)}
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white text-xs font-black border border-rose-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                        >
+                          🗑️ Xóa
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
               </div>
 
               {/* MODAL THÊM / SỬA CHI NHÁNH */}

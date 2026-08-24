@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { getEmployees, getScheduleByDateRange, createShiftSwap } from '@/lib/supabase';
 import { getToday, formatDateFull, formatDateWithDayVN, calculateHours, sendTelegramNotification, getInitials } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
+import VnDatePicker from './VnDatePicker';
 
 export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
   const [mounted, setMounted] = useState(false);
@@ -13,18 +14,37 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
   }, []);
 
   const toast = useToast();
-  const [step, setStep] = useState(1); // 1: Lý do đổi, 2: Chọn ngày & Đồng nghiệp rảnh, 3: Xác nhận gửi
+
+  // Mode: 'time_change' (Báo làm thêm / về sớm / đi trễ) | 'swap' (Đổi ca / nhờ làm hộ)
+  const [requestType, setRequestType] = useState('time_change');
+  const [step, setStep] = useState(1); // 1: Cấu hình thông tin, 2: Nhập lý do & Xác nhận gửi
   const [allEmployees, setAllEmployees] = useState([]);
   const [daySchedules, setDaySchedules] = useState([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form State
-  const [reason, setReason] = useState('');
+  // Chung: Ngày diễn ra
   const [shiftDate, setShiftDate] = useState(getToday());
-  const [myShiftInfo, setMyShiftInfo] = useState(''); // Ví dụ: "16:00 - 22:00 (CN 56)"
+  const [reason, setReason] = useState('');
+
+  // ----------------------------------------------------
+  // STATE CHO: ⏱️ BÁO THAY ĐỔI GIỜ LÀM (Làm thêm / Về sớm)
+  // ----------------------------------------------------
+  // 'overtime': Làm thêm giờ (+h), 'early_leave': Về sớm (-h), 'late_arrival': Đi trễ (-h), 'custom': Giờ tùy chỉnh
+  const [timeChangeType, setTimeChangeType] = useState('overtime');
+  const [detectedShift, setDetectedShift] = useState(null); // Ca gốc trong ngày
+  const [origStartTime, setOrigStartTime] = useState('13:00');
+  const [origEndTime, setOrigEndTime] = useState('18:00');
+  const [origBranch, setOrigBranch] = useState('56');
+  const [actualStartTime, setActualStartTime] = useState('13:00');
+  const [actualEndTime, setActualEndTime] = useState('20:00');
+
+  // ----------------------------------------------------
+  // STATE CHO: 🔄 ĐỔI CA / NHỜ LÀM HỘ
+  // ----------------------------------------------------
+  const [myShiftInfo, setMyShiftInfo] = useState('');
   const [targetEmpId, setTargetEmpId] = useState('');
-  const [searchTerm, setSearchTerm] = useState(''); // Tìm kiếm tên nhân viên
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Tải danh sách nhân viên ban đầu
   useEffect(() => {
@@ -41,7 +61,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
     }
   }
 
-  // Khi thay đổi Ngày chọn, tự động tải Lịch phân công trong ngày đó để tính toán ai rảnh
+  // Khi thay đổi Ngày chọn, tự động tải Lịch phân công trong ngày đó
   useEffect(() => {
     if (shiftDate) {
       loadScheduleForDate(shiftDate);
@@ -56,7 +76,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
       const sched = await getScheduleByDateRange(cleanDate, cleanDate);
       setDaySchedules(sched || []);
 
-      // Tự động tìm ca làm của chính nhân viên đang dùng trong ngày hôm đó
+      // Tìm ca làm của chính nhân viên trong ngày hôm đó
       const myScheds = (sched || []).filter(
         (s) =>
           String(s.employee_id || '').trim() === String(employee.id || '').trim() ||
@@ -66,13 +86,24 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
       if (myScheds.length > 0) {
         const first = myScheds[0];
         const bName = first.branches?.name || first.branch_name || '56';
-        const sTime = first.start_time ? String(first.start_time).slice(0, 5) : '';
-        const eTime = first.end_time ? String(first.end_time).slice(0, 5) : '';
-        const timeStr = sTime && eTime ? `${sTime} - ${eTime}` : 'Có lịch làm';
-        setMyShiftInfo(`[CN ${bName}] ${timeStr}`);
+        const sTime = first.start_time ? String(first.start_time).slice(0, 5) : '13:00';
+        const eTime = first.end_time ? String(first.end_time).slice(0, 5) : '18:00';
+        
+        setDetectedShift(first);
+        setOrigStartTime(sTime);
+        setOrigEndTime(eTime);
+        setOrigBranch(bName);
+
+        // Khởi tạo giờ thực tế ban đầu tùy theo timeChangeType
+        applyTimeChangeDefaults(sTime, eTime, timeChangeType);
+        setMyShiftInfo(`[CN ${bName}] ${sTime} - ${eTime}`);
       } else {
-        const bName = employee?.branches?.name || employee?.branch_name || '56';
-        setMyShiftInfo(`[CN ${bName}] 13:00 - 19:00`);
+        setDetectedShift(null);
+        setOrigStartTime('13:00');
+        setOrigEndTime('18:00');
+        setOrigBranch('56');
+        applyTimeChangeDefaults('13:00', '18:00', timeChangeType);
+        setMyShiftInfo(`[CN 56] 13:00 - 18:00`);
       }
     } catch (e) {
       console.error(e);
@@ -81,24 +112,57 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
     }
   }
 
-  /**
-   * THUẬT TOÁN TÍNH TOÁN THỜI GIAN RẢNH & LỌC DANH SÁCH ĐỒNG NGHIỆP ĐỦ ĐIỀU KIỆN ĐỔI / LÀM HỘ
-   * 
-   * Nguyên lý:
-   * - Lấy khoảng thời gian ca của Tôi (VD: 16:00 - 22:00).
-   * - Duyệt qua từng nhân viên:
-   *   + Tìm các ca họ đã được phân công trong ngày hôm đó.
-   *   + Kiểm tra xem ca nào của họ có bị trùng/chồng thời gian (overlap) với ca của Tôi hay không.
-   *   + Nếu KHÔNG TRÙNG thời gian -> Đồng nghĩa họ RẢNH trong khung giờ đó -> Giữ lại trong danh sách!
-   *   + Nếu TRÙNG thời gian -> Bị bận -> ẨN TÊN KHỎI DANH SÁCH CHỌN.
-   */
+  function applyTimeChangeDefaults(sTime, eTime, type) {
+    setActualStartTime(sTime);
+    if (type === 'overtime') {
+      // Mặc định tăng ca thêm 2 tiếng
+      const [eh, em] = eTime.split(':').map(Number);
+      const newEh = Math.min(23, eh + 2);
+      setActualEndTime(`${String(newEh).padStart(2, '0')}:${String(em).padStart(2, '0')}`);
+    } else if (type === 'early_leave') {
+      // Mặc định về sớm 1 tiếng
+      const [eh, em] = eTime.split(':').map(Number);
+      const newEh = Math.max(0, eh - 1);
+      setActualEndTime(`${String(newEh).padStart(2, '0')}:${String(em).padStart(2, '0')}`);
+    } else if (type === 'late_arrival') {
+      // Mặc định đi trễ 1 tiếng
+      const [sh, sm] = sTime.split(':').map(Number);
+      const newSh = Math.min(23, sh + 1);
+      setActualStartTime(`${String(newSh).padStart(2, '0')}:${String(sm).padStart(2, '0')}`);
+      setActualEndTime(eTime);
+    } else {
+      setActualEndTime(eTime);
+    }
+  }
+
+  // Khi người dùng chuyển đổi Loại Báo Giờ (Overtime / Early leave / Late arrival)
+  function handleSelectTimeChangeType(newType) {
+    setTimeChangeType(newType);
+    applyTimeChangeDefaults(origStartTime, origEndTime, newType);
+  }
+
+  // Tính số tiếng ca gốc và ca thực tế
+  const hoursCalculation = useMemo(() => {
+    const origH = calculateHours(origStartTime, origEndTime);
+    const actualH = calculateHours(actualStartTime, actualEndTime);
+    const diff = Math.round((actualH - origH) * 100) / 100;
+    return {
+      origHours: origH,
+      actualHours: actualH,
+      diffHours: diff,
+      isIncrease: diff > 0,
+      isDecrease: diff < 0,
+    };
+  }, [origStartTime, origEndTime, actualStartTime, actualEndTime]);
+
+  // ----------------------------------------------------
+  // LOGIC LỌC ĐỒNG NGHIỆP CHO ĐỔI CA
+  // ----------------------------------------------------
   const availableEmployees = useMemo(() => {
     if (!allEmployees || allEmployees.length === 0) return [];
 
-    // Tách thời gian ca của Tôi
-    let myStart = 16 * 60; // 16:00 in minutes
-    let myEnd = 22 * 60;   // 22:00 in minutes
-
+    let myStart = 16 * 60;
+    let myEnd = 22 * 60;
     if (myShiftInfo.includes('-')) {
       const match = myShiftInfo.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
       if (match) {
@@ -113,15 +177,9 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
       .filter((emp) => {
         if (emp.role === 'owner' || emp.role === 'manager') return false;
         const nLower = (emp.name || '').toLowerCase();
-        return (
-          !nLower.includes('chủ quán') &&
-          !nLower.includes('quản lý') &&
-          !nLower.includes('owner') &&
-          !nLower.includes('manager')
-        );
+        return !nLower.includes('chủ quán') && !nLower.includes('quản lý');
       })
       .map((emp) => {
-        // Tìm lịch của nhân viên này trong ngày (Khớp cả ID lẫn Tên nhân viên để chính xác 100%)
         const empScheds = daySchedules.filter(
           (s) =>
             String(s.employee_id || '').trim() === String(emp.id || '').trim() ||
@@ -129,42 +187,36 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
         );
 
         let isOverlap = false;
-        let currentShiftLabel = '🟢 Chưa có ca làm';
+        let currentShiftLabel = '🟢 Rảnh (Chưa có ca)';
         let statusPriority = 1;
 
         if (empScheds.length > 0) {
           const shiftInfoList = empScheds.map((s) => {
             const bName = s.branches?.name ? `CN ${s.branches.name}` : '';
-            const startTimeStr = s.start_time ? String(s.start_time).slice(0, 5) : '';
-            const endTimeStr = s.end_time ? String(s.end_time).slice(0, 5) : '';
-            const timeStr = startTimeStr && endTimeStr ? `${startTimeStr} - ${endTimeStr}` : 'Có lịch làm';
+            const sTime = s.start_time ? String(s.start_time).slice(0, 5) : '';
+            const eTime = s.end_time ? String(s.end_time).slice(0, 5) : '';
+            const timeStr = sTime && eTime ? `${sTime} - ${eTime}` : 'Có ca';
 
-            // Kiểm tra trùng giờ
-            if (startTimeStr && endTimeStr) {
-              const [sh, sm] = startTimeStr.split(':').map(Number);
-              const [eh, em] = endTimeStr.split(':').map(Number);
+            if (sTime && eTime) {
+              const [sh, sm] = sTime.split(':').map(Number);
+              const [eh, em] = eTime.split(':').map(Number);
               const eStart = sh * 60 + sm;
               const eEnd = eh * 60 + em;
-
-              if (eStart < myEnd && eEnd > myStart) {
-                isOverlap = true;
-              }
+              if (eStart < myEnd && eEnd > myStart) isOverlap = true;
             }
             return bName ? `[${bName}] ${timeStr}` : timeStr;
           });
 
           const formattedShifts = shiftInfoList.join(', ');
-
           if (!isOverlap) {
             statusPriority = 2;
             currentShiftLabel = `🟡 Đã có ca ${formattedShifts}`;
           } else {
             statusPriority = 3;
-            currentShiftLabel = `🟠 Đã có ca ${formattedShifts} (Gộp ca)`;
+            currentShiftLabel = `🟠 Trùng ca ${formattedShifts} (Gộp ca)`;
           }
         }
 
-        // Thông tin ca của đồng nghiệp để đổi lại (nếu họ có ca)
         let empShiftDetail = '🟢 Chưa có ca (Sẽ nhận làm giúp)';
         if (empScheds.length > 0) {
           const firstS = empScheds[0];
@@ -176,36 +228,26 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
         return {
           ...emp,
-          isAvailable: true,
           statusPriority,
           shiftSummary: currentShiftLabel,
           targetShiftInfo: empShiftDetail,
         };
       })
       .sort((a, b) => {
-        // SẮP XẾP SỐ 1: Đứa nào rảnh nguyên ngày (statusPriority = 1) ĐẨY LÊN TRÊN CÙNG
-        if (a.statusPriority !== b.statusPriority) {
-          return a.statusPriority - b.statusPriority;
-        }
+        if (a.statusPriority !== b.statusPriority) return a.statusPriority - b.statusPriority;
         return a.name.localeCompare(b.name);
       });
   }, [allEmployees, daySchedules, myShiftInfo]);
 
-  // Lọc danh sách đồng nghiệp theo ô tìm kiếm
   const filteredEmployees = useMemo(() => {
     if (!searchTerm.trim()) return availableEmployees;
     const kw = searchTerm.trim().toLowerCase();
-    return availableEmployees.filter((emp) =>
-      (emp.name || '').toLowerCase().includes(kw)
-    );
+    return availableEmployees.filter((emp) => (emp.name || '').toLowerCase().includes(kw));
   }, [availableEmployees, searchTerm]);
 
-  // Tự động chọn người đầu tiên trong danh sách đủ điều kiện
   useEffect(() => {
     if (availableEmployees.length > 0 && !targetEmpId) {
       setTargetEmpId(availableEmployees[0].id);
-    } else if (availableEmployees.length === 0) {
-      setTargetEmpId('');
     }
   }, [availableEmployees]);
 
@@ -214,47 +256,76 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
   }, [availableEmployees, targetEmpId]);
 
   function handleNextToStep2() {
-    if (!reason.trim()) {
-      toast.warning('Thiếu lý do', 'Vui lòng nhập lý do xin đổi ca!');
+    if (requestType === 'swap' && !targetEmpId) {
+      toast.warning('Chưa chọn người đổi', 'Vui lòng chọn một bạn để đổi ca!');
       return;
     }
     setStep(2);
   }
 
-  function handleNextToStep3() {
-    if (!targetEmpId) {
-      toast.warning('Chưa chọn đồng nghiệp', 'Vui lòng chọn 1 đồng nghiệp có thời gian rảnh đủ điều kiện!');
+  async function handleSubmitTicket() {
+    if (!reason.trim()) {
+      toast.warning('Chưa nhập lý do', 'Vui lòng nhập lý do!');
       return;
     }
-    setStep(3);
-  }
 
-  async function handleSubmitSwap() {
-    if (!selectedTargetEmp) return;
     setSubmitting(true);
 
-    const swapPayload = {
-      requester_id: employee.id,
-      requester_name: employee.name,
-      target_employee_id: selectedTargetEmp.id,
-      target_employee_name: selectedTargetEmp.name,
-      shift_date: shiftDate,
-      my_shift_info: myShiftInfo,
-      target_shift_info: selectedTargetEmp.targetShiftInfo,
-      reason: reason.trim(),
-    };
+    let ticketPayload = {};
+
+    if (requestType === 'time_change') {
+      const origTimeStr = `[CN ${origBranch}] ${origStartTime} - ${origEndTime} (${hoursCalculation.origHours}h)`;
+      const adjustedTimeStr = `[CN ${origBranch}] ${actualStartTime} - ${actualEndTime} (${hoursCalculation.actualHours}h)`;
+      
+      ticketPayload = {
+        requester_id: employee.id,
+        requester_name: employee.name,
+        target_employee_id: employee.id,
+        target_employee_name: 'Quản Lý Quán',
+        shift_date: shiftDate,
+        request_type: 'time_change',
+        time_change_type: timeChangeType,
+        original_time: origTimeStr,
+        adjusted_time: adjustedTimeStr,
+        extra_hours: hoursCalculation.diffHours,
+        my_shift_info: origTimeStr,
+        target_shift_info: adjustedTimeStr,
+        branch_name: origBranch,
+        reason: reason.trim(),
+      };
+    } else {
+      ticketPayload = {
+        requester_id: employee.id,
+        requester_name: employee.name,
+        target_employee_id: selectedTargetEmp?.id || employee.id,
+        target_employee_name: selectedTargetEmp?.name || 'Đồng nghiệp',
+        shift_date: shiftDate,
+        request_type: 'swap',
+        time_change_type: 'swap',
+        original_time: myShiftInfo,
+        adjusted_time: selectedTargetEmp?.targetShiftInfo || '',
+        my_shift_info: myShiftInfo,
+        target_shift_info: selectedTargetEmp?.targetShiftInfo || '',
+        reason: reason.trim(),
+      };
+    }
 
     try {
-      await createShiftSwap(swapPayload);
-      // Tự động gửi thông báo Telegram Bot tới Quản Lý
-      sendTelegramNotification(swapPayload).catch(console.error);
+      await createShiftSwap(ticketPayload);
+      // Gửi thông báo Telegram tự động
+      sendTelegramNotification(ticketPayload).catch(console.error);
 
-      toast.success('Thành công', 'Đã gửi yêu cầu đổi ca đến Quản Lý phê duyệt & thông báo Telegram!');
+      toast.success(
+        'Đã Gửi Thành Công',
+        requestType === 'time_change'
+          ? 'Đã gửi báo giờ làm đến Quản Lý!'
+          : 'Đã gửi yêu cầu đổi ca đến Quản Lý!'
+      );
       if (onRefresh) onRefresh();
       onClose();
     } catch (err) {
       console.error(err);
-      toast.error('Lỗi', 'Không thể gửi yêu cầu đổi ca. Vui lòng thử lại.');
+      toast.error('Lỗi', 'Không thể gửi yêu cầu. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -263,20 +334,17 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
-      <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in my-auto">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-fade-in overflow-y-auto">
+      <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-purple-300 animate-scale-in my-auto max-h-[92vh] flex flex-col">
         {/* Header Modal */}
-        <div className="flex items-center justify-between border-b border-purple-100 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-purple-700 text-white flex items-center justify-center text-xl font-black shadow-2xs">
-              🔄
-            </div>
-            <div>
-              <h3 className="font-black text-base sm:text-lg text-purple-950">Đăng Ký Đổi Ca</h3>
-              <p className="text-xs text-purple-700 font-extrabold">
-                Bước {step}/3: {step === 1 ? 'Lý Do Xin Đổi' : step === 2 ? 'Chọn Ngày & Đồng Nghiệp Rảnh' : 'Xác Nhận & Gửi Quản Lý'}
-              </p>
-            </div>
+        <div className="flex items-center justify-between border-b border-purple-100 pb-3 shrink-0">
+          <div>
+            <h3 className="font-black text-base sm:text-lg text-purple-950">
+              {requestType === 'time_change' ? 'Báo Giờ Làm' : 'Đổi Ca'}
+            </h3>
+            <p className="text-xs text-purple-700 font-extrabold">
+              Bước {step}/2: {step === 1 ? 'Chọn Giờ' : 'Nhập Lý Do'}
+            </p>
           </div>
           <button
             type="button"
@@ -287,233 +355,394 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
           </button>
         </div>
 
-        {/* BẢNG 1 (STEP 1): LÝ DO XIN ĐỔI CA */}
-        {step === 1 && (
-          <div className="space-y-3.5 animate-fade-in">
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 font-bold space-y-1">
-              <p className="font-black text-amber-950 text-xs sm:text-sm">📌 BƯỚC 1: NHẬP LÝ DO XIN ĐỔI CA</p>
-              <p>Hãy viết ngắn gọn lý do bạn xin đổi ca (Ví dụ: bận việc gia đình, đi học đột xuất...)</p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-black text-purple-950 mb-1">
-                Lý do xin đổi ca <span className="text-rose-500">*</span>
-              </label>
-              <textarea
-                rows={4}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Nhập lý do của bạn ở đây..."
-                className="w-full px-3.5 py-2.5 bg-white border border-purple-200 focus:border-purple-600 rounded-2xl text-purple-950 text-sm font-bold outline-none transition-all placeholder:text-purple-400 shadow-2xs resize-none"
-              />
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={handleNextToStep2}
-                className="px-5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black text-sm cursor-pointer shadow-md active:scale-95 transition-all flex items-center gap-1.5 border-0"
-              >
-                <span>Tiếp tục Bước 2</span>
-                <span>➡️</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* BẢNG 2 (STEP 2): CHỌN NGÀY & ĐỒNG NGHIỆP RẢNH ĐỦ ĐIỀU KIỆN */}
-        {step === 2 && (
-          <div className="space-y-3.5 animate-fade-in max-h-[68vh] overflow-y-auto pr-1 custom-scrollbar">
-            {/* Thẻ nhắc nhở gọi điện chốt trước ngoài đời */}
-            <div className="p-3 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs text-emerald-950 font-bold space-y-1 shadow-2xs">
-              <p className="font-black text-emerald-900 text-xs sm:text-sm flex items-center gap-1">
-                <span>🤝</span>
-                <span>YÊU CẦU XÁC NHẬN TRƯỚC KHI GỬI</span>
-              </p>
-              <p className="text-[11px] text-emerald-800 font-extrabold">
-                Xác nhận 2 người <strong>ĐÃ GỌI ĐIỆN VÀ THỐNG NHẤT</strong> trước khi bấm gửi!
-              </p>
-            </div>
-
-            {/* Ô chọn Ngày đổi ca */}
-            <div>
-              <label className="block text-xs font-black text-purple-950 mb-1">
-                📅 Chọn ngày muốn đổi ca:
-              </label>
-              <input
-                type="date"
-                value={shiftDate}
-                onChange={(e) => setShiftDate(e.target.value)}
-                className="w-full px-3.5 py-2 bg-white border border-purple-200 focus:border-purple-600 rounded-xl text-purple-950 text-sm font-black outline-none"
-              />
-            </div>
-
-            {/* Thông tin ca của tôi trong ngày đó */}
-            <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 space-y-1 text-xs">
-              <span className="text-[11px] text-purple-700 font-bold">⏰ Ca làm hiện tại của bạn ({employee.name}):</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={myShiftInfo}
-                  onChange={(e) => setMyShiftInfo(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-purple-300 rounded-xl font-black text-purple-950 text-xs"
-                />
-              </div>
-            </div>
-
-            {/* DANH SÁCH ĐỒNG NGHIỆP CÓ THỜI GIAN RẢNH (SẮP XẾP ƯU TIÊN RẢNH TRỌN NGÀY LÊN TRÊN CÙNG) */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <label className="text-xs font-black text-purple-950 flex items-center gap-1">
-                  <span>👥 Chọn đồng nghiệp đổi ca cùng:</span>
+        {/* NỘI DUNG FORM SCROLLABLE */}
+        <div className="overflow-y-auto pr-1 space-y-4 flex-1 custom-scrollbar">
+          {step === 1 ? (
+            <div className="space-y-4 animate-fade-in">
+              {/* CHỌN NHÓM YÊU CẦU */}
+              <div>
+                <label className="block text-xs font-black text-purple-950 uppercase mb-1.5">
+                  1. Bạn muốn làm gì:
                 </label>
-                {loadingSchedule && <span className="text-[11px] text-purple-600 font-bold animate-pulse">⏳ Đang tính toán thời gian rảnh...</span>}
-              </div>
-
-              {/* Ô TÌM KIẾM NHÂN VIÊN */}
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="🔍 Nhập tên đồng nghiệp để tìm nhanh..."
-                  className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-purple-600 rounded-xl text-purple-950 text-xs font-bold outline-none shadow-2xs"
-                />
-                {searchTerm && (
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-950 font-black text-xs bg-purple-200/60 rounded-full w-4 h-4 flex items-center justify-center cursor-pointer"
+                    onClick={() => setRequestType('time_change')}
+                    className={`p-3 rounded-2xl border-2 text-left cursor-pointer transition-all flex flex-col justify-between gap-1 shadow-2xs ${
+                      requestType === 'time_change'
+                        ? 'bg-purple-50 border-purple-700 text-purple-950 ring-2 ring-purple-400/50'
+                        : 'bg-white border-purple-200 text-slate-700 hover:bg-purple-50/50'
+                    }`}
                   >
-                    ✕
+                    <div className="font-black text-xs sm:text-sm">
+                      Báo Giờ Làm
+                    </div>
+                    <p className="text-[10.5px] font-bold text-purple-700/80 leading-tight">
+                      Tăng ca, về sớm, đi trễ
+                    </p>
                   </button>
-                )}
+
+                  <button
+                    type="button"
+                    onClick={() => setRequestType('swap')}
+                    className={`p-3 rounded-2xl border-2 text-left cursor-pointer transition-all flex flex-col justify-between gap-1 shadow-2xs ${
+                      requestType === 'swap'
+                        ? 'bg-purple-50 border-purple-700 text-purple-950 ring-2 ring-purple-400/50'
+                        : 'bg-white border-purple-200 text-slate-700 hover:bg-purple-50/50'
+                    }`}
+                  >
+                    <div className="font-black text-xs sm:text-sm">
+                      Đổi Ca
+                    </div>
+                    <p className="text-[10.5px] font-bold text-purple-700/80 leading-tight">
+                      Đổi ca với người khác
+                    </p>
+                  </button>
+                </div>
               </div>
 
-              {filteredEmployees.length > 0 ? (
-                <div className="space-y-2 pt-1">
-                  <div className="max-h-[230px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                    {filteredEmployees.map((emp) => {
-                      const isSelected = targetEmpId === emp.id;
-                      const isFreeAllDay = emp.statusPriority === 1 || emp.shiftSummary.includes('Rảnh trọn ngày') || emp.shiftSummary.includes('🟢');
+              {/* Ô CHỌN NGÀY LÀM VIỆC */}
+              <div>
+                <label className="block text-xs font-black text-purple-950 uppercase mb-1">
+                  2. Chọn Ngày:
+                </label>
+                <VnDatePicker value={shiftDate} onChange={setShiftDate} />
+              </div>
 
-                      return (
-                        <div
-                          key={emp.id}
-                          onClick={() => setTargetEmpId(emp.id)}
-                          className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                            isSelected
-                              ? 'bg-purple-900 text-white border-purple-600 shadow-md scale-[1.01]'
-                              : isFreeAllDay
-                              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950 hover:bg-emerald-100/80'
-                              : 'bg-purple-50/70 border-purple-200 text-purple-950 hover:bg-purple-100/70'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                                isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-200 text-purple-950'
-                              }`}
-                            >
-                              {getInitials(emp.name)}
-                            </div>
-                            <div className="truncate">
-                              <div className={`font-black text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-purple-950'}`}>
-                                {emp.name}
-                              </div>
-                              <div className={`text-[11px] font-extrabold truncate ${isSelected ? 'text-amber-300' : 'text-purple-700'}`}>
-                                {emp.shiftSummary}
-                              </div>
-                            </div>
-                          </div>
+              {/* KHU VỰC CHI TIẾT TÙY THEO LOẠI YÊU CẦU */}
+              {requestType === 'time_change' ? (
+                <div className="space-y-3.5 pt-1">
+                  {/* Thẻ Ca Gốc */}
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl space-y-1">
+                    <div className="flex items-center justify-between text-xs font-black text-purple-950">
+                      <span>Ca gốc của bạn:</span>
+                      <span className="px-2 py-0.5 rounded-full bg-purple-200 text-purple-900 text-[10px] font-black">
+                        CN {origBranch}
+                      </span>
+                    </div>
+                    <div className="text-sm font-black text-purple-800">
+                      {origStartTime} — {origEndTime}{' '}
+                      <span className="text-xs font-extrabold text-purple-600">({hoursCalculation.origHours}h)</span>
+                    </div>
+                  </div>
 
-                          <div className="flex-shrink-0">
-                            <span
-                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black transition-all ${
-                                isSelected
-                                  ? 'bg-amber-400 text-purple-950 shadow-2xs scale-110'
-                                  : 'border-2 border-purple-300 text-transparent'
-                              }`}
-                            >
-                              ✓
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {/* 4 Nút Chọn Nhanh Loại Thay Đổi */}
+                  <div>
+                    <label className="block text-xs font-black text-purple-950 uppercase mb-1.5">
+                      3. Thay Đổi Giờ:
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTimeChangeType('overtime')}
+                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center cursor-pointer shadow-2xs ${
+                          timeChangeType === 'overtime'
+                            ? 'bg-emerald-600 text-white border-emerald-700'
+                            : 'bg-emerald-50 text-emerald-950 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                      >
+                        <div>Tăng ca</div>
+                        <div className={`text-[10px] font-bold ${timeChangeType === 'overtime' ? 'text-emerald-100' : 'text-emerald-700'}`}>Làm thêm giờ</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTimeChangeType('early_leave')}
+                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center cursor-pointer shadow-2xs ${
+                          timeChangeType === 'early_leave'
+                            ? 'bg-amber-600 text-white border-amber-700'
+                            : 'bg-amber-50 text-amber-950 border-amber-200 hover:bg-amber-100'
+                        }`}
+                      >
+                        <div>Về sớm</div>
+                        <div className={`text-[10px] font-bold ${timeChangeType === 'early_leave' ? 'text-amber-100' : 'text-amber-700'}`}>Nghỉ sớm hơn</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTimeChangeType('late_arrival')}
+                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center cursor-pointer shadow-2xs ${
+                          timeChangeType === 'late_arrival'
+                            ? 'bg-sky-600 text-white border-sky-700'
+                            : 'bg-sky-50 text-sky-950 border-sky-200 hover:bg-sky-100'
+                        }`}
+                      >
+                        <div>Đi trễ</div>
+                        <div className={`text-[10px] font-bold ${timeChangeType === 'late_arrival' ? 'text-sky-100' : 'text-sky-700'}`}>Vào trễ hơn</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTimeChangeType('custom')}
+                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center cursor-pointer shadow-2xs ${
+                          timeChangeType === 'custom'
+                            ? 'bg-purple-700 text-white border-purple-800'
+                            : 'bg-purple-50 text-purple-950 border-purple-200 hover:bg-purple-100'
+                        }`}
+                      >
+                        <div>Tự chọn</div>
+                        <div className={`text-[10px] font-bold ${timeChangeType === 'custom' ? 'text-purple-100' : 'text-purple-700'}`}>Nhập giờ khác</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Nhập Khung Giờ Thực Tế */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-black text-purple-950 uppercase">
+                      4. Giờ Thực Tế:
+                    </label>
+                    <div className="grid grid-cols-2 gap-3 items-center">
+                      <div>
+                        <span className="block text-[11px] font-bold text-slate-600 mb-1">Giờ Vào:</span>
+                        <input
+                          type="time"
+                          value={actualStartTime}
+                          onChange={(e) => setActualStartTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-purple-300 font-black text-purple-950 text-sm outline-none focus:border-purple-600 shadow-2xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="block text-[11px] font-bold text-slate-600 mb-1">Giờ Ra:</span>
+                        <input
+                          type="time"
+                          value={actualEndTime}
+                          onChange={(e) => setActualEndTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-purple-300 font-black text-purple-950 text-sm outline-none focus:border-purple-600 shadow-2xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Thống kê chênh lệch giờ */}
+                    <div className="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-700">Tổng giờ: <strong>{hoursCalculation.actualHours}h</strong></span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full font-black text-xs ${
+                          hoursCalculation.isIncrease
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : hoursCalculation.isDecrease
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-slate-200 text-slate-800'
+                        }`}
+                      >
+                        {hoursCalculation.isIncrease
+                          ? `Tăng ca: +${hoursCalculation.diffHours}h`
+                          : hoursCalculation.isDecrease
+                          ? `Chênh lệch: ${hoursCalculation.diffHours}h`
+                          : 'Giữ nguyên'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200 text-center text-purple-900 text-xs font-bold space-y-1">
-                  <p className="font-black">🔍 Không tìm thấy đồng nghiệp phù hợp với từ khóa "{searchTerm}"!</p>
-                  <p className="text-[11px] text-purple-700">Vui lòng thử xóa ô tìm kiếm hoặc nhập từ khóa tên khác.</p>
+                /* ĐỔI CA */
+                <div className="space-y-3 pt-1">
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl text-xs space-y-1">
+                    <span className="font-black text-purple-950 block">Ca của bạn ({formatDateWithDayVN(shiftDate)}):</span>
+                    <span className="font-black text-purple-700 text-sm">{myShiftInfo}</span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-black text-purple-950 uppercase">
+                        3. Chọn Người Đổi Cùng:
+                      </label>
+                      <span className="text-[10px] text-purple-700 font-bold">
+                        ({filteredEmployees.length} bạn rảnh)
+                      </span>
+                    </div>
+
+                    {/* Ô tìm kiếm */}
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Tìm tên..."
+                      className="w-full px-3 py-1.5 mb-2 bg-purple-50/70 border border-purple-200 rounded-xl text-purple-950 text-xs font-bold outline-none focus:border-purple-500"
+                    />
+
+                    {/* Danh sách đồng nghiệp */}
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                      {loadingSchedule ? (
+                        <div className="py-4 text-center text-xs text-purple-700 font-bold animate-pulse">
+                          Đang tải...
+                        </div>
+                      ) : filteredEmployees.length === 0 ? (
+                        <div className="p-3 rounded-xl bg-amber-50 text-amber-900 text-xs font-bold text-center">
+                          Không tìm thấy bạn nào phù hợp.
+                        </div>
+                      ) : (
+                        filteredEmployees.map((emp) => {
+                          const isSelected = targetEmpId === emp.id;
+                          return (
+                            <div
+                              key={emp.id}
+                              onClick={() => setTargetEmpId(emp.id)}
+                              className={`p-2.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                                isSelected
+                                  ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-400/50'
+                                  : 'bg-white text-purple-950 border-purple-200 hover:bg-purple-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div
+                                  className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
+                                    isSelected ? 'bg-amber-400 text-purple-950' : 'bg-purple-700 text-white'
+                                  }`}
+                                >
+                                  {getInitials(emp.name)}
+                                </div>
+                                <div className="min-w-0 truncate">
+                                  <div className="font-black text-xs truncate">
+                                    {emp.nickname ? `${emp.nickname} (${emp.name})` : emp.name}
+                                  </div>
+                                  <div className={`text-[10px] font-bold truncate ${isSelected ? 'text-purple-200' : 'text-purple-700'}`}>
+                                    {emp.shiftSummary}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                {isSelected ? (
+                                  <span className="text-amber-300 font-black text-sm">✓</span>
+                                ) : (
+                                  <span className="text-purple-300 text-xs">○</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
+          ) : (
+            /* BƯỚC 2: NHẬP LÝ DO & XÁC NHẬN */
+            <div className="space-y-3.5 animate-fade-in">
+              {/* Thẻ Review Tóm Tắt */}
+              <div className="p-4 rounded-3xl bg-purple-950 text-white space-y-2.5 shadow-md border border-purple-800">
+                <div className="flex items-center justify-between border-b border-purple-800/80 pb-2">
+                  <span className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                    XÁC NHẬN YÊU CẦU
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-purple-800 text-purple-200 text-[10px] font-black">
+                    {formatDateWithDayVN(shiftDate)}
+                  </span>
+                </div>
 
-            <div className="pt-2 flex items-center justify-between">
+                <div className="text-xs space-y-1.5">
+                  <div>
+                    <span className="text-purple-300">Nhân viên:</span> <strong>{employee.name}</strong>
+                  </div>
+
+                  {requestType === 'time_change' ? (
+                    <>
+                      <div>
+                        <span className="text-purple-300">Loại:</span>{' '}
+                        <strong className="text-amber-300">
+                          {timeChangeType === 'overtime'
+                            ? 'Tăng ca'
+                            : timeChangeType === 'early_leave'
+                            ? 'Về sớm'
+                            : timeChangeType === 'late_arrival'
+                            ? 'Đi trễ'
+                            : 'Tự chọn'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-purple-300">Ca gốc:</span>{' '}
+                        <span>[CN {origBranch}] {origStartTime} - {origEndTime} ({hoursCalculation.origHours}h)</span>
+                      </div>
+                      <div>
+                        <span className="text-purple-300">Thực tế:</span>{' '}
+                        <strong className="text-emerald-300">[CN {origBranch}] {actualStartTime} - {actualEndTime} ({hoursCalculation.actualHours}h)</strong>
+                      </div>
+                      <div className="pt-1">
+                        <span className="text-purple-300">Chênh lệch:</span>{' '}
+                        <span className="font-black px-2 py-0.5 rounded-md bg-purple-800 text-amber-300">
+                          {hoursCalculation.diffHours > 0 ? `+${hoursCalculation.diffHours}h` : `${hoursCalculation.diffHours}h`}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-purple-300">Đổi với:</span>{' '}
+                        <strong className="text-amber-300">{selectedTargetEmp?.name}</strong>
+                      </div>
+                      <div>
+                        <span className="text-purple-300">Ca của bạn:</span> {myShiftInfo}
+                      </div>
+                      <div>
+                        <span className="text-purple-300">Ca của bạn đổi:</span> {selectedTargetEmp?.targetShiftInfo}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Ô Nhập Lý Do */}
+              <div>
+                <label className="block text-xs font-black text-purple-950 uppercase mb-1">
+                  Lý do <span className="text-rose-500">*</span>:
+                </label>
+                <textarea
+                  rows={3}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder={
+                    requestType === 'time_change'
+                      ? 'VD: Quán đông khách ở lại phụ thêm giờ, hoặc xin về sớm...'
+                      : 'VD: Có việc bận nên nhờ bạn đổi ca giúp...'
+                  }
+                  className="w-full px-3.5 py-2.5 bg-purple-50/60 border-2 border-purple-200 focus:border-purple-600 rounded-2xl text-purple-950 text-xs font-bold outline-none resize-none shadow-2xs"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="pt-3 border-t border-purple-100 flex items-center justify-between gap-2 shrink-0">
+          {step === 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-2xl bg-purple-100 hover:bg-purple-200 text-purple-950 font-bold text-xs border-0 cursor-pointer transition-all"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={handleNextToStep2}
+                className="px-6 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs sm:text-sm border-0 cursor-pointer shadow-md active:scale-95 transition-all flex items-center gap-1"
+              >
+                <span>Tiếp tục</span>
+                <span>➔</span>
+              </button>
+            </>
+          ) : (
+            <>
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-4 py-2 rounded-xl bg-purple-100 text-purple-950 font-black text-xs hover:bg-purple-200 border-0 cursor-pointer"
+                className="px-4 py-2.5 rounded-2xl bg-purple-100 hover:bg-purple-200 text-purple-950 font-bold text-xs border-0 cursor-pointer transition-all"
               >
-                ⬅️ Quay lại
-              </button>
-              <button
-                type="button"
-                disabled={availableEmployees.length === 0}
-                onClick={handleNextToStep3}
-                className="px-5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 disabled:bg-slate-300 text-white font-black text-sm cursor-pointer shadow-md active:scale-95 transition-all flex items-center gap-1.5 border-0"
-              >
-                <span>Xác nhận Bước 3</span>
-                <span>➡️</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* BẢNG 3 (STEP 3): XÁC NHẬN TỔNG HỢP & GỬI YÊU CẦU CHO QUẢN LÝ */}
-        {step === 3 && selectedTargetEmp && (
-          <div className="space-y-3.5 animate-fade-in">
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl space-y-2 text-xs">
-              <h4 className="font-black text-purple-950 text-sm border-b border-purple-200 pb-1 flex items-center gap-1.5">
-                <span>📋</span>
-                <span>TỔNG HỢP YÊU CẦU ĐỔI CA</span>
-              </h4>
-
-              <div className="space-y-1.5 text-purple-900 font-bold">
-                <p>👤 <strong>Người gửi yêu cầu:</strong> <span className="text-purple-700 font-black">{employee.name}</span></p>
-                <p>👥 <strong>Đồng nghiệp đổi/làm giúp:</strong> <span className="text-orange-600 font-black">{selectedTargetEmp.name}</span></p>
-                <p>📅 <strong>Ngày diễn ra đổi:</strong> <span className="text-purple-950 font-black">{formatDateWithDayVN(shiftDate)}</span></p>
-                <p>⏰ <strong>Ca của bạn ({employee.name}):</strong> <span className="text-purple-900 font-extrabold">{myShiftInfo}</span></p>
-                <p>🔄 <strong>Ca của {selectedTargetEmp.name}:</strong> <span className="text-orange-700 font-extrabold">{selectedTargetEmp.targetShiftInfo}</span></p>
-                <p className="pt-1 text-purple-800 italic">💬 <strong>Lý do xin đổi:</strong> &quot;{reason}&quot;</p>
-              </div>
-            </div>
-
-            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 font-bold">
-              ⚡ Yêu cầu sẽ được gửi tới <strong>Quản Lý Phê Duyệt</strong>. Sau khi duyệt, Quản Lý sẽ điều chỉnh trên Lịch Phân Công!
-            </div>
-
-            <div className="pt-2 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="px-4 py-2 rounded-xl bg-purple-100 text-purple-950 font-black text-xs hover:bg-purple-200 border-0 cursor-pointer"
-              >
-                ⬅️ Sửa lại
+                ← Quay lại
               </button>
               <button
                 type="button"
                 disabled={submitting}
-                onClick={handleSubmitSwap}
-                className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm cursor-pointer shadow-md active:scale-95 transition-all flex items-center gap-2 border-0"
+                onClick={handleSubmitTicket}
+                className="px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm border-0 cursor-pointer shadow-md active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
               >
-                {submitting ? '🚀 Đang gửi...' : '🚀 Gửi Yêu Cầu Cho Quản Lý'}
+                <span>{submitting ? 'Đang gửi...' : 'Gửi Yêu Cầu'}</span>
               </button>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>,
     document.body
