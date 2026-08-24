@@ -22,21 +22,21 @@ export default function Calendar({ year, month, shifts = [], onPrevMonth, onNext
   };
 
   return (
-    <div className="glass rounded-2xl overflow-hidden">
+    <div className="bg-white rounded-2xl overflow-hidden border border-purple-200 shadow-2xs">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-glass-border)]">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-purple-100">
         <button
           onClick={onPrevMonth}
-          className="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-white transition-all text-sm cursor-pointer"
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 transition-all text-sm cursor-pointer border border-purple-200/80 font-black"
         >
           ◀
         </button>
-        <h3 className="font-bold text-base text-white">
+        <h3 className="font-black text-base text-purple-950">
           {getMonthName(monthStr)}
         </h3>
         <button
           onClick={onNextMonth}
-          className="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--color-surface-2)] hover:bg-[var(--color-surface-3)] text-[var(--color-text-secondary)] hover:text-white transition-all text-sm cursor-pointer"
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 transition-all text-sm cursor-pointer border border-purple-200/80 font-black"
         >
           ▶
         </button>
@@ -45,7 +45,7 @@ export default function Calendar({ year, month, shifts = [], onPrevMonth, onNext
       {/* Weekday Headers */}
       <div className="grid grid-cols-7 px-3 pt-3">
         {WEEKDAYS.map((day) => (
-          <div key={day} className="text-center text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide py-2">
+          <div key={day} className="text-center text-xs font-black text-purple-700 uppercase tracking-wide py-2">
             {day}
           </div>
         ))}
@@ -65,16 +65,16 @@ export default function Calendar({ year, month, shifts = [], onPrevMonth, onNext
               onClick={() => dayInfo.isCurrentMonth && onDayClick?.(dayInfo.date)}
               disabled={!dayInfo.isCurrentMonth}
               className={`
-                calendar-day aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative cursor-pointer border-0 bg-transparent
-                ${!dayInfo.isCurrentMonth ? 'opacity-20 cursor-default' : ''}
-                ${isToday ? 'today' : ''}
-                ${hasShift ? 'has-shift' : ''}
-                ${isSelected ? 'ring-2 ring-amber-500 bg-[rgba(245,158,11,0.2)]' : ''}
+                calendar-day aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-black relative cursor-pointer border-0 bg-transparent text-purple-950 transition-all
+                ${!dayInfo.isCurrentMonth ? 'opacity-25 cursor-default text-purple-400' : 'hover:bg-purple-50'}
+                ${isToday ? 'bg-purple-100 text-purple-950 ring-2 ring-purple-600 font-black' : ''}
+                ${hasShift ? 'bg-purple-50 font-black text-purple-900' : ''}
+                ${isSelected ? 'ring-2 ring-purple-700 bg-purple-200 text-purple-950' : ''}
               `}
             >
               <span>{dayInfo.day}</span>
               {hasShift && (
-                <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-purple-700" />
               )}
             </button>
           );

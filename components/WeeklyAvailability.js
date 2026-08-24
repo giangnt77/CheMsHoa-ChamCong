@@ -8,6 +8,7 @@ import {
   getBlockedOffDays,
   getHolidaySettings,
   getHolidayForDate,
+  getSpecialEventMode,
 } from '@/lib/supabase';
 import { useToast } from '@/components/Toast';
 
@@ -93,7 +94,6 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
   const [holidays, setHolidays] = useState([]);
 
   useEffect(() => {
-    const { getSpecialEventMode } = require('@/lib/supabase');
     getSpecialEventMode().then(setSpecialEventMode);
   }, []);
 

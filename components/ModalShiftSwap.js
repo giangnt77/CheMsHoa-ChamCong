@@ -98,12 +98,15 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
         applyTimeChangeDefaults(sTime, eTime, timeChangeType);
         setMyShiftInfo(`[CN ${bName}] ${sTime} - ${eTime}`);
       } else {
+        // Không có ca làm trong ngày này (Đang nghỉ)
         setDetectedShift(null);
-        setOrigStartTime('13:00');
-        setOrigEndTime('18:00');
-        setOrigBranch('56');
-        applyTimeChangeDefaults('13:00', '18:00', timeChangeType);
-        setMyShiftInfo(`[CN 56] 13:00 - 18:00`);
+        setOrigStartTime('');
+        setOrigEndTime('');
+        setOrigBranch('');
+        setActualStartTime('13:00');
+        setActualEndTime('18:00');
+        setTimeChangeType('overtime');
+        setMyShiftInfo('Không có ca làm (Ngày nghỉ)');
       }
     } catch (e) {
       console.error(e);
@@ -113,6 +116,12 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
   }
 
   function applyTimeChangeDefaults(sTime, eTime, type) {
+    if (!sTime || !eTime) {
+      setActualStartTime('13:00');
+      setActualEndTime('18:00');
+      return;
+    }
+
     setActualStartTime(sTime);
     if (type === 'overtime') {
       // Mặc định tăng ca thêm 2 tiếng
@@ -143,8 +152,8 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
   // Tính số tiếng ca gốc và ca thực tế
   const hoursCalculation = useMemo(() => {
-    const origH = calculateHours(origStartTime, origEndTime);
-    const actualH = calculateHours(actualStartTime, actualEndTime);
+    const origH = (origStartTime && origEndTime) ? calculateHours(origStartTime, origEndTime) : 0;
+    const actualH = (actualStartTime && actualEndTime) ? calculateHours(actualStartTime, actualEndTime) : 0;
     const diff = Math.round((actualH - origH) * 100) / 100;
     return {
       origHours: origH,
@@ -274,8 +283,10 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
     let ticketPayload = {};
 
     if (requestType === 'time_change') {
-      const origTimeStr = `[CN ${origBranch}] ${origStartTime} - ${origEndTime} (${hoursCalculation.origHours}h)`;
-      const adjustedTimeStr = `[CN ${origBranch}] ${actualStartTime} - ${actualEndTime} (${hoursCalculation.actualHours}h)`;
+      const origTimeStr = detectedShift
+        ? `[CN ${origBranch}] ${origStartTime} - ${origEndTime} (${hoursCalculation.origHours}h)`
+        : 'Không có ca (Làm thêm ngày nghỉ)';
+      const adjustedTimeStr = `${origBranch ? `[CN ${origBranch}] ` : ''}${actualStartTime} - ${actualEndTime} (${hoursCalculation.actualHours}h)`;
       
       ticketPayload = {
         requester_id: employee.id,
@@ -290,7 +301,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
         extra_hours: hoursCalculation.diffHours,
         my_shift_info: origTimeStr,
         target_shift_info: adjustedTimeStr,
-        branch_name: origBranch,
+        branch_name: origBranch || '56',
         reason: reason.trim(),
       };
     } else {
@@ -412,19 +423,33 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
               {/* KHU VỰC CHI TIẾT TÙY THEO LOẠI YÊU CẦU */}
               {requestType === 'time_change' ? (
                 <div className="space-y-3.5 pt-1">
-                  {/* Thẻ Ca Gốc */}
-                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl space-y-1">
-                    <div className="flex items-center justify-between text-xs font-black text-purple-950">
-                      <span>Ca gốc của bạn:</span>
-                      <span className="px-2 py-0.5 rounded-full bg-purple-200 text-purple-900 text-[10px] font-black">
-                        CN {origBranch}
-                      </span>
+                  {/* Thẻ Ca Gốc / Thông Báo Ngày Nghỉ */}
+                  {detectedShift ? (
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl space-y-1">
+                      <div className="flex items-center justify-between text-xs font-black text-purple-950">
+                        <span>Ca gốc của bạn:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-purple-200 text-purple-900 text-[10px] font-black">
+                          CN {origBranch}
+                        </span>
+                      </div>
+                      <div className="text-sm font-black text-purple-800">
+                        {origStartTime} — {origEndTime}{' '}
+                        <span className="text-xs font-extrabold text-purple-600">({hoursCalculation.origHours}h)</span>
+                      </div>
                     </div>
-                    <div className="text-sm font-black text-purple-800">
-                      {origStartTime} — {origEndTime}{' '}
-                      <span className="text-xs font-extrabold text-purple-600">({hoursCalculation.origHours}h)</span>
+                  ) : (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl space-y-1">
+                      <div className="flex items-center justify-between text-xs font-black text-amber-950">
+                        <span>Lịch làm việc:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black">
+                          Không có ca
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-amber-900">
+                        Bạn không có lịch làm trong ngày này. Giờ làm thực tế sẽ được tính là tăng ca (làm thêm ngày nghỉ).
+                      </p>
                     </div>
-                  </div>
+                  )}
 
                   {/* 4 Nút Chọn Nhanh Loại Thay Đổi */}
                   <div>
@@ -442,16 +467,21 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                         }`}
                       >
                         <div>Tăng ca</div>
-                        <div className={`text-[10px] font-bold ${timeChangeType === 'overtime' ? 'text-emerald-100' : 'text-emerald-700'}`}>Làm thêm giờ</div>
+                        <div className={`text-[10px] font-bold ${timeChangeType === 'overtime' ? 'text-emerald-100' : 'text-emerald-700'}`}>
+                          {detectedShift ? 'Làm thêm giờ' : 'Làm ngày nghỉ'}
+                        </div>
                       </button>
 
                       <button
                         type="button"
+                        disabled={!detectedShift}
                         onClick={() => handleSelectTimeChangeType('early_leave')}
-                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center cursor-pointer shadow-2xs ${
-                          timeChangeType === 'early_leave'
-                            ? 'bg-amber-600 text-white border-amber-700'
-                            : 'bg-amber-50 text-amber-950 border-amber-200 hover:bg-amber-100'
+                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center shadow-2xs ${
+                          !detectedShift
+                            ? 'opacity-40 bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : timeChangeType === 'early_leave'
+                            ? 'bg-amber-600 text-white border-amber-700 cursor-pointer'
+                            : 'bg-amber-50 text-amber-950 border-amber-200 hover:bg-amber-100 cursor-pointer'
                         }`}
                       >
                         <div>Về sớm</div>
@@ -460,11 +490,14 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
 
                       <button
                         type="button"
+                        disabled={!detectedShift}
                         onClick={() => handleSelectTimeChangeType('late_arrival')}
-                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center cursor-pointer shadow-2xs ${
-                          timeChangeType === 'late_arrival'
-                            ? 'bg-sky-600 text-white border-sky-700'
-                            : 'bg-sky-50 text-sky-950 border-sky-200 hover:bg-sky-100'
+                        className={`p-2.5 rounded-xl font-black border transition-all text-left flex flex-col justify-center shadow-2xs ${
+                          !detectedShift
+                            ? 'opacity-40 bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : timeChangeType === 'late_arrival'
+                            ? 'bg-sky-600 text-white border-sky-700 cursor-pointer'
+                            : 'bg-sky-50 text-sky-950 border-sky-200 hover:bg-sky-100 cursor-pointer'
                         }`}
                       >
                         <div>Đi trễ</div>
@@ -641,7 +674,7 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                         <span className="text-purple-300">Loại:</span>{' '}
                         <strong className="text-amber-300">
                           {timeChangeType === 'overtime'
-                            ? 'Tăng ca'
+                            ? (detectedShift ? 'Tăng ca' : 'Làm thêm ngày nghỉ')
                             : timeChangeType === 'early_leave'
                             ? 'Về sớm'
                             : timeChangeType === 'late_arrival'
@@ -651,11 +684,17 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                       </div>
                       <div>
                         <span className="text-purple-300">Ca gốc:</span>{' '}
-                        <span>[CN {origBranch}] {origStartTime} - {origEndTime} ({hoursCalculation.origHours}h)</span>
+                        <span>
+                          {detectedShift
+                            ? `[CN ${origBranch}] ${origStartTime} - ${origEndTime} (${hoursCalculation.origHours}h)`
+                            : 'Không có ca (Làm thêm ngày nghỉ)'}
+                        </span>
                       </div>
                       <div>
                         <span className="text-purple-300">Thực tế:</span>{' '}
-                        <strong className="text-emerald-300">[CN {origBranch}] {actualStartTime} - {actualEndTime} ({hoursCalculation.actualHours}h)</strong>
+                        <strong className="text-emerald-300">
+                          {origBranch ? `[CN ${origBranch}] ` : ''}{actualStartTime} - {actualEndTime} ({hoursCalculation.actualHours}h)
+                        </strong>
                       </div>
                       <div className="pt-1">
                         <span className="text-purple-300">Chênh lệch:</span>{' '}

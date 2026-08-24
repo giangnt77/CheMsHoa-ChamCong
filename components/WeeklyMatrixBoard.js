@@ -10,9 +10,16 @@ import {
   deleteSchedule,
   upsertAvailability,
   updateEmployeesSortOrders,
+  getHolidaySettings,
+  getHolidayForDate,
+  getBlockedOffDays,
 } from '@/lib/supabase';
 import { getBranchColorStyle, getToday, formatCurrency } from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
+import ModalSortEmployees from './ModalSortEmployees';
+import ModalBlockOffDays from './ModalBlockOffDays';
+import ModalHolidaySettings from './ModalHolidaySettings';
+import ModalWeekPicker from './ModalWeekPicker';
 
 function calculateShiftHours(shift) {
   if (!shift) return 0;
@@ -62,8 +69,6 @@ function getMondayOfCurrentWeek() {
   return formatDateISO(monday);
 }
 
-
-
 function formatBranchDisplayName(name = '') {
   if (!name) return '';
   const n = String(name).trim();
@@ -104,12 +109,6 @@ function formatAvailTextForView(empAvail, isReadOnly) {
   // Phía Admin: Hiện đầy đủ ghi chú
   return `📝 ${rawNote || 'Tùy ca'}`;
 }
-
-import ModalSortEmployees from './ModalSortEmployees';
-import ModalBlockOffDays from './ModalBlockOffDays';
-import ModalHolidaySettings from './ModalHolidaySettings';
-import ModalWeekPicker from './ModalWeekPicker';
-import { getHolidaySettings, getHolidayForDate, getBlockedOffDays } from '@/lib/supabase';
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 

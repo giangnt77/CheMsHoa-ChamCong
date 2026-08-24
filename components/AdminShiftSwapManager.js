@@ -540,7 +540,7 @@ export default function AdminShiftSwapManager() {
             <div className="flex items-center justify-between border-b border-sky-100 pb-3">
               <div>
                 <h3 className="font-black text-base text-sky-950">Cài Đặt Telegram Bot</h3>
-                <p className="text-[11px] text-sky-700 font-bold">Nhận thông báo khi có ticket mới</p>
+                <p className="text-[11px] text-sky-700 font-bold">Nhận thông báo khi có yêu cầu mới</p>
               </div>
               <button
                 type="button"
@@ -557,7 +557,7 @@ export default function AdminShiftSwapManager() {
                   Telegram Bot Thông Báo Tự Động
                 </p>
                 <p className="text-[11px]">
-                  Mỗi khi nhân viên gửi ticket đổi ca hoặc báo làm thêm/về sớm, Bot Telegram sẽ tự động gửi tin nhắn tới Telegram của Quản Lý.
+                  Mỗi khi nhân viên gửi yêu cầu đổi ca hoặc báo làm thêm/về sớm, Bot Telegram sẽ tự động gửi tin nhắn tới Telegram của Quản Lý.
                 </p>
               </div>
 
