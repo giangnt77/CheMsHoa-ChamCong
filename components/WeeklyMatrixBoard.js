@@ -43,7 +43,7 @@ function calculateShiftHours(shift) {
   return Math.max(0, (endMinutes - startMinutes) / 60);
 }
 
-// Bóc tách text hiển thị chi tiết (ví dụ: +4h làm thay Kỳ, +1h tăng ca, Về sớm 17h)
+// Bóc tách text hiển thị chi tiết (ví dụ: [Gốc 15h-22h] đổi ca sáng, +3h làm thay Loan...)
 function getShiftAdjustmentDisplay(shift) {
   if (!shift || !shift.note) return null;
   const note = shift.note.trim();
@@ -55,13 +55,25 @@ function getShiftAdjustmentDisplay(shift) {
     const origEnd = match[2];
     const insidePipe = (match[3] || '').trim();
     const outsideText = (match[4] || '').trim();
+    const sH = origStart.replace(':00', 'h');
+    const eH = origEnd.replace(':00', 'h');
 
-    const detail = outsideText || insidePipe;
-    if (detail) {
-      return detail;
+    // 1. Trường hợp tăng ca làm thay (ví dụ: +3h làm thay Mai Loan (từ 19:00))
+    if (outsideText && outsideText.startsWith('+')) {
+      return outsideText.replace(/:00/g, 'h');
     }
 
-    // Nếu không có text chi tiết, tự tính chênh lệch so với giờ ca hiện tại
+    // 2. Trường hợp bạn kia làm thay từ mấy giờ (ví dụ: [Gốc 16:00-22:00 | Tường Duy làm thay từ 19:00])
+    if (insidePipe) {
+      return `[Gốc ${sH}-${eH}] ${insidePipe.replace(/:00/g, 'h')}`;
+    }
+
+    // 3. Trường hợp đổi ca / ghi chú tùy biến (ví dụ: [Gốc: 15:00-22:00] đổi ca sáng)
+    if (outsideText) {
+      return `[Gốc ${sH}-${eH}] ${outsideText.replace(/:00/g, 'h')}`;
+    }
+
+    // 4. Mặc định tính chênh lệch giờ so với ca hiện tại
     const curStart = shift.start_time ? shift.start_time.slice(0, 5) : '';
     const curEnd = shift.end_time ? shift.end_time.slice(0, 5) : '';
     if (curStart && curEnd && origStart && origEnd) {
@@ -75,10 +87,10 @@ function getShiftAdjustmentDisplay(shift) {
       if (origH < 0) origH += 24;
       const diff = Math.round((curH - origH) * 100) / 100;
       if (diff > 0) return `+${diff}h tăng ca`;
-      if (diff < 0) return `Về sớm (${diff}h)`;
+      if (diff < 0) return `[Gốc ${sH}-${eH}] Về sớm (${diff}h)`;
     }
 
-    return `Gốc: ${origStart}-${origEnd}`;
+    return `Gốc: ${sH}-${eH}`;
   }
 
   return note;

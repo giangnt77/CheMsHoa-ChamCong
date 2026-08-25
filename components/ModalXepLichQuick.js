@@ -712,71 +712,126 @@ export default function ModalXepLichQuick({
             </div>
           </div>
 
-          {/* ĐIỀU CHỈNH GIỜ & CA GỐC (TỐI ƯU MOBILE 1 KHỐI DUY NHẤT - CHỈ HIỆN KHI ĐÃ CHỐT LỊCH) */}
+          {/* ĐIỀU CHỈNH GIỜ & CA GỐC (THIẾT KẾ CARD & CHIP HIỆN ĐẠI, GỌN GÀNG CHO MOBILE) */}
           {isWeekLocked && isEditing && origShiftInfo && timeDiff.isChanged && (
-            <div className="bg-purple-50 p-3 rounded-2xl border border-purple-200 space-y-2.5">
-              {/* Dòng 1: Tóm tắt giờ */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-black text-purple-950">
-                  Gốc: {origShiftInfo.startTime}-{origShiftInfo.endTime} ➔ Mới: {startTime}-{endTime}
-                </span>
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50/50 p-3 sm:p-3.5 rounded-2xl border border-purple-200 shadow-2xs space-y-3">
+              {/* Dòng 1: Header tóm tắt giờ */}
+              <div className="flex items-center justify-between text-xs pb-2 border-b border-purple-200/70">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">🕒</span>
+                  <span className="font-extrabold text-purple-900">
+                    Gốc: <b className="text-purple-950 font-black">{origShiftInfo.startTime}-{origShiftInfo.endTime}</b> ➔ Mới: <b className="text-purple-950 font-black">{startTime}-{endTime}</b>
+                  </span>
+                </div>
                 <span
-                  className={`px-2 py-0.5 rounded-lg font-black text-xs text-white ${
-                    timeDiff.diffHours > 0 ? 'bg-emerald-600' : 'bg-amber-600'
+                  className={`px-2 py-0.5 rounded-lg font-black text-xs text-white shadow-2xs ${
+                    timeDiff.diffHours > 0 ? 'bg-emerald-600' : 'bg-rose-600'
                   }`}
                 >
                   {timeDiff.diffHours > 0 ? `+${timeDiff.diffHours}h` : `${timeDiff.diffHours}h`}
                 </span>
               </div>
 
-              {/* Dòng 2: Chọn lý do (1 Menu chọn duy nhất, cực kỳ gọn gàng trên điện thoại) */}
-              <div>
-                <select
-                  value={
-                    selectedPeerId
-                      ? `peer_${selectedPeerId}`
-                      : note.includes('tăng ca')
-                      ? 'ot'
-                      : note.includes('Về sớm')
-                      ? 'early'
-                      : 'none'
-                  }
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val.startsWith('peer_')) {
-                      const pid = val.replace('peer_', '');
-                      handleSelectPeerHandover(pid);
-                    } else if (val === 'ot') {
-                      applyAdjustmentReason('ot');
-                    } else if (val === 'early') {
-                      applyAdjustmentReason('early');
-                    } else {
+              {/* Dòng 2: Nút chọn chế độ điều chỉnh nhanh */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-black text-purple-950 uppercase tracking-wide">
+                  Lý do thay đổi ca:
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {/* Nút 1: Làm thay bạn khác (Chỉ hiện khi ngày đó có bạn khác đi làm) */}
+                  {peerStaffOnDay.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedPeerId && peerStaffOnDay[0]) {
+                          handleSelectPeerHandover(peerStaffOnDay[0].employeeId);
+                        }
+                      }}
+                      className={`px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                        selectedPeerId
+                          ? 'bg-purple-700 text-white shadow-purple-200 scale-102'
+                          : 'bg-white text-purple-900 border border-purple-200 hover:bg-purple-100'
+                      }`}
+                    >
+                      <span>👥</span>
+                      <span>Làm thay bạn khác</span>
+                    </button>
+                  )}
+
+                  {/* Nút 2: Tăng ca / Về sớm cá nhân */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (timeDiff.diffHours > 0) {
+                        applyAdjustmentReason('ot');
+                      } else {
+                        applyAdjustmentReason('early');
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                      !selectedPeerId && (note.includes('tăng ca') || note.includes('Về sớm'))
+                        ? 'bg-purple-700 text-white shadow-purple-200 scale-102'
+                        : 'bg-white text-purple-900 border border-purple-200 hover:bg-purple-100'
+                    }`}
+                  >
+                    <span>⚡</span>
+                    <span>{timeDiff.diffHours > 0 ? `Tăng ca riêng (+${timeDiff.diffHours}h)` : `Về sớm riêng (${endTime})`}</span>
+                  </button>
+
+                  {/* Nút 3: Đổi sang ca khác */}
+                  <button
+                    type="button"
+                    onClick={() => {
                       setSelectedPeerId('');
                       setPeerLeftTime('');
-                      const cleaned = note.replace(/\[(?:Ca gốc|Gốc):\s*[^\]]+\]/g, '').trim();
-                      setNote(cleaned);
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs font-black outline-none focus:border-purple-600 shadow-2xs cursor-pointer"
-                >
-                  <option value="none">-- Chọn lý do điều chỉnh --</option>
-                  {timeDiff.diffHours > 0 && <option value="ot">Tăng ca cá nhân (+{timeDiff.diffHours}h)</option>}
-                  {timeDiff.diffHours < 0 && <option value="early">Về sớm cá nhân ({endTime})</option>}
-                  {peerStaffOnDay.length > 0 && (
-                    <optgroup label={timeDiff.diffHours > 0 ? 'Làm thay cho bạn:' : 'Bạn khác làm thay phần còn lại:'}>
-                      {peerStaffOnDay.map((p) => (
-                        <option key={p.employeeId} value={`peer_${p.employeeId}`}>
-                          {timeDiff.diffHours > 0
-                            ? `Làm thay ${p.name} (${p.origStartTime || p.startTime}-${p.origEndTime || p.endTime})`
-                            : `${p.name} làm thay phần còn lại (${p.origStartTime || p.startTime}-${p.origEndTime || p.endTime})`}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
+                      setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] Đổi sang ca ${startTime}-${endTime}`);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                      !selectedPeerId && note.includes('Đổi')
+                        ? 'bg-purple-700 text-white shadow-purple-200 scale-102'
+                        : 'bg-white text-purple-900 border border-purple-200 hover:bg-purple-100'
+                    }`}
+                  >
+                    <span>🔄</span>
+                    <span>Đổi sang ca khác</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Dòng 3: Chi tiết trực quan ca làm thay & tự động đồng bộ */}
+              {/* Dòng 3: Danh sách Chip nhân viên làm thay (Dễ bấm, trực quan 100%) */}
+              {selectedPeerId && peerStaffOnDay.length > 0 && (
+                <div className="space-y-1.5 bg-white p-2.5 rounded-xl border border-purple-200">
+                  <div className="text-[11px] font-bold text-purple-900">
+                    {timeDiff.diffHours > 0 ? '👉 Bạn đang làm thay cho:' : '👉 Bạn khác nhận làm thay phần còn lại:'}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                    {peerStaffOnDay.map((p) => {
+                      const isSelected = selectedPeerId === p.employeeId;
+                      const shiftStr = `${p.origStartTime || p.startTime}-${p.origEndTime || p.endTime}`;
+                      return (
+                        <button
+                          key={p.employeeId}
+                          type="button"
+                          onClick={() => handleSelectPeerHandover(p.employeeId)}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                            isSelected
+                              ? 'bg-purple-900 text-white border-2 border-purple-700 ring-2 ring-purple-300'
+                              : 'bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-200'
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                          <span>{p.name}</span>
+                          <span className={`text-[10px] font-bold ${isSelected ? 'text-purple-200' : 'text-purple-600'}`}>
+                            ({shiftStr})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Dòng 4: Chi tiết trực quan ca làm thay & tự động đồng bộ */}
               {selectedPeerId && (() => {
                 const peer = peerStaffOnDay.find((p) => p.employeeId === selectedPeerId);
                 if (!peer) return null;
