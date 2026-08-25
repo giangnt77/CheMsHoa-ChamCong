@@ -23,6 +23,7 @@ export default function ModalXepLichQuick({
   onRemoveOff,
   editItem = null, // Nếu editItem != null -> Chế độ chỉnh sửa ca làm đã có
   initialEmployee = null,
+  isWeekLocked = false, // CHỈ kích hoạt ghi nhận ca gốc & làm thay khi tuần đã được chốt!
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -83,6 +84,87 @@ export default function ModalXepLichQuick({
     });
   }, [employees]);
 
+  // 1. Trích xuất ca gốc ban đầu (nếu ca này từng được điều chỉnh và có tag [Gốc: ...])
+  const origShiftInfo = useMemo(() => {
+    if (!editItem) return null;
+    const currentStart = editItem.start_time ? editItem.start_time.slice(0, 5) : '';
+    const currentEnd = editItem.end_time ? editItem.end_time.slice(0, 5) : '';
+    const noteStr = editItem.note || '';
+
+    const match = noteStr.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
+    if (match) {
+      const s = match[1];
+      const e = match[2];
+      return {
+        startTime: s,
+        endTime: e,
+        hours: calcHours(s, e),
+        isPreserved: true,
+      };
+    }
+
+    if (currentStart && currentEnd) {
+      return {
+        startTime: currentStart,
+        endTime: currentEnd,
+        hours: calcHours(currentStart, currentEnd),
+        isPreserved: false,
+      };
+    }
+    return null;
+  }, [editItem]);
+
+  // 2. Chênh lệch giờ so với ca gốc
+  const timeDiff = useMemo(() => {
+    if (!origShiftInfo) return { diffHours: 0, isChanged: false };
+    const diffHours = Math.round((hours - origShiftInfo.hours) * 100) / 100;
+    const isChanged = startTime !== origShiftInfo.startTime || endTime !== origShiftInfo.endTime;
+    return { diffHours, isChanged };
+  }, [origShiftInfo, hours, startTime, endTime]);
+
+  // 3. Danh sách các nhân viên khác có ca làm trong cùng ngày (để chọn làm thay)
+  const peerStaffOnDay = useMemo(() => {
+    if (!daySchedule || !staffOnlyEmployees) return [];
+    return daySchedule
+      .filter((s) => s.employee_id !== selectedEmpId)
+      .map((s) => {
+        const emp = staffOnlyEmployees.find((e) => e.id === s.employee_id);
+        const branchObj = branches.find((b) => b.id === s.branch_id) || s.branches;
+        const curStart = s.start_time ? s.start_time.slice(0, 5) : '';
+        const curEnd = s.end_time ? s.end_time.slice(0, 5) : '';
+
+        // Trích xuất ca gốc ban đầu của peer nếu peer này đã từng bị sửa/đổi ca
+        let origStart = curStart;
+        let origEnd = curEnd;
+        if (s.note) {
+          const match = s.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
+          if (match) {
+            origStart = match[1];
+            origEnd = match[2];
+          }
+        }
+
+        return {
+          id: s.id,
+          employeeId: s.employee_id,
+          name: emp?.name || 'Nhân viên',
+          nickname: emp?.nickname || '',
+          branchName: branchObj?.name || '',
+          branchColor: branchObj?.color || '',
+          startTime: curStart,
+          endTime: curEnd,
+          origStartTime: origStart,
+          origEndTime: origEnd,
+          hours: s.hours || calcHours(curStart, curEnd),
+        };
+      })
+      .filter((p) => p.name && p.name !== 'Nhân viên');
+  }, [daySchedule, staffOnlyEmployees, selectedEmpId, branches]);
+
+  const [selectedPeerId, setSelectedPeerId] = useState('');
+  const [peerLeftTime, setPeerLeftTime] = useState('18:00');
+  const [syncPeerShift, setSyncPeerShift] = useState(true);
+
   // Group nhân viên theo đăng ký rảnh ngày đó (chỉ áp dụng cho nhân viên thực sự)
   const registeredEmps = useMemo(() => {
     const staffIds = new Set(staffOnlyEmployees.map((e) => e.id));
@@ -93,6 +175,69 @@ export default function ModalXepLichQuick({
     const staffIds = new Set(staffOnlyEmployees.map((e) => e.id));
     return availabilities.filter((a) => a.type === 'off' && staffIds.has(a.employee_id));
   }, [availabilities, staffOnlyEmployees]);
+
+  // Hàm chọn làm thay thông minh: tự động điền ghi chú chuẩn xác kèm mốc giờ làm thay
+  function handleSelectPeerHandover(peerId) {
+    setSelectedPeerId(peerId);
+    if (!peerId) return;
+
+    const peer = peerStaffOnDay.find((p) => p.employeeId === peerId);
+    if (!peer || !origShiftInfo) return;
+
+    const diff = timeDiff.diffHours;
+    if (diff > 0) {
+      const peerEnd = peer.origEndTime || peer.endTime || '22:00';
+      const [poeh, poem] = peerEnd.split(':').map(Number);
+      const diffMin = Math.round(diff * 60);
+      const peerLeftMin = (poeh * 60 + poem - diffMin + 24 * 60) % (24 * 60);
+      const peerLeftTimeStr = `${String(Math.floor(peerLeftMin / 60)).padStart(2, '0')}:${String(peerLeftMin % 60).padStart(2, '0')}`;
+
+      setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] +${diff}h làm thay ${peer.name} (từ ${peerLeftTimeStr})`);
+    } else if (diff < 0) {
+      setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] ${peer.name} làm thay từ ${endTime}`);
+    }
+  }
+
+  // Cho phép chỉnh giờ bạn kia về trực tiếp trong ô nhập
+  function handlePeerLeftTimeChange(newLeftTime) {
+    if (!newLeftTime || !selectedPeerId || !origShiftInfo) return;
+    const peer = peerStaffOnDay.find((p) => p.employeeId === selectedPeerId);
+    if (!peer) return;
+
+    const peerEnd = peer.origEndTime || peer.endTime || '22:00';
+    const handoverH = calcHours(newLeftTime, peerEnd);
+    if (handoverH <= 0) return;
+
+    const totalNewH = origShiftInfo.hours + handoverH;
+    const [osh, osm] = origShiftInfo.startTime.split(':').map(Number);
+    const targetEndMinutes = (osh * 60 + osm + Math.round(totalNewH * 60)) % (24 * 60);
+    const newEh = String(Math.floor(targetEndMinutes / 60)).padStart(2, '0');
+    const newEm = String(targetEndMinutes % 60).padStart(2, '0');
+    const newEndTimeStr = `${newEh}:${newEm}`;
+
+    setEndTime(newEndTimeStr);
+    setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] +${handoverH}h làm thay ${peer.name} (từ ${newLeftTime})`);
+  }
+
+  // Preset gán lý do nhanh vào ghi chú
+  function applyAdjustmentReason(type, extraInfo = {}) {
+    if (!origShiftInfo) return;
+    const { startTime: os, endTime: oe } = origShiftInfo;
+    const diff = timeDiff.diffHours;
+    const diffSign = diff > 0 ? `+${diff}h` : `${diff}h`;
+
+    if (type === 'ot') {
+      setSelectedPeerId('');
+      setNote(`[Gốc: ${os}-${oe}] ${diffSign} tăng ca`);
+    } else if (type === 'early') {
+      setSelectedPeerId('');
+      setNote(`[Gốc: ${os}-${oe}] Về sớm ${endTime}`);
+    } else if (type === 'clear') {
+      setSelectedPeerId('');
+      const cleaned = note.replace(/\[(?:Ca gốc|Gốc):\s*[^\]]+\]/g, '').trim();
+      setNote(cleaned);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -109,6 +254,26 @@ export default function ModalXepLichQuick({
       }
     }
 
+    // Tự động đảm bảo ghi chú có thông tin ca gốc khi sửa giờ
+    let finalNote = note;
+    if (isEditing && origShiftInfo && timeDiff.isChanged) {
+      if (!finalNote.includes('[Gốc:') && !finalNote.includes('[Ca gốc:')) {
+        const diffSign = timeDiff.diffHours > 0 ? `+${timeDiff.diffHours}h` : `${timeDiff.diffHours}h`;
+        const caGocTag = `[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime} | ${diffSign}]`;
+        finalNote = caGocTag + (finalNote ? ' ' + finalNote : '');
+      }
+    }
+
+    // Thông tin đồng bộ ca của bạn làm thay nếu có (chỉ khi có thay đổi giờ)
+    let peerAdjustment = null;
+    if (selectedPeerId && syncPeerShift && timeDiff.diffHours !== 0) {
+      peerAdjustment = {
+        peerEmployeeId: selectedPeerId,
+        type: timeDiff.diffHours > 0 ? 'reduce' : 'increase',
+        hoursDiff: Math.abs(timeDiff.diffHours),
+      };
+    }
+
     await onSave({
       employeeId: selectedEmpId,
       branchId: selectedBranchId,
@@ -116,7 +281,9 @@ export default function ModalXepLichQuick({
       startTime,
       endTime,
       hours,
-      note,
+      note: finalNote,
+      editId: editItem?.id || null,
+      peerAdjustment,
     });
 
     setSubmitting(false);
@@ -471,7 +638,7 @@ export default function ModalXepLichQuick({
           </div>
 
           {/* BỘ CHỌN GIỜ 24H DỄ BẤM 1 CHẠM */}
-          <div className="bg-purple-50/60 p-3.5 rounded-2xl border border-purple-200/80 space-y-3">
+          <div className="bg-purple-50/60 p-3 rounded-2xl border border-purple-200/80 space-y-3">
             {/* Hàng chọn Giờ vào */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -500,7 +667,7 @@ export default function ModalXepLichQuick({
                       : 'bg-white text-purple-950 border-purple-200 hover:bg-purple-100 font-bold'
                       }`}
                   >
-                    {t.includes(':30') ? t : `${parseInt(t)}h`}
+                    {t.endsWith(':00') ? `${parseInt(t)}h` : t}
                   </button>
                 ))}
               </div>
@@ -524,7 +691,7 @@ export default function ModalXepLichQuick({
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', "21:45", '22:00'].map((t) => (
+                {['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '21:45', '22:00'].map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -534,7 +701,7 @@ export default function ModalXepLichQuick({
                       : 'bg-white text-purple-950 border-purple-200 hover:bg-purple-100 font-bold'
                       }`}
                   >
-                    {t.includes(':30') ? t : `${parseInt(t)}h`}
+                    {t.endsWith(':00') ? `${parseInt(t)}h` : t}
                   </button>
                 ))}
               </div>
@@ -544,6 +711,175 @@ export default function ModalXepLichQuick({
               ⏱️ Số giờ tự tính: <span className="text-sm font-black text-purple-950">{hours} tiếng</span>
             </div>
           </div>
+
+          {/* ĐIỀU CHỈNH GIỜ & CA GỐC (TỐI ƯU MOBILE 1 KHỐI DUY NHẤT - CHỈ HIỆN KHI ĐÃ CHỐT LỊCH) */}
+          {isWeekLocked && isEditing && origShiftInfo && timeDiff.isChanged && (
+            <div className="bg-purple-50 p-3 rounded-2xl border border-purple-200 space-y-2.5">
+              {/* Dòng 1: Tóm tắt giờ */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-black text-purple-950">
+                  Gốc: {origShiftInfo.startTime}-{origShiftInfo.endTime} ➔ Mới: {startTime}-{endTime}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-lg font-black text-xs text-white ${
+                    timeDiff.diffHours > 0 ? 'bg-emerald-600' : 'bg-amber-600'
+                  }`}
+                >
+                  {timeDiff.diffHours > 0 ? `+${timeDiff.diffHours}h` : `${timeDiff.diffHours}h`}
+                </span>
+              </div>
+
+              {/* Dòng 2: Chọn lý do (1 Menu chọn duy nhất, cực kỳ gọn gàng trên điện thoại) */}
+              <div>
+                <select
+                  value={
+                    selectedPeerId
+                      ? `peer_${selectedPeerId}`
+                      : note.includes('tăng ca')
+                      ? 'ot'
+                      : note.includes('Về sớm')
+                      ? 'early'
+                      : 'none'
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.startsWith('peer_')) {
+                      const pid = val.replace('peer_', '');
+                      handleSelectPeerHandover(pid);
+                    } else if (val === 'ot') {
+                      applyAdjustmentReason('ot');
+                    } else if (val === 'early') {
+                      applyAdjustmentReason('early');
+                    } else {
+                      setSelectedPeerId('');
+                      setPeerLeftTime('');
+                      const cleaned = note.replace(/\[(?:Ca gốc|Gốc):\s*[^\]]+\]/g, '').trim();
+                      setNote(cleaned);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-purple-950 text-xs font-black outline-none focus:border-purple-600 shadow-2xs cursor-pointer"
+                >
+                  <option value="none">-- Chọn lý do điều chỉnh --</option>
+                  {timeDiff.diffHours > 0 && <option value="ot">Tăng ca cá nhân (+{timeDiff.diffHours}h)</option>}
+                  {timeDiff.diffHours < 0 && <option value="early">Về sớm cá nhân ({endTime})</option>}
+                  {peerStaffOnDay.length > 0 && (
+                    <optgroup label={timeDiff.diffHours > 0 ? 'Làm thay cho bạn:' : 'Bạn khác làm thay phần còn lại:'}>
+                      {peerStaffOnDay.map((p) => (
+                        <option key={p.employeeId} value={`peer_${p.employeeId}`}>
+                          {timeDiff.diffHours > 0
+                            ? `Làm thay ${p.name} (${p.origStartTime || p.startTime}-${p.origEndTime || p.endTime})`
+                            : `${p.name} làm thay phần còn lại (${p.origStartTime || p.startTime}-${p.origEndTime || p.endTime})`}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+
+              {/* Dòng 3: Chi tiết trực quan ca làm thay & tự động đồng bộ */}
+              {selectedPeerId && (() => {
+                const peer = peerStaffOnDay.find((p) => p.employeeId === selectedPeerId);
+                if (!peer) return null;
+                const isIncrease = timeDiff.diffHours > 0;
+                const currentEmp = staffOnlyEmployees.find((e) => e.id === selectedEmpId);
+                const currentEmpName = currentEmp?.name || 'Nhân viên';
+
+                const peerOrigStart = peer.origStartTime || peer.startTime || '09:00';
+                const peerOrigEnd = peer.origEndTime || peer.endTime || '22:00';
+
+                // Giờ bạn kia về khi người này tăng ca làm thay
+                const [poeh, poem] = peerOrigEnd.split(':').map(Number);
+                const diffMin = Math.round(Math.abs(timeDiff.diffHours) * 60);
+                const peerLeftMin = (poeh * 60 + poem - diffMin + 24 * 60) % (24 * 60);
+                const peerLeftTimeStr = `${String(Math.floor(peerLeftMin / 60)).padStart(2, '0')}:${String(peerLeftMin % 60).padStart(2, '0')}`;
+
+                // Giờ bạn kia ra mới khi người này về sớm
+                const peerNewEndMin = (poeh * 60 + poem + diffMin) % (24 * 60);
+                const peerNewEndStr = `${String(Math.floor(peerNewEndMin / 60)).padStart(2, '0')}:${String(peerNewEndMin % 60).padStart(2, '0')}`;
+
+                return (
+                  <div className="bg-white p-3 rounded-xl border border-purple-200 text-xs space-y-2.5 animate-fade-in shadow-2xs">
+                    {/* Hàng 1: Hiển thị rõ bạn kia về lúc mấy giờ */}
+                    {isIncrease ? (
+                      <div className="flex items-center justify-between bg-purple-50 p-2 rounded-lg border border-purple-100">
+                        <span className="font-black text-purple-950 flex items-center gap-1">
+                          <span>🕒</span> <b>{peer.name}</b> về lúc:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="time"
+                            value={peerLeftTimeStr}
+                            onChange={(e) => handlePeerLeftTimeChange(e.target.value)}
+                            className="px-2 py-0.5 bg-white border border-purple-300 rounded-lg text-purple-950 font-black text-xs outline-none cursor-pointer"
+                            title="Chỉnh giờ bạn kia về để tự tính giờ làm cho mình"
+                          />
+                          <span className="font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded text-[11px]">
+                            +{timeDiff.diffHours}h
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-rose-50 p-2 rounded-lg border border-rose-100">
+                        <span className="font-black text-rose-950 flex items-center gap-1">
+                          <span>🕒</span> <b>{currentEmpName}</b> về sớm lúc:
+                        </span>
+                        <span className="font-black text-rose-800 bg-rose-200/80 px-2 py-0.5 rounded text-xs">
+                          {endTime} ({timeDiff.diffHours}h)
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Hàng 2: Tóm tắt 2 ca sau khi đổi */}
+                    <div className="text-[11px] font-bold text-purple-900 bg-purple-50/50 p-2 rounded-lg border border-purple-100 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span>
+                          👤 <b>{peer.name}</b>:
+                        </span>
+                        <span className="font-black text-purple-950">
+                          {isIncrease ? `${peerOrigStart} - ${peerLeftTimeStr}` : `${peerOrigStart} - ${peerNewEndStr}`}
+                          <span className={`ml-1 text-[10px] font-black ${isIncrease ? 'text-amber-700' : 'text-emerald-700'}`}>
+                            ({isIncrease ? `-${timeDiff.diffHours}h` : `+${Math.abs(timeDiff.diffHours)}h`})
+                          </span>
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-purple-100">
+                        <span>
+                          👤 <b>{currentEmpName}</b>:
+                        </span>
+                        <span className="font-black text-purple-950">
+                          {startTime} - {endTime}
+                          <span className={`ml-1 text-[10px] font-black ${isIncrease ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            ({isIncrease ? `+${timeDiff.diffHours}h` : `${timeDiff.diffHours}h`})
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Hàng 3: Checkbox tự động đồng bộ */}
+                    <label className="flex items-center gap-2 font-bold text-purple-950 cursor-pointer pt-1 border-t border-purple-100">
+                      <input
+                        type="checkbox"
+                        checked={syncPeerShift}
+                        onChange={(e) => setSyncPeerShift(e.target.checked)}
+                        className="w-4 h-4 rounded text-purple-700 focus:ring-purple-500 cursor-pointer"
+                      />
+                      <span className="text-[11.5px]">
+                        {isIncrease ? (
+                          <>
+                            Tự động rút ngắn ca của <b>{peer.name}</b> về <b>{peerLeftTimeStr}</b>
+                          </>
+                        ) : (
+                          <>
+                            Tự động tăng ca cho <b>{peer.name}</b> đến <b>{peerNewEndStr}</b>
+                          </>
+                        )}
+                      </span>
+                    </label>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* Ghi chú */}
           <div>

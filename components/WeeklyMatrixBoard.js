@@ -13,6 +13,10 @@ import {
   getHolidaySettings,
   getHolidayForDate,
   getBlockedOffDays,
+  getWeekLockStatus,
+  saveWeekLockStatus,
+  getAllEmployeeRates,
+  calculateSalaryFromShifts,
 } from '@/lib/supabase';
 import { getBranchColorStyle, getToday, formatCurrency } from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
@@ -20,6 +24,7 @@ import ModalSortEmployees from './ModalSortEmployees';
 import ModalBlockOffDays from './ModalBlockOffDays';
 import ModalHolidaySettings from './ModalHolidaySettings';
 import ModalWeekPicker from './ModalWeekPicker';
+import ModalAdjustedShiftsList from './ModalAdjustedShiftsList';
 
 function calculateShiftHours(shift) {
   if (!shift) return 0;
@@ -36,6 +41,47 @@ function calculateShiftHours(shift) {
     endMinutes += 24 * 60;
   }
   return Math.max(0, (endMinutes - startMinutes) / 60);
+}
+
+// Bóc tách text hiển thị chi tiết (ví dụ: +4h làm thay Kỳ, +1h tăng ca, Về sớm 17h)
+function getShiftAdjustmentDisplay(shift) {
+  if (!shift || !shift.note) return null;
+  const note = shift.note.trim();
+
+  // Kiểm tra format [Gốc: ...] hoặc [Ca gốc: ...]
+  const match = note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})(?:\s*\|\s*([^\]]+))?\]\s*(.*)/i);
+  if (match) {
+    const origStart = match[1];
+    const origEnd = match[2];
+    const insidePipe = (match[3] || '').trim();
+    const outsideText = (match[4] || '').trim();
+
+    const detail = outsideText || insidePipe;
+    if (detail) {
+      return detail;
+    }
+
+    // Nếu không có text chi tiết, tự tính chênh lệch so với giờ ca hiện tại
+    const curStart = shift.start_time ? shift.start_time.slice(0, 5) : '';
+    const curEnd = shift.end_time ? shift.end_time.slice(0, 5) : '';
+    if (curStart && curEnd && origStart && origEnd) {
+      const [sh, sm] = curStart.split(':').map(Number);
+      const [eh, em] = curEnd.split(':').map(Number);
+      const [osh, osm] = origStart.split(':').map(Number);
+      const [oeh, oem] = origEnd.split(':').map(Number);
+      let curH = (eh * 60 + em - (sh * 60 + sm)) / 60;
+      if (curH < 0) curH += 24;
+      let origH = (oeh * 60 + oem - (osh * 60 + osm)) / 60;
+      if (origH < 0) origH += 24;
+      const diff = Math.round((curH - origH) * 100) / 100;
+      if (diff > 0) return `+${diff}h tăng ca`;
+      if (diff < 0) return `Về sớm (${diff}h)`;
+    }
+
+    return `Gốc: ${origStart}-${origEnd}`;
+  }
+
+  return note;
 }
 
 /**
@@ -127,6 +173,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const [showBlockOffModal, setShowBlockOffModal] = useState(false);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
+  const [showAdjustedShiftsModal, setShowAdjustedShiftsModal] = useState(false);
+  const [isWeekLocked, setIsWeekLocked] = useState(false);
+  const [ratesMap, setRatesMap] = useState({});
   const [holidays, setHolidays] = useState([]);
   const [blockedMap, setBlockedMap] = useState({});
 
@@ -142,6 +191,23 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const weekDays = useMemo(() => getWeekDaysFromMonday(currentMonday), [currentMonday]);
   const startDate = weekDays[0];
   const endDate = weekDays[6];
+
+  // Danh sách các ca có phát sinh đổi ca / làm thay / tăng ca / về sớm trong tuần
+  const adjustedShiftsInWeek = useMemo(() => {
+    const activeSched = localSchedule.length > 0 ? localSchedule : schedule;
+    return activeSched.filter((s) => {
+      if (!s || !s.note) return false;
+      const n = s.note.toLowerCase();
+      return (
+        n.includes('[gốc:') ||
+        n.includes('[ca gốc:') ||
+        n.includes('làm thay') ||
+        n.includes('tăng ca') ||
+        n.includes('về sớm') ||
+        n.includes('gánh ca')
+      );
+    });
+  }, [localSchedule, schedule]);
 
   const tableContainerRef = useRef(null);
 
@@ -172,12 +238,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       setLoading(true);
     }
     try {
-      const [branchData, schedData, availData, holidayData, blockedData] = await Promise.all([
+      const [branchData, schedData, availData, holidayData, blockedData, lockStatus, allRatesData] = await Promise.all([
         getBranches(),
         getScheduleByDateRange(startDate, endDate),
         getAvailabilityByDateRange(startDate, endDate),
         getHolidaySettings(),
         getBlockedOffDays(),
+        getWeekLockStatus(currentMonday),
+        getAllEmployeeRates(),
       ]);
       setBranches(branchData);
       setSchedule(schedData);
@@ -187,6 +255,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       setAvailability(availData);
       setLocalAvailability(availData);
       setHolidays(Array.isArray(holidayData) ? holidayData : []);
+      setIsWeekLocked(Boolean(lockStatus));
+
+      const rMap = {};
+      (allRatesData || []).forEach((r) => {
+        if (!rMap[r.employee_id]) rMap[r.employee_id] = [];
+        rMap[r.employee_id].push(r);
+      });
+      setRatesMap(rMap);
 
       if (blockedData && typeof blockedData === 'object' && !Array.isArray(blockedData)) {
         if (Array.isArray(blockedData.blockedDays)) {
@@ -237,6 +313,26 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setCurrentMonday(getMondayOfCurrentWeek());
   }
 
+  async function handleToggleWeekLock() {
+    const nextLock = !isWeekLocked;
+    if (nextLock) {
+      const confirmed = window.confirm(
+        '🔒 Bạn có chắc muốn CHỐT LỊCH TUẦN NÀY?\n\n- Toàn bộ lịch làm hiện tại sẽ được lưu làm MỐC CA GỐC chính thức.\n- Các thay đổi sau này trong tuần sẽ được tính là Làm thay / Tăng ca / Về sớm.\n- Bạn vẫn có thể Mở lại chốt lịch bất cứ lúc nào nếu cần xếp lại.'
+      );
+      if (!confirmed) return;
+    }
+
+    setIsWeekLocked(nextLock);
+    await saveWeekLockStatus(currentMonday, nextLock);
+    if (toast) {
+      if (nextLock) {
+        toast.success('Đã chốt lịch tuần!', 'Lịch tuần này đã được chốt làm Lịch Gốc chính thức.');
+      } else {
+        toast.info('Đã mở khóa lịch tuần', 'Bạn có thể chỉnh sửa lịch tự do mà không tính làm thay.');
+      }
+    }
+  }
+
   // Lọc bỏ tài khoản Chủ Quán & Quản Lý ra khỏi Bảng Xếp Lịch Nhân Viên (BẰNG MỌI GIÁ LOẠI BỎ 'Owner' VÀ 'Manager')
   const staffEmployees = useMemo(() => {
     if (!employees || employees.length === 0) return [];
@@ -285,24 +381,49 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     return map;
   }, [localSchedule]);
 
+  // Helper tính chuẩn xác tổng lương & tổng giờ dựa trên lịch sử tăng lương và ngày lễ
+  const calcTotalSalaryForShifts = useMemo(() => {
+    return (shiftsList) => {
+      let totalH = 0;
+      let totalS = 0;
+
+      const shiftsByEmp = {};
+      (shiftsList || []).forEach((s) => {
+        if (!s || !s.employee_id) return;
+        if (!shiftsByEmp[s.employee_id]) shiftsByEmp[s.employee_id] = [];
+        shiftsByEmp[s.employee_id].push(s);
+      });
+
+      Object.keys(shiftsByEmp).forEach((empId) => {
+        const emp = (employees || []).find((e) => e.id === empId);
+        const empRates = ratesMap[empId] || [];
+        const defaultRate = emp?.hourly_rate || 20000;
+        const { totalHours, grossSalary } = calculateSalaryFromShifts(
+          shiftsByEmp[empId],
+          empRates,
+          defaultRate,
+          holidays
+        );
+        totalH += totalHours;
+        totalS += grossSalary;
+      });
+
+      return {
+        totalHours: Math.round(totalH * 100) / 100,
+        totalSalary: Math.round(totalS),
+      };
+    };
+  }, [employees, ratesMap, holidays]);
+
   // Tính tổng lương & tổng giờ làm của toàn bộ 7 ngày trong tuần
   const { weekTotalHours, weekTotalSalary } = useMemo(() => {
-    let totalHours = 0;
-    let totalSalary = 0;
-
-    (localSchedule || []).forEach((shift) => {
-      if (weekDays.includes(shift.date)) {
-        const hours = calculateShiftHours(shift);
-        totalHours += hours;
-
-        const emp = (employees || []).find((e) => e.id === shift.employee_id);
-        const hourlyRate = emp?.hourly_rate || 20000;
-        totalSalary += hours * hourlyRate;
-      }
-    });
-
-    return { weekTotalHours: totalHours, weekTotalSalary: totalSalary };
-  }, [localSchedule, weekDays, employees]);
+    const weekShifts = (localSchedule || []).filter((s) => weekDays.includes(s.date));
+    const res = calcTotalSalaryForShifts(weekShifts);
+    return {
+      weekTotalHours: res.totalHours || 0,
+      weekTotalSalary: res.totalSalary || 0,
+    };
+  }, [localSchedule, weekDays, calcTotalSalaryForShifts]);
 
   // Index map lịch rảnh theo employeeId_date
   const availByEmpAndDate = useMemo(() => {
@@ -584,11 +705,78 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           };
           updated.push(newDraft);
         }
+
+        // Tự động đồng bộ ca đối ứng 2 chiều cho nhân viên làm thay/bị thay
+        if (data.peerAdjustment && data.peerAdjustment.peerEmployeeId) {
+          const peerIdx = updated.findIndex(
+            (s) => s.employee_id === data.peerAdjustment.peerEmployeeId && s.date === dStr
+          );
+          if (peerIdx !== -1) {
+            const peerShift = updated[peerIdx];
+            const curPeerStart = peerShift.start_time ? peerShift.start_time.slice(0, 5) : '09:00';
+            const curPeerEnd = peerShift.end_time ? peerShift.end_time.slice(0, 5) : '18:00';
+
+            // Trích xuất ca gốc ban đầu của peer
+            let baseStart = curPeerStart;
+            let baseEnd = curPeerEnd;
+            if (peerShift.note) {
+              const match = peerShift.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
+              if (match) {
+                baseStart = match[1];
+                baseEnd = match[2];
+              }
+            }
+
+            const currentEmp = employees.find((e) => e.id === data.employeeId);
+            const currentEmpName = currentEmp?.name || 'Bạn';
+
+            const [bsh, bsm] = baseStart.split(':').map(Number);
+            const [beh, bem] = baseEnd.split(':').map(Number);
+            let baseHours = (beh * 60 + bem - (bsh * 60 + bsm)) / 60;
+            if (baseHours < 0) baseHours += 24;
+
+            let newPeerEnd = baseEnd;
+            let newPeerHours = baseHours;
+            let peerNote = '';
+
+            const { type, hoursDiff } = data.peerAdjustment;
+            const diffH = Math.abs(hoursDiff || 0);
+
+            if (type === 'reduce') {
+              // Rút ngắn ca của peer (ví dụ Khoa 22:00 - 4h = 18:00)
+              newPeerHours = Math.max(0, baseHours - diffH);
+              const targetMinutes = (bsh * 60 + bsm + Math.round(newPeerHours * 60)) % (24 * 60);
+              const ehStr = String(Math.floor(targetMinutes / 60)).padStart(2, '0');
+              const emStr = String(targetMinutes % 60).padStart(2, '0');
+              newPeerEnd = `${ehStr}:${emStr}`;
+              peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay từ ${newPeerEnd}]`;
+            } else if (type === 'increase') {
+              // Tăng ca cho peer (ví dụ Duy 17:00 + 4h = 21:00)
+              newPeerHours = baseHours + diffH;
+              const targetMinutes = (bsh * 60 + bsm + Math.round(newPeerHours * 60)) % (24 * 60);
+              const ehStr = String(Math.floor(targetMinutes / 60)).padStart(2, '0');
+              const emStr = String(targetMinutes % 60).padStart(2, '0');
+              newPeerEnd = `${ehStr}:${emStr}`;
+              peerNote = `[Gốc: ${baseStart}-${baseEnd}] +${diffH}h làm thay ${currentEmpName} (từ ${data.endTime || '19:00'})`;
+            }
+
+            updated[peerIdx] = {
+              ...peerShift,
+              end_time: newPeerEnd,
+              hours: Math.round(newPeerHours * 100) / 100,
+              note: peerNote,
+              isDirty: true,
+            };
+          }
+        }
       });
       return updated;
     });
 
     setHasUnsavedChanges(true);
+    if (data.peerAdjustment && toast) {
+      toast.info('Đã đồng bộ ca 2 chiều', 'Đã cập nhật giờ ca làm cho cả 2 nhân viên!');
+    }
   }
 
   // 2. Xóa ca làm (chỉ cập nhật State Local)
@@ -984,6 +1172,46 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           {/* Nhóm Nút Thao Tác Bên Phải: Phân Nhóm Rõ Ràng & Bắt Mắt */}
           {!readOnly && (
             <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+              {/* Nút Chốt Lịch Tuần / Mở Khóa Lịch */}
+              {!isWeekLocked ? (
+                <button
+                  type="button"
+                  onClick={handleToggleWeekLock}
+                  className="px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                  title="Bấm để Chốt Lịch Tuần Này (Toàn bộ ca hiện tại sẽ được lưu làm Mốc Ca Gốc chính thức)"
+                >
+                  <span>🔒</span>
+                  <span>Chốt Lịch Tuần</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black flex items-center gap-1 shadow-2xs">
+                    <span>🔒</span> Đã chốt
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleToggleWeekLock}
+                    className="px-2.5 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 text-xs font-black border border-purple-200 cursor-pointer transition-all active:scale-95"
+                    title="Bấm để Mở Lại Chốt Lịch (quay về chế độ xếp lịch tự do không tính làm thay)"
+                  >
+                    🔓 Mở khóa
+                  </button>
+                </div>
+              )}
+
+              {/* Nút Xem Danh Sách Ca Đổi Trong Tuần */}
+              {adjustedShiftsInWeek.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAdjustedShiftsModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-black border border-amber-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                  title="Xem danh sách các ca có làm thay, tăng ca, về sớm trong tuần"
+                >
+                  <span>📋</span>
+                  <span>{adjustedShiftsInWeek.length} Ca Đổi</span>
+                </button>
+              )}
+
               {/* Nhóm 1: Xuất & Xem */}
               <button
                 type="button"
@@ -1272,8 +1500,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                       {branchDisplayName}
                                     </div>
                                     {!readOnly && shift.note && (
-                                      <div className="text-[10px] font-extrabold italic opacity-90 truncate max-w-[110px] mx-auto mt-0.5" title={shift.note}>
-                                        📝 {shift.note}
+                                      <div
+                                        className="text-[10px] font-extrabold opacity-95 truncate max-w-[110px] mx-auto mt-0.5"
+                                        title={shift.note}
+                                      >
+                                        <span className="inline-block px-1.5 py-0.2 rounded bg-black/15 text-[9px] font-black tracking-tight">
+                                          {getShiftAdjustmentDisplay(shift)}
+                                        </span>
                                       </div>
                                     )}
                                   </div>
@@ -1370,20 +1603,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                 {/* 7 Cột Tương Ứng T2 -> CN */}
                 {weekDays.map((dStr) => {
                   // 1. Lọc tất cả ca phân công trong ngày dStr từ localSchedule
-                  const dayShifts = localSchedule.filter((s) => s.date === dStr);
+                  const dayShifts = (localSchedule || []).filter((s) => s.date === dStr);
 
-                  // 2. Tính tổng giờ và tổng lương ngày đó
-                  let dayTotalHours = 0;
-                  let dayTotalSalary = 0;
-
-                  dayShifts.forEach((shift) => {
-                    const hours = calculateShiftHours(shift);
-                    dayTotalHours += hours;
-
-                    const emp = (employees || []).find((e) => e.id === shift.employee_id);
-                    const hourlyRate = emp?.hourly_rate || 20000;
-                    dayTotalSalary += hours * hourlyRate;
-                  });
+                  // 2. Tính tổng giờ và tổng lương ngày đó chuẩn xác theo mốc lương & ngày lễ
+                  const { totalHours: dayTotalHours, totalSalary: dayTotalSalary } = calcTotalSalaryForShifts(dayShifts);
 
                   return (
                     <td
@@ -1473,6 +1696,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           onRemoveOff={handleRemoveOff}
           editItem={modalState.editItem}
           initialEmployee={modalState.employee}
+          isWeekLocked={isWeekLocked}
         />
       )}
 
@@ -1642,6 +1866,20 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           onSelectMonday={(mStr) => {
             setCurrentMonday(mStr);
           }}
+        />
+      )}
+
+      {/* MODAL XEM NHẬT KÝ CÁC CA ĐỔI / LÀM THAY / TĂNG CA / VỀ SỚM TRONG TUẦN */}
+      {showAdjustedShiftsModal && (
+        <ModalAdjustedShiftsList
+          isOpen={showAdjustedShiftsModal}
+          onClose={() => setShowAdjustedShiftsModal(false)}
+          shifts={localSchedule.length > 0 ? localSchedule : schedule}
+          employees={employees}
+          branches={branches}
+          startDate={startDate}
+          endDate={endDate}
+          isWeekLocked={isWeekLocked}
         />
       )}
     </div>

@@ -676,6 +676,20 @@ export default function ModalEmployeeSalaryDetail({
                             <span className="font-black text-purple-900">⏳ {s.hours}h</span>
                           </div>
 
+                          {/* Ghi chú ca làm / Điều chỉnh ca gốc */}
+                          {s.note && (
+                            <div
+                              className={`px-1.5 py-0.5 rounded-md text-[10px] truncate ${
+                                s.note.includes('[Gốc:') || s.note.includes('[Ca gốc:')
+                                  ? 'bg-purple-100 text-purple-950 border border-purple-200 font-black'
+                                  : 'bg-slate-100 text-slate-700 font-bold'
+                              }`}
+                              title={s.note}
+                            >
+                              {s.note.includes('[Gốc:') || s.note.includes('[Ca gốc:') ? `⚡ ${s.note}` : `📝 ${s.note}`}
+                            </div>
+                          )}
+
                           {/* Hàng 3: Thành Tiền */}
                           <div className="flex items-center justify-between pt-0.5 border-t border-purple-200/60">
                             {s.multiplier > 1 ? (
