@@ -167,7 +167,7 @@ export default function ModalEmployeeSalaryDetail({
       netSalary: net,
       shiftCalculatedList: shiftDetails || [],
     };
-  }, [shifts, payRates, penalties, empData]);
+  }, [shifts, payRates, penalties, empData, holidays]);
 
   // Sinh mã QR VietQR tự động chuẩn xác 100% nếu có số tài khoản và ngân hàng
   const vietQrUrl = useMemo(() => {
