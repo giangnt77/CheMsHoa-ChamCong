@@ -66,6 +66,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   const [loading, setLoading] = useState(true);
   const [selectedEmpForDetail, setSelectedEmpForDetail] = useState(null);
   const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const weekDays = useMemo(() => getWeekDaysFromMonday(currentMonday), [currentMonday]);
   const startDate = weekDays[0];
@@ -218,6 +219,17 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
       });
   }, [employees, startDate, endDate, weekDays, scheduleByEmpAndDate]);
 
+  // Danh sách nhân viên sau khi áp dụng bộ lọc nhanh theo từ khóa (Tên / Biệt danh)
+  const filteredEmployees = useMemo(() => {
+    if (!searchQuery.trim()) return sortedEmployees;
+    const q = searchQuery.toLowerCase().trim();
+    return sortedEmployees.filter((emp) => {
+      const name = (emp.name || '').toLowerCase();
+      const nickname = (emp.nickname || '').toLowerCase();
+      return name.includes(q) || nickname.includes(q);
+    });
+  }, [sortedEmployees, searchQuery]);
+
   // Index map dữ liệu ca làm tháng theo employeeId_date (chỉ lọc các ca đúng thuộc selectedMonth)
   const monthScheduleByEmpAndDate = useMemo(() => {
     const map = {};
@@ -265,7 +277,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
       let empPenalty = 0;
       const empPenalties = penaltiesMap[emp.id] || [];
       empPenalties.forEach((p) => {
-        const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+        const isBonus = p.type === 'bonus' || (p.reason && (p.reason.toLowerCase().startsWith('[thưởng]') || p.reason.toLowerCase().startsWith('[bonus]')));
         if (isBonus) {
           empBonus += Math.abs(p.amount);
         } else {
@@ -375,7 +387,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
           </button>
         </div>
 
-        {/* Cụm Bên Phải: Tháng Selector (Kéo sang vị trí cũ của 2 thẻ vừa bỏ) */}
+        {/* Cụm Bên Phải: Tháng Selector */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-black text-amber-950 uppercase">📅 Lương Tháng:</span>
           <button
@@ -412,8 +424,33 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
         <table className="w-full min-w-[1020px] border-collapse text-xs">
           <thead>
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-2.5 px-2 border-r-2 border-purple-300 w-28 sm:w-32 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
-                NHÂN VIÊN
+              <th className="py-2 px-2 border-r-2 border-purple-300 w-32 sm:w-36 text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span>NHÂN VIÊN</span>
+                  {searchQuery && (
+                    <span className="text-[10px] bg-amber-400 text-purple-950 font-black px-1.5 py-0.2 rounded">
+                      {filteredEmployees.length}/{sortedEmployees.length}
+                    </span>
+                  )}
+                </div>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="🔍 Lọc tên..."
+                    className="w-full pl-2 pr-5 py-0.5 bg-purple-900/90 focus:bg-white border border-purple-700 focus:border-amber-400 rounded-lg text-[11px] font-black text-white focus:text-purple-950 outline-none placeholder:text-purple-300/80 placeholder:font-normal transition-all"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-1 text-purple-300 hover:text-white text-[10px] font-bold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </th>
               {weekDays.map((dStr, idx) => (
                 <th key={dStr} className="py-2.5 px-1 border-r border-purple-800 text-center font-black uppercase text-amber-300 text-xs min-w-[85px] sm:min-w-[92px]">
@@ -436,15 +473,15 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                   <div className="inline-block w-8 h-8 border-3 border-purple-200 border-t-purple-700 rounded-full animate-spin" />
                 </td>
               </tr>
-            ) : sortedEmployees.length === 0 ? (
+            ) : filteredEmployees.length === 0 ? (
               <tr>
                 <td colSpan={10} className="text-center py-10 text-purple-600 italic font-bold">
-                  Không có nhân viên.
+                  {searchQuery ? `Không tìm thấy nhân viên "${searchQuery}"` : 'Không có nhân viên.'}
                 </td>
               </tr>
             ) : (
               <>
-                {sortedEmployees.map((emp) => {
+                {filteredEmployees.map((emp) => {
                   const empShiftsThisWeek = weekDays.flatMap((dStr) => scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
                   const empRates = ratesMap[emp.id] || [];
                   const defaultRate = emp.hourly_rate || 20000;

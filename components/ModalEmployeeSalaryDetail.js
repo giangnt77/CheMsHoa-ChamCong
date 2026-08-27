@@ -125,7 +125,7 @@ export default function ModalEmployeeSalaryDetail({
     const bonuses = [];
     const deductions = [];
     (penalties || []).forEach((p) => {
-      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      const isBonus = p.type === 'bonus' || (p.reason && (p.reason.toLowerCase().startsWith('[thưởng]') || p.reason.toLowerCase().startsWith('[bonus]')));
       if (isBonus) {
         bonuses.push(p);
       } else {
@@ -149,7 +149,7 @@ export default function ModalEmployeeSalaryDetail({
     let penalty = 0;
 
     penalties.forEach((p) => {
-      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      const isBonus = p.type === 'bonus' || (p.reason && (p.reason.toLowerCase().startsWith('[thưởng]') || p.reason.toLowerCase().startsWith('[bonus]')));
       if (isBonus) {
         bonus += Math.abs(p.amount);
       } else {

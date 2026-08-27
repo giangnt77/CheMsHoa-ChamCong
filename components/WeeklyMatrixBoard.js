@@ -779,6 +779,70 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               note: peerNote,
               isDirty: true,
             };
+          } else {
+            // Peer ĐANG OFF / Chưa có ca -> Tự động tạo ca mới cho peer nhận làm hộ phần ca còn lại!
+            const currentEmp = employees.find((e) => e.id === data.employeeId);
+            const currentEmpName = currentEmp?.name || 'Bạn';
+            const { remainingStartTime, remainingEndTime, remainingHours, hoursDiff } = data.peerAdjustment;
+            const newPeerStart = remainingStartTime || data.endTime || '16:00';
+            const newPeerEnd = remainingEndTime || '22:00';
+            const newPeerH = remainingHours || Math.abs(hoursDiff || 0);
+
+            const newPeerShift = {
+              id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              employee_id: data.peerAdjustment.peerEmployeeId,
+              branch_id: data.branchId,
+              branches: targetBranch,
+              date: dStr,
+              start_time: newPeerStart,
+              end_time: newPeerEnd,
+              hours: newPeerH,
+              note: `+${newPeerH}h làm thay ${currentEmpName} (từ ${newPeerStart})`,
+              isDraft: true,
+              isDirty: true,
+            };
+            updated.push(newPeerShift);
+          }
+        }
+
+        // Hoán đổi ca làm hoàn toàn giữa 2 nhân viên (Full Shift Swap)
+        if (data.swapEmployeeId) {
+          const empA = employees.find((e) => e.id === data.employeeId);
+          const empB = employees.find((e) => e.id === data.swapEmployeeId);
+          const empAName = empA?.name || 'Nhân viên';
+          const empBName = empB?.name || 'Nhân viên';
+
+          const idxA = updated.findIndex((s) => s.employee_id === data.employeeId && s.date === dStr);
+          const idxB = updated.findIndex((s) => s.employee_id === data.swapEmployeeId && s.date === dStr);
+
+          if (idxA !== -1 && idxB !== -1) {
+            // Cả 2 đều có ca -> Hoán đổi ca cho nhau
+            const shiftA = { ...updated[idxA] };
+            const shiftB = { ...updated[idxB] };
+
+            updated[idxA] = {
+              ...shiftB,
+              id: shiftA.id,
+              employee_id: data.employeeId,
+              note: `[Đổi ca với ${empBName}]`,
+              isDirty: true,
+            };
+
+            updated[idxB] = {
+              ...shiftA,
+              id: shiftB.id,
+              employee_id: data.swapEmployeeId,
+              note: `[Đổi ca với ${empAName}]`,
+              isDirty: true,
+            };
+          } else if (idxA !== -1 && idxB === -1) {
+            // B chưa có ca -> Chuyển toàn bộ ca của A sang cho B
+            updated[idxA] = {
+              ...updated[idxA],
+              employee_id: data.swapEmployeeId,
+              note: `[Đổi ca từ ${empAName}]`,
+              isDirty: true,
+            };
           }
         }
       });
@@ -786,7 +850,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
 
     setHasUnsavedChanges(true);
-    if (data.peerAdjustment && toast) {
+    if (data.swapEmployeeId && toast) {
+      const empA = employees.find((e) => e.id === data.employeeId);
+      const empB = employees.find((e) => e.id === data.swapEmployeeId);
+      toast.success('Đã hoán đổi ca!', `Đã hoán đổi ca làm hoàn toàn giữa ${empA?.name || 'NV'} và ${empB?.name || 'NV'}!`);
+    } else if (data.peerAdjustment && toast) {
       toast.info('Đã đồng bộ ca 2 chiều', 'Đã cập nhật giờ ca làm cho cả 2 nhân viên!');
     }
   }
@@ -879,31 +947,31 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   async function handleSaveAllBatch() {
     setIsBatchSaving(true);
     try {
-      // 1. Xóa các ca đã bấm xóa
+      // 1. Xóa các ca đã bấm xóa (chạy song song)
       if (deletedShiftIds.length > 0) {
-        for (const delId of deletedShiftIds) {
-          await deleteSchedule(delId);
-        }
+        await Promise.all(deletedShiftIds.map((delId) => deleteSchedule(delId)));
       }
 
-      // 2. CHỈ LƯU / CẬP NHẬT CÁC CA BỊ THAY ĐỔI HOẶC THÊM MỚI (isDirty || isDraft)
+      // 2. CHỈ LƯU / CẬP NHẬT CÁC CA BỊ THAY ĐỔI HOẶC THÊM MỚI (isDirty || isDraft) - Chạy song song
       const dirtyShifts = localSchedule.filter((item) => item.isDirty || item.isDraft);
 
       if (dirtyShifts.length > 0) {
-        for (const item of dirtyShifts) {
-          await upsertSchedule({
-            employeeId: item.employee_id,
-            branchId: item.branch_id,
-            date: item.date,
-            startTime: item.start_time ? item.start_time.slice(0, 5) : '09:00',
-            endTime: item.end_time ? item.end_time.slice(0, 5) : '14:00',
-            hours: item.hours || 5,
-            note: item.note || '',
-          });
-        }
+        await Promise.all(
+          dirtyShifts.map((item) =>
+            upsertSchedule({
+              employeeId: item.employee_id,
+              branchId: item.branch_id,
+              date: item.date,
+              startTime: item.start_time ? item.start_time.slice(0, 5) : '09:00',
+              endTime: item.end_time ? item.end_time.slice(0, 5) : '14:00',
+              hours: item.hours || 5,
+              note: item.note || '',
+            })
+          )
+        );
       }
 
-      // 3. CẬP NHẬT CÁC THAY ĐỔI TRẠNG THÁI OFF BỞI CHỦ (gán OFF hoặc xóa OFF)
+      // 3. CẬP NHẬT CÁC THAY ĐỔI TRẠNG THÁI OFF BỞI CHỦ (gán OFF hoặc xóa OFF) - Chạy song song
       const origAvailMap = {};
       availability.forEach((a) => { origAvailMap[`${a.employee_id}_${a.date}`] = a; });
       const changedAvails = localAvailability.filter((a) => {
@@ -912,9 +980,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         return String(a.id).startsWith('draft_avail_') || (orig && !!orig.is_admin_assigned !== !!a.is_admin_assigned);
       });
       if (changedAvails.length > 0) {
-        for (const a of changedAvails) {
-          await upsertAvailability(a.employee_id, a.date, a.type || 'off', a.note || '', !!a.is_admin_assigned);
-        }
+        await Promise.all(
+          changedAvails.map((a) =>
+            upsertAvailability(a.employee_id, a.date, a.type || 'off', a.note || '', !!a.is_admin_assigned)
+          )
+        );
       }
 
       if (toast) toast.success('Đã lưu thành công', 'Đã cập nhật lịch phân công & Ca OFF');
@@ -1037,11 +1107,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
       document.body.appendChild(tempElement);
 
+      const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const canvasScale = isMobile ? 1.5 : 2;
+
       let canvas;
       try {
         const html2canvas = (await import('html2canvas')).default;
         canvas = await html2canvas(tempElement, {
-          scale: 2,
+          scale: canvasScale,
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
@@ -1057,9 +1130,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       }
 
       if (canvas) {
+        const fileName = `Bảng_Xếp_Lịch_Chè_Ms_Hoa_${startDate}_đến_${endDate}.png`;
         const imageURI = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.download = `Bảng_Xếp_Lịch_Chè_Ms_Hoa_${startDate}_đến_${endDate}.png`;
+        link.download = fileName;
         link.href = imageURI;
         document.body.appendChild(link);
         link.click();
@@ -1135,7 +1209,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         </div>
       )}
 
-      {/* Thanh điều hướng Tuần, Cụm Nút Thao Tác & Chú thích Chi Nhánh — Thiết Kế Cân Đối, Sang Trọng */}
+      {/* Thanh điều hướng Tuần, Cụm Nút Thao Tác & Chú thích Chi Nhánh — Thiết Kế Đẳng Cấp, Tinh Tế */}
       <div className="bg-white rounded-3xl p-3 sm:px-5 sm:py-3.5 border border-purple-200/90 shadow-2xs space-y-2.5">
         {/* HÀNG 1: ĐIỀU HƯỚNG TUẦN (TRÁI) & CÁC NÚT HÀNH ĐỘNG (PHẢI) */}
         <div className="flex items-center justify-between flex-wrap gap-2.5">
@@ -1153,8 +1227,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             <button
               type="button"
               onClick={() => setShowWeekPickerModal(true)}
-              className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-purple-100/90 hover:bg-purple-200 text-purple-950 font-black border border-purple-300 flex items-center gap-1 sm:gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-95 text-xs sm:text-sm min-w-[125px] sm:min-w-[145px] justify-center"
-              title="Bấm để mở bảng chọn nhanh bất kỳ Tuần & Năm nào (Ví dụ: Tuần 2 năm 2025)"
+              className="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-purple-100/80 hover:bg-purple-200 text-purple-950 font-black border border-purple-200/90 flex items-center gap-1 sm:gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-95 text-xs sm:text-sm min-w-[125px] sm:min-w-[145px] justify-center"
+              title="Bấm để mở bảng chọn nhanh bất kỳ Tuần & Năm nào"
             >
               <span>📅</span>
               <span className="text-purple-950 font-black">
@@ -1175,133 +1249,101 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             <button
               type="button"
               onClick={goTodayWeek}
-              className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border border-purple-300 cursor-pointer shadow-2xs transition-all active:scale-95"
+              className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 text-xs font-black border border-purple-200 cursor-pointer shadow-2xs transition-all active:scale-95"
             >
               Tuần này
             </button>
           </div>
 
-          {/* Nhóm Nút Thao Tác Bên Phải: Phân Nhóm Rõ Ràng & Bắt Mắt */}
+          {/* Nhóm Nút Thao Tác Bên Phải: Gọn Gàng & Thanh Lịch */}
           {!readOnly && (
             <div className="flex items-center gap-1.5 flex-wrap ml-auto">
-              {/* Nút Chốt Lịch Tuần / Mở Khóa Lịch */}
-              {!isWeekLocked ? (
+              {/* Nút Chốt Lịch Tuần: 1 Nút ON/OFF Duy Nhất như Dịp Đặc Biệt */}
+              <button
+                type="button"
+                onClick={handleToggleWeekLock}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 ${
+                  isWeekLocked
+                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : 'bg-white hover:bg-purple-50 text-purple-950 border-purple-200'
+                }`}
+                title={isWeekLocked ? 'Lịch đang chốt - Bấm để Mở Khóa' : 'Lịch chưa chốt - Bấm để Chốt Lịch'}
+              >
+                <span>{isWeekLocked ? '🔒' : '🔓'}</span>
+                <span>{isWeekLocked ? 'Chốt Lịch: ON' : 'Chốt Lịch: OFF'}</span>
+              </button>
+
+              {/* Cụm Tiện Ích (Ngày Lễ | Cấm Off | Sắp Xếp) */}
+              <div className="inline-flex rounded-xl shadow-2xs border border-purple-200 bg-purple-50/50 p-0.5 divide-x divide-purple-200">
                 <button
                   type="button"
-                  onClick={handleToggleWeekLock}
-                  className="px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
-                  title="Bấm để Chốt Lịch Tuần Này (Toàn bộ ca hiện tại sẽ được lưu làm Mốc Ca Gốc chính thức)"
+                  onClick={() => setShowHolidayModal(true)}
+                  className="px-2.5 py-1 text-purple-950 hover:bg-white rounded-lg text-xs font-black flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                  title="Cấu hình các ngày lễ tết và hệ số nhân lương (x2, x3...)"
                 >
-                  <span>🔒</span>
-                  <span>Chốt Lịch Tuần</span>
+                  <span>🎉</span>
+                  <span>Ngày Lễ</span>
                 </button>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-black flex items-center gap-1 shadow-2xs">
-                    <span>🔒</span> Đã chốt
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleToggleWeekLock}
-                    className="px-2.5 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 text-xs font-black border border-purple-200 cursor-pointer transition-all active:scale-95"
-                    title="Bấm để Mở Lại Chốt Lịch (quay về chế độ xếp lịch tự do không tính làm thay)"
-                  >
-                    🔓 Mở khóa
-                  </button>
-                </div>
-              )}
 
-              {/* Nút Xem Danh Sách Ca Đổi Trong Tuần */}
-              {adjustedShiftsInWeek.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setShowAdjustedShiftsModal(true)}
-                  className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-black border border-amber-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
-                  title="Xem danh sách các ca có làm thay, tăng ca, về sớm trong tuần"
+                  onClick={() => setShowBlockOffModal(true)}
+                  className="px-2.5 py-1 text-purple-950 hover:text-rose-900 hover:bg-white rounded-lg text-xs font-black flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                  title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
                 >
-                  <span>📋</span>
-                  <span>{adjustedShiftsInWeek.length} Ca Đổi</span>
+                  <span>🚫</span>
+                  <span>Cấm Off</span>
                 </button>
-              )}
 
-              {/* Nhóm 1: Xuất & Xem */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSortMode) {
+                      handleFinishSorting();
+                    } else {
+                      setIsSortMode(true);
+                    }
+                  }}
+                  disabled={savingSort}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
+                    isSortMode
+                      ? 'bg-emerald-600 text-white animate-pulse'
+                      : 'text-purple-950 hover:bg-white'
+                  }`}
+                  title={isSortMode ? 'Bấm để lưu thứ tự mới' : 'Bấm để sắp xếp thứ tự nhân viên'}
+                >
+                  {savingSort ? (
+                    '⏳ Lưu...'
+                  ) : isSortMode ? (
+                    <>
+                      <span>✓</span> XONG
+                    </>
+                  ) : (
+                    <>
+                      <span>↕️</span> Sắp Xếp
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Nút Tải Ảnh (PNG) */}
               <button
                 type="button"
                 onClick={handleDownloadImage}
                 disabled={isExportingPDF}
-                className="px-3 py-1.5 rounded-xl bg-purple-900 hover:bg-purple-950 text-white text-xs font-black border border-purple-800 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
-                title="Tải File Bức Ảnh PNG Bảng Phân Công Lịch Tuần trọn gói về máy"
+                className="px-3.5 py-1.5 bg-purple-900 hover:bg-purple-950 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 shadow-2xs"
+                title="Tải File Bức Ảnh PNG Bảng Phân Công Lịch Tuần"
               >
                 <span>🖼️</span>
                 <span>{isExportingPDF ? '⏳ Đang Tải...' : 'Tải Ảnh (PNG)'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowPDFPreview(true)}
-                className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-950 text-xs font-black border border-purple-200 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
-                title="Xem Trước Bản Bảng Lịch Tuần"
-              >
-                <span>👁️</span>
-                <span>Xem Trước</span>
-              </button>
-
-              {/* Nhóm 2: Cài Đặt Quản Trị */}
-              <button
-                type="button"
-                onClick={() => setShowHolidayModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-purple-950 text-xs font-black border border-amber-500 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
-                title="Cấu hình các ngày lễ tết và hệ số nhân lương (x2, x3...)"
-              >
-                <span>🎉</span>
-                <span>Ngày Lễ (x2, x3)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowBlockOffModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-900 text-xs font-black border border-rose-200 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
-                title="Cấu hình các ngày cao điểm cấm nhân viên xin nghỉ trong tuần"
-              >
-                <span>🚫</span>
-                <span>Cấm Off</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (isSortMode) {
-                    handleFinishSorting();
-                  } else {
-                    setIsSortMode(true);
-                  }
-                }}
-                disabled={savingSort}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 border-0 ${isSortMode
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse shadow-md font-black'
-                  : 'bg-purple-700 hover:bg-purple-800 text-white font-black'
-                  }`}
-                title={isSortMode ? 'Bấm để lưu thứ tự mới cho cả Admin & Nhân Viên' : 'Bấm để bật chế độ kéo thả sắp xếp nhân viên'}
-              >
-                {savingSort ? (
-                  '⏳ Lưu...'
-                ) : isSortMode ? (
-                  <>
-                    <span>✓</span> XONG
-                  </>
-                ) : (
-                  <>
-                    <span>↕️</span> Sắp Xếp
-                  </>
-                )}
               </button>
             </div>
           )}
         </div>
 
-        {/* HÀNG 2: THÔNG BÁO NGÀY LỄ TRONG TUẦN (TRÁI) & CHÚ THÍCH CHI NHÁNH (PHẢI) */}
+        {/* HÀNG 2: THÔNG BÁO / HƯỚNG DẪN (TRÁI) & NÚT LS ĐỔI CA + CHÚ THÍCH CHI NHÁNH (PHẢI) */}
         <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-purple-100">
-          {/* Thông báo ngày lễ nếu tuần này có ngày lễ */}
+          {/* Thông báo ngày lễ nếu tuần này có ngày lễ hoặc Hướng dẫn xếp ca */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {weekHolidays.length > 0 ? (
               weekHolidays.map((h, hIdx) => (
@@ -1321,23 +1363,38 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             ) : null}
           </div>
 
-          {/* Chú thích màu Chi Nhánh — Đặt gọn gàng bên phải */}
-          <div className="flex items-center flex-wrap gap-1.5 text-xs font-black justify-end ml-auto">
-            <span className="text-[11px] font-extrabold text-purple-800 mr-0.5">
-              🏢 Chi nhánh:
-            </span>
-            {branches.map((b) => {
-              const style = getBranchColorStyle(b.name, b.color);
-              return (
-                <div
-                  key={b.id}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-black border shadow-2xs"
-                  style={style.badgeStyle}
-                >
-                  <span>{formatBranchDisplayName(b.name)}</span>
-                </div>
-              );
-            })}
+          {/* Phía Phải: Nút LS ĐỔI CA & Chú thích màu Chi Nhánh */}
+          <div className="flex items-center flex-wrap gap-2 text-xs font-black justify-end ml-auto">
+            {/* Nút Xem Danh Sách Ca Đổi Trong Tuần (Đặt ở Hàng Dưới Cực Kỳ Gọn) */}
+            {adjustedShiftsInWeek.length > 0 && !readOnly && (
+              <button
+                type="button"
+                onClick={() => setShowAdjustedShiftsModal(true)}
+                className="px-3 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 text-xs font-black border border-amber-300 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                title="Xem danh sách các ca có làm thay, tăng ca, về sớm trong tuần"
+              >
+                <span>📋</span>
+                <span>LS ĐỔI CA {adjustedShiftsInWeek.length > 0 ? `(${adjustedShiftsInWeek.length})` : ''}</span>
+              </button>
+            )}
+
+            <div className="flex items-center flex-wrap gap-1.5">
+              <span className="text-[11px] font-extrabold text-purple-800 mr-0.5">
+                🏢 Chi nhánh:
+              </span>
+              {branches.map((b) => {
+                const style = getBranchColorStyle(b.name, b.color);
+                return (
+                  <div
+                    key={b.id}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-black border shadow-2xs"
+                    style={style.badgeStyle}
+                  >
+                    <span>{formatBranchDisplayName(b.name)}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

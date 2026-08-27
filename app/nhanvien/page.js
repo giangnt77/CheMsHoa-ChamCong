@@ -203,7 +203,7 @@ function EmployeeContent() {
   const penaltyList = useMemo(() => {
     if (!empPenalties) return [];
     return empPenalties.filter((p) => {
-      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      const isBonus = p.type === 'bonus' || (p.reason && (p.reason.toLowerCase().startsWith('[thưởng]') || p.reason.toLowerCase().startsWith('[bonus]')));
       return !isBonus;
     });
   }, [empPenalties]);

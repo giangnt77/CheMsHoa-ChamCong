@@ -35,6 +35,7 @@ import {
   deleteEmployeeRate,
   calculateSalaryFromShifts,
   updateEmployeeContactInfo,
+  uploadEmployeeCccdToStorage,
   getEmployeeCccd,
   getAnnouncementNotice,
   saveAnnouncementNotice,
@@ -372,20 +373,29 @@ function AdminContent() {
     if (!file || !selectedEmployee) return;
 
     try {
-      toast.info('Đang nén ảnh...', 'Đang tối ưu dung lượng ảnh để tiết kiệm băng thông...');
-      // Nén ảnh tự động xuống max 900px, chất lượng 0.7 (giảm dung lượng từ 5MB xuống ~80KB)
-      const compressedDataUrl = await compressImage(file, 900, 0.7);
+      toast.info('Đang tải ảnh...', 'Đang nén & lưu trữ ảnh CCCD lên Supabase Storage...');
+      
+      let finalUrl = '';
+      try {
+        // Ưu tiên 1: Tải trực tiếp lên Supabase Storage Bucket 'cccd' (Dung lượng DB chỉ tốn 50 bytes)
+        const res = await uploadEmployeeCccdToStorage(selectedEmployee.id, file);
+        finalUrl = res.publicUrl;
+      } catch (storageErr) {
+        console.warn('Storage Bucket chưa tạo hoặc lỗi, fallback sang nén Base64 siêu nhẹ:', storageErr);
+        // Fallback: Nén Base64 siêu nhẹ (max 700px, quality 0.6)
+        const compressedDataUrl = await compressImage(file, 700, 0.6);
+        const updated = await updateEmployeeContactInfo(selectedEmployee.id, {
+          cccd_url: compressedDataUrl,
+        });
+        finalUrl = updated.cccd_url || compressedDataUrl;
+      }
 
-      const updated = await updateEmployeeContactInfo(selectedEmployee.id, {
-        cccd_url: compressedDataUrl,
-      });
-
-      setContactInfo((prev) => ({ ...prev, cccd_url: updated.cccd_url || compressedDataUrl }));
-      setSelectedEmployee((prev) => ({ ...prev, cccd_url: updated.cccd_url || compressedDataUrl }));
-      toast.success('Đã lưu Supabase', 'Đã nén và lưu ảnh CCCD tối ưu lên Supabase!');
+      setContactInfo((prev) => ({ ...prev, cccd_url: finalUrl }));
+      setSelectedEmployee((prev) => ({ ...prev, cccd_url: finalUrl }));
+      toast.success('Đã lưu thành công', 'Đã tối ưu & lưu trữ ảnh CCCD!');
     } catch (err) {
       console.error('handleUploadCccdImage error:', err);
-      toast.error('Lỗi', 'Không thể nén hoặc lưu ảnh CCCD lên Supabase!');
+      toast.error('Lỗi', 'Không thể lưu ảnh CCCD lên Supabase!');
     }
   }
 
@@ -1039,21 +1049,22 @@ function AdminContent() {
                     toast.info('Đã tắt Dịp Đặc Biệt', 'Hệ thống quay về đăng ký theo tuần mặc định');
                   }
                 }}
-                className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-black border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1 ${specialEventMode
-                    ? 'bg-rose-600 text-white border-rose-700 animate-pulse'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                  }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black border cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 ${
+                  specialEventMode
+                    ? 'bg-rose-600 text-white border-rose-700 animate-pulse font-black'
+                    : 'bg-white hover:bg-purple-50 text-purple-950 border-purple-200 font-bold'
+                }`}
                 title="Bấm để BẬT/TẮT cho nhân viên đăng ký 1 Tháng (Tết/Lễ)"
               >
                 <span>🎆</span>
-                <span>{specialEventMode ? 'Dịp Đặc Biệt: ON' : 'Dịp Đặc Biệt: OFF'}</span>
+                <span>{specialEventMode ? 'Dịp Đặc Biệt: ON' : 'Dịp Đặc Biệt'}</span>
               </button>
 
               {/* Nút Bật & Sửa Thông Báo Quan Trọng */}
               <button
                 type="button"
                 onClick={() => setShowNoticeModal(true)}
-                className="px-2.5 sm:px-3 py-1 rounded-full bg-amber-400 hover:bg-amber-500 text-purple-950 text-[11px] sm:text-xs font-black border border-amber-500 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-purple-50 text-purple-950 text-xs font-black border border-purple-200 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
                 title="Bấm để xem & sửa Thông Báo Quan Trọng"
               >
                 <span>🔔</span>
@@ -1064,11 +1075,11 @@ function AdminContent() {
           </div>
 
           {/* Segmented Control Navigation Tabs - Vuốt Ngang Mượt Mà Trên Mobile */}
-          <div className="flex gap-1.5 bg-purple-100/80 rounded-2xl p-1.5 border border-purple-200/90 mb-4 overflow-x-auto custom-scrollbar whitespace-nowrap shadow-2xs">
+          <div className="flex gap-1.5 bg-purple-100/70 rounded-2xl p-1.5 border border-purple-200/80 mb-4 overflow-x-auto custom-scrollbar whitespace-nowrap shadow-2xs">
             {[
               { id: 'schedule', label: 'Xếp Lịch', icon: '📅' },
-              { id: 'shift_swaps', label: 'QL Đổi Ca & Báo Giờ', icon: '📋' },
               { id: 'salary', label: 'QL Tính Lương', icon: '💰' },
+              { id: 'shift_swaps', label: 'QL Đổi Ca', icon: '📋' },
               { id: 'employees', label: 'QL Nhân Viên', icon: '👥' },
               { id: 'penalty', label: 'Phụ Cấp / Trừ', icon: '🎁' },
               { id: 'branches', label: 'Chi Nhánh', icon: '🏪' },
@@ -1079,12 +1090,13 @@ function AdminContent() {
                   key={tab.id}
                   type="button"
                   onClick={() => changeActiveTab(tab.id)}
-                  className={`px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${activeTab === tab.id
-                      ? 'bg-purple-700 text-white shadow-xs font-black'
+                  className={`px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'bg-purple-900 text-white shadow-xs font-black'
                       : isRestricted
-                        ? 'bg-purple-50/50 text-purple-400 font-bold'
-                        : 'text-purple-950 hover:bg-purple-200/60 font-bold'
-                    }`}
+                      ? 'bg-purple-50/40 text-purple-400 font-bold cursor-not-allowed'
+                      : 'text-purple-900/80 hover:text-purple-950 hover:bg-white/80 font-bold'
+                  }`}
                   title={isRestricted ? 'Quyền Quản Lý bị hạn chế tính năng này' : ''}
                 >
                   <span>{isRestricted ? '🔒' : tab.icon}</span>

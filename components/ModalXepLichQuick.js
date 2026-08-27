@@ -122,21 +122,21 @@ export default function ModalXepLichQuick({
     return { diffHours, isChanged };
   }, [origShiftInfo, hours, startTime, endTime]);
 
-  // 3. Danh sách các nhân viên khác có ca làm trong cùng ngày (để chọn làm thay)
+  // 3. Danh sách các nhân viên khác (kèm trạng thái đi làm hoặc đang OFF) để chọn làm thay / hoán đổi ca
   const peerStaffOnDay = useMemo(() => {
-    if (!daySchedule || !staffOnlyEmployees) return [];
-    return daySchedule
-      .filter((s) => s.employee_id !== selectedEmpId)
-      .map((s) => {
-        const emp = staffOnlyEmployees.find((e) => e.id === s.employee_id);
-        const branchObj = branches.find((b) => b.id === s.branch_id) || s.branches;
-        const curStart = s.start_time ? s.start_time.slice(0, 5) : '';
-        const curEnd = s.end_time ? s.end_time.slice(0, 5) : '';
+    if (!staffOnlyEmployees) return [];
+    return staffOnlyEmployees
+      .filter((e) => e.id !== selectedEmpId)
+      .map((emp) => {
+        const s = (daySchedule || []).find((shift) => shift.employee_id === emp.id);
+        const branchObj = s ? (branches.find((b) => b.id === s.branch_id) || s.branches) : null;
+        const curStart = s?.start_time ? s.start_time.slice(0, 5) : '';
+        const curEnd = s?.end_time ? s.end_time.slice(0, 5) : '';
 
         // Trích xuất ca gốc ban đầu của peer nếu peer này đã từng bị sửa/đổi ca
         let origStart = curStart;
         let origEnd = curEnd;
-        if (s.note) {
+        if (s?.note) {
           const match = s.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
           if (match) {
             origStart = match[1];
@@ -145,23 +145,25 @@ export default function ModalXepLichQuick({
         }
 
         return {
-          id: s.id,
-          employeeId: s.employee_id,
-          name: emp?.name || 'Nhân viên',
-          nickname: emp?.nickname || '',
+          id: s?.id || null,
+          employeeId: emp.id,
+          name: emp.name || 'Nhân viên',
+          nickname: emp.nickname || '',
+          hasShift: Boolean(s),
           branchName: branchObj?.name || '',
           branchColor: branchObj?.color || '',
           startTime: curStart,
           endTime: curEnd,
           origStartTime: origStart,
           origEndTime: origEnd,
-          hours: s.hours || calcHours(curStart, curEnd),
+          hours: s?.hours || (curStart && curEnd ? calcHours(curStart, curEnd) : 0),
         };
       })
       .filter((p) => p.name && p.name !== 'Nhân viên');
   }, [daySchedule, staffOnlyEmployees, selectedEmpId, branches]);
 
   const [selectedPeerId, setSelectedPeerId] = useState('');
+  const [selectedSwapEmpId, setSelectedSwapEmpId] = useState('');
   const [peerLeftTime, setPeerLeftTime] = useState('18:00');
   const [syncPeerShift, setSyncPeerShift] = useState(true);
 
@@ -266,11 +268,16 @@ export default function ModalXepLichQuick({
 
     // Thông tin đồng bộ ca của bạn làm thay nếu có (chỉ khi có thay đổi giờ)
     let peerAdjustment = null;
-    if (selectedPeerId && syncPeerShift && timeDiff.diffHours !== 0) {
+    if (selectedPeerId && !selectedSwapEmpId && syncPeerShift && timeDiff.diffHours !== 0) {
+      const peer = peerStaffOnDay.find((p) => p.employeeId === selectedPeerId);
       peerAdjustment = {
         peerEmployeeId: selectedPeerId,
         type: timeDiff.diffHours > 0 ? 'reduce' : 'increase',
         hoursDiff: Math.abs(timeDiff.diffHours),
+        peerHasShift: Boolean(peer?.hasShift),
+        remainingStartTime: endTime,
+        remainingEndTime: origShiftInfo ? origShiftInfo.endTime : '22:00',
+        remainingHours: origShiftInfo ? calcHours(endTime, origShiftInfo.endTime) : Math.abs(timeDiff.diffHours),
       };
     }
 
@@ -284,6 +291,7 @@ export default function ModalXepLichQuick({
       note: finalNote,
       editId: editItem?.id || null,
       peerAdjustment,
+      swapEmployeeId: selectedSwapEmpId || null,
     });
 
     setSubmitting(false);
@@ -637,83 +645,88 @@ export default function ModalXepLichQuick({
             </div>
           </div>
 
-          {/* BỘ CHỌN GIỜ 24H DỄ BẤM 1 CHẠM */}
-          <div className="bg-purple-50/60 p-3 rounded-2xl border border-purple-200/80 space-y-3">
-            {/* Hàng chọn Giờ vào */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-black text-emerald-800 flex items-center gap-1">
-                  <span>🟢 Giờ vào:</span>
-                  <span className="text-xs font-black text-white bg-emerald-600 px-2 py-0.5 rounded-lg">
-                    {startTime}
+          {/* BỘ CHỌN GIỜ 2 CỘT SONG SONG TRỰC QUAN (TRÁI: GIỜ VÀO - PHẢI: GIỜ RA) */}
+          <div className="bg-purple-50/70 p-3 rounded-2xl border border-purple-200/90 shadow-2xs space-y-2.5">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 divide-x divide-purple-200/90">
+              {/* Cột 1: Giờ vào */}
+              <div className="space-y-1.5 pr-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black text-emerald-800 flex items-center gap-1">
+                    <span>🟢 Vào:</span>
+                    <span className="text-[11px] font-black text-white bg-emerald-600 px-1.5 py-0.2 rounded-md">
+                      {startTime}
+                    </span>
                   </span>
-                </span>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="px-2 py-0.5 bg-white border border-purple-200 rounded-lg text-purple-950 text-xs font-bold outline-none"
-                  title="Nhập giờ thủ công nếu cần"
-                />
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {['07:30', '08:30', '09:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setStartTime(t)}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 shadow-2xs ${startTime === t
-                      ? 'bg-emerald-600 text-white border-emerald-600 scale-105 font-black'
-                      : 'bg-white text-purple-950 border-purple-200 hover:bg-purple-100 font-bold'
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="px-1 py-0.5 bg-white border border-purple-200 rounded-lg text-purple-950 text-xs font-bold outline-none cursor-pointer max-w-[70px] sm:max-w-[85px]"
+                    title="Nhập giờ thủ công nếu cần"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {['07:30', '08:30', '09:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setStartTime(t)}
+                      className={`py-1 rounded-lg text-[11px] font-black cursor-pointer border transition-all active:scale-95 text-center shadow-2xs ${
+                        startTime === t
+                          ? 'bg-emerald-600 text-white border-emerald-600 font-black shadow-emerald-200'
+                          : 'bg-white text-purple-950 border-purple-200 hover:bg-purple-100 font-bold'
                       }`}
-                  >
-                    {t.endsWith(':00') ? `${parseInt(t)}h` : t}
-                  </button>
-                ))}
+                    >
+                      {t.endsWith(':00') ? `${parseInt(t)}h` : t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cột 2: Giờ ra */}
+              <div className="space-y-1.5 pl-2 sm:pl-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black text-rose-800 flex items-center gap-1">
+                    <span>🔴 Ra:</span>
+                    <span className="text-[11px] font-black text-white bg-rose-600 px-1.5 py-0.2 rounded-md">
+                      {endTime}
+                    </span>
+                  </span>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="px-1 py-0.5 bg-white border border-purple-200 rounded-lg text-purple-950 text-xs font-bold outline-none cursor-pointer max-w-[70px] sm:max-w-[85px]"
+                    title="Nhập giờ thủ công nếu cần"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '21:45', '22:00'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setEndTime(t)}
+                      className={`py-1 rounded-lg text-[11px] font-black cursor-pointer border transition-all active:scale-95 text-center shadow-2xs ${
+                        endTime === t
+                          ? 'bg-rose-600 text-white border-rose-600 font-black shadow-rose-200'
+                          : 'bg-white text-purple-950 border-purple-200 hover:bg-purple-100 font-bold'
+                      }`}
+                    >
+                      {t.endsWith(':00') ? `${parseInt(t)}h` : t}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Hàng chọn Giờ ra */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-black text-rose-800 flex items-center gap-1">
-                  <span>🔴 Giờ ra:</span>
-                  <span className="text-xs font-black text-white bg-rose-600 px-2 py-0.5 rounded-lg">
-                    {endTime}
-                  </span>
-                </span>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="px-2 py-0.5 bg-white border border-purple-200 rounded-lg text-purple-950 text-xs font-bold outline-none"
-                  title="Nhập giờ thủ công nếu cần"
-                />
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {['15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '21:45', '22:00'].map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setEndTime(t)}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-black cursor-pointer border transition-all active:scale-95 shadow-2xs ${endTime === t
-                      ? 'bg-rose-600 text-white border-rose-600 scale-105 font-black'
-                      : 'bg-white text-purple-950 border-purple-200 hover:bg-purple-100 font-bold'
-                      }`}
-                  >
-                    {t.endsWith(':00') ? `${parseInt(t)}h` : t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="text-center text-xs text-purple-900 font-extrabold pt-2 border-t border-purple-200/80">
+            {/* Footer số giờ */}
+            <div className="text-center text-xs text-purple-900 font-extrabold pt-1.5 border-t border-purple-200/80">
               ⏱️ Số giờ tự tính: <span className="text-sm font-black text-purple-950">{hours} tiếng</span>
             </div>
           </div>
 
           {/* ĐIỀU CHỈNH GIỜ & CA GỐC (THIẾT KẾ CARD & CHIP HIỆN ĐẠI, GỌN GÀNG CHO MOBILE) */}
-          {isWeekLocked && isEditing && origShiftInfo && timeDiff.isChanged && (
+          {isWeekLocked && isEditing && origShiftInfo && (
             <div className="bg-gradient-to-br from-purple-50 to-indigo-50/50 p-3 sm:p-3.5 rounded-2xl border border-purple-200 shadow-2xs space-y-3">
               {/* Dòng 1: Header tóm tắt giờ */}
               <div className="flex items-center justify-between text-xs pb-2 border-b border-purple-200/70">
@@ -725,114 +738,204 @@ export default function ModalXepLichQuick({
                 </div>
                 <span
                   className={`px-2 py-0.5 rounded-lg font-black text-xs text-white shadow-2xs ${
-                    timeDiff.diffHours > 0 ? 'bg-emerald-600' : 'bg-rose-600'
+                    timeDiff.diffHours > 0 ? 'bg-emerald-600' : timeDiff.diffHours < 0 ? 'bg-rose-600' : 'bg-purple-600'
                   }`}
                 >
                   {timeDiff.diffHours > 0 ? `+${timeDiff.diffHours}h` : `${timeDiff.diffHours}h`}
                 </span>
               </div>
 
-              {/* Dòng 2: Nút chọn chế độ điều chỉnh nhanh */}
+              {/* Dòng 2: Nút chọn chế độ điều chỉnh nhanh (Luôn hiện đủ 3 lựa chọn) */}
               <div className="space-y-1.5">
                 <div className="text-[11px] font-black text-purple-950 uppercase tracking-wide">
                   Lý do thay đổi ca:
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {/* Nút 1: Làm thay bạn khác (Chỉ hiện khi ngày đó có bạn khác đi làm) */}
-                  {peerStaffOnDay.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!selectedPeerId && peerStaffOnDay[0]) {
-                          handleSelectPeerHandover(peerStaffOnDay[0].employeeId);
-                        }
-                      }}
-                      className={`px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                        selectedPeerId
-                          ? 'bg-purple-700 text-white shadow-purple-200 scale-102'
-                          : 'bg-white text-purple-900 border border-purple-200 hover:bg-purple-100'
-                      }`}
-                    >
-                      <span>👥</span>
-                      <span>Làm thay bạn khác</span>
-                    </button>
-                  )}
-
-                  {/* Nút 2: Tăng ca / Về sớm cá nhân */}
+                  {/* Nút 1: Làm thay bạn khác */}
                   <button
                     type="button"
                     onClick={() => {
-                      if (timeDiff.diffHours > 0) {
-                        applyAdjustmentReason('ot');
-                      } else {
-                        applyAdjustmentReason('early');
+                      setSelectedSwapEmpId('');
+                      if (!selectedPeerId && peerStaffOnDay[0]) {
+                        handleSelectPeerHandover(peerStaffOnDay[0].employeeId);
                       }
                     }}
                     className={`px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                      !selectedPeerId && (note.includes('tăng ca') || note.includes('Về sớm'))
+                      selectedPeerId && !selectedSwapEmpId
+                        ? 'bg-purple-700 text-white shadow-purple-200 scale-102'
+                        : 'bg-white text-purple-900 border border-purple-200 hover:bg-purple-100'
+                    }`}
+                  >
+                    <span>👥</span>
+                    <span>Làm thay bạn khác</span>
+                  </button>
+
+                  {/* Nút 2: Tăng ca / Về sớm */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSwapEmpId('');
+                      setSelectedPeerId('');
+                      if (timeDiff.diffHours > 0) {
+                        applyAdjustmentReason('ot');
+                      } else if (timeDiff.diffHours < 0) {
+                        applyAdjustmentReason('early');
+                      } else {
+                        setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] Tăng ca`);
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                      !selectedPeerId && !selectedSwapEmpId && (note.includes('tăng ca') || note.includes('Về sớm'))
                         ? 'bg-purple-700 text-white shadow-purple-200 scale-102'
                         : 'bg-white text-purple-900 border border-purple-200 hover:bg-purple-100'
                     }`}
                   >
                     <span>⚡</span>
-                    <span>{timeDiff.diffHours > 0 ? `Tăng ca riêng (+${timeDiff.diffHours}h)` : `Về sớm riêng (${endTime})`}</span>
+                    <span>
+                      {timeDiff.diffHours > 0
+                        ? `Tăng ca (+${timeDiff.diffHours}h)`
+                        : timeDiff.diffHours < 0
+                        ? `Về sớm (${endTime})`
+                        : 'Tăng ca / Về sớm'}
+                    </span>
                   </button>
 
-                  {/* Nút 3: Đổi sang ca khác */}
+                  {/* Nút 3: Đổi NV khác (Hoán đổi ca hoàn toàn) */}
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedPeerId('');
-                      setPeerLeftTime('');
-                      setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] Đổi sang ca ${startTime}-${endTime}`);
+                      const otherStaff = staffOnlyEmployees.filter((e) => e.id !== selectedEmpId);
+                      if (otherStaff.length > 0 && !selectedSwapEmpId) {
+                        const target = otherStaff[0];
+                        setSelectedSwapEmpId(target.id);
+                        setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] Đổi ca với ${target.name}`);
+                      }
                     }}
                     className={`px-2.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                      !selectedPeerId && note.includes('Đổi')
+                      selectedSwapEmpId
                         ? 'bg-purple-700 text-white shadow-purple-200 scale-102'
                         : 'bg-white text-purple-900 border border-purple-200 hover:bg-purple-100'
                     }`}
                   >
                     <span>🔄</span>
-                    <span>Đổi sang ca khác</span>
+                    <span>Đổi NV khác</span>
                   </button>
                 </div>
               </div>
 
-              {/* Dòng 3: Danh sách Chip nhân viên làm thay (Dễ bấm, trực quan 100%) */}
-              {selectedPeerId && peerStaffOnDay.length > 0 && (
+              {/* Dòng 3A: Danh sách Chip nhân viên làm thay (Khi chọn Làm thay bạn khác) */}
+              {selectedPeerId && !selectedSwapEmpId && peerStaffOnDay.length > 0 && (
                 <div className="space-y-1.5 bg-white p-2.5 rounded-xl border border-purple-200">
                   <div className="text-[11px] font-bold text-purple-900">
-                    {timeDiff.diffHours > 0 ? '👉 Bạn đang làm thay cho:' : '👉 Bạn khác nhận làm thay phần còn lại:'}
+                    {timeDiff.diffHours > 0 ? '👉 Bạn đang làm thay cho:' : '👉 Chọn bạn nhận làm hộ phần ca còn lại:'}
                   </div>
                   <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                    {peerStaffOnDay.map((p) => {
-                      const isSelected = selectedPeerId === p.employeeId;
-                      const shiftStr = `${p.origStartTime || p.startTime}-${p.origEndTime || p.endTime}`;
-                      return (
-                        <button
-                          key={p.employeeId}
-                          type="button"
-                          onClick={() => handleSelectPeerHandover(p.employeeId)}
-                          className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                            isSelected
-                              ? 'bg-purple-900 text-white border-2 border-purple-700 ring-2 ring-purple-300'
-                              : 'bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-200'
-                          }`}
-                        >
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                          <span>{p.name}</span>
-                          <span className={`text-[10px] font-bold ${isSelected ? 'text-purple-200' : 'text-purple-600'}`}>
-                            ({shiftStr})
-                          </span>
-                        </button>
-                      );
-                    })}
+                    {peerStaffOnDay
+                      .filter((p) => (timeDiff.diffHours > 0 ? p.hasShift : true))
+                      .map((p) => {
+                        const isSelected = selectedPeerId === p.employeeId;
+                        const shiftStr = p.hasShift
+                          ? `${p.origStartTime || p.startTime}-${p.origEndTime || p.endTime}`
+                          : 'Đang OFF';
+                        return (
+                          <button
+                            key={p.employeeId}
+                            type="button"
+                            onClick={() => handleSelectPeerHandover(p.employeeId)}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                              isSelected
+                                ? 'bg-purple-900 text-white border-2 border-purple-700 ring-2 ring-purple-300'
+                                : 'bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-200'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${p.hasShift ? 'bg-emerald-400' : 'bg-gray-400'} shrink-0`} />
+                            <span>{p.name}</span>
+                            <span className={`text-[10px] font-bold ${isSelected ? 'text-purple-200' : p.hasShift ? 'text-purple-600' : 'text-amber-700'}`}>
+                              ({shiftStr})
+                            </span>
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
               )}
 
+              {/* Dòng 3B: Danh sách Chip nhân viên để hoán đổi ca hoàn toàn (Khi chọn Đổi NV khác) */}
+              {selectedSwapEmpId && (() => {
+                const otherStaff = staffOnlyEmployees.filter((e) => e.id !== selectedEmpId);
+                const swapEmp = staffOnlyEmployees.find((e) => e.id === selectedSwapEmpId);
+                const currentEmp = staffOnlyEmployees.find((e) => e.id === selectedEmpId);
+                const currentEmpName = currentEmp?.name || 'Nhân viên';
+                const swapEmpShift = daySchedule.find((s) => s.employee_id === selectedSwapEmpId);
+
+                return (
+                  <div className="space-y-2 bg-white p-2.5 rounded-xl border border-purple-200 animate-fade-in">
+                    <div className="text-[11px] font-bold text-purple-900">
+                      👉 Chọn nhân viên muốn hoán đổi ca làm này:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {otherStaff.map((emp) => {
+                        const isSelected = selectedSwapEmpId === emp.id;
+                        const empShift = daySchedule.find((s) => s.employee_id === emp.id);
+                        const shiftInfo = empShift
+                          ? `${empShift.start_time?.slice(0, 5)}-${empShift.end_time?.slice(0, 5)}`
+                          : 'Đang OFF';
+
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSwapEmpId(emp.id);
+                              setSelectedPeerId('');
+                              setNote(`[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime}] Đổi ca với ${emp.name}`);
+                            }}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                              isSelected
+                                ? 'bg-purple-900 text-white border-2 border-purple-700 ring-2 ring-purple-300'
+                                : 'bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-200'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${empShift ? 'bg-emerald-400' : 'bg-gray-300'} shrink-0`} />
+                            <span>{emp.name}</span>
+                            <span className={`text-[10px] font-bold ${isSelected ? 'text-purple-200' : empShift ? 'text-purple-600' : 'text-amber-700'}`}>
+                              ({shiftInfo})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Tóm tắt hoán đổi ca */}
+                    {swapEmp && (
+                      <div className="bg-purple-50 p-2.5 rounded-lg border border-purple-200 text-xs space-y-1 font-bold text-purple-950">
+                        <div className="flex items-center gap-1.5 text-purple-900 font-black pb-1 border-b border-purple-200">
+                          <span>🔄</span>
+                          <span>Hoán đổi toàn bộ ca làm trong ngày:</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span>👤 <b>{currentEmpName}</b>:</span>
+                          <span className="font-black text-purple-900">
+                            {swapEmpShift
+                              ? `${swapEmpShift.start_time?.slice(0, 5)} - ${swapEmpShift.end_time?.slice(0, 5)} (Nhận ca của ${swapEmp.name})`
+                              : 'Nghỉ (Nhường ca cho bạn)'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-purple-100">
+                          <span>👤 <b>{swapEmp.name}</b>:</span>
+                          <span className="font-black text-purple-900">
+                            {startTime} - {endTime} (Nhận ca của {currentEmpName})
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Dòng 4: Chi tiết trực quan ca làm thay & tự động đồng bộ */}
-              {selectedPeerId && (() => {
+              {selectedPeerId && !selectedSwapEmpId && (() => {
                 const peer = peerStaffOnDay.find((p) => p.employeeId === selectedPeerId);
                 if (!peer) return null;
                 const isIncrease = timeDiff.diffHours > 0;
@@ -851,6 +954,11 @@ export default function ModalXepLichQuick({
                 // Giờ bạn kia ra mới khi người này về sớm
                 const peerNewEndMin = (poeh * 60 + poem + diffMin) % (24 * 60);
                 const peerNewEndStr = `${String(Math.floor(peerNewEndMin / 60)).padStart(2, '0')}:${String(peerNewEndMin % 60).padStart(2, '0')}`;
+
+                // Phần ca còn lại nếu bạn này đang OFF nhận làm hộ
+                const remStart = endTime;
+                const remEnd = origShiftInfo.endTime;
+                const remHours = calcHours(remStart, remEnd);
 
                 return (
                   <div className="bg-white p-3 rounded-xl border border-purple-200 text-xs space-y-2.5 animate-fade-in shadow-2xs">
@@ -888,13 +996,21 @@ export default function ModalXepLichQuick({
                     <div className="text-[11px] font-bold text-purple-900 bg-purple-50/50 p-2 rounded-lg border border-purple-100 space-y-1">
                       <div className="flex items-center justify-between">
                         <span>
-                          👤 <b>{peer.name}</b>:
+                          👤 <b>{peer.name}</b> {!peer.hasShift && <span className="text-[10px] text-amber-700 font-extrabold">(Đang OFF)</span>}:
                         </span>
                         <span className="font-black text-purple-950">
-                          {isIncrease ? `${peerOrigStart} - ${peerLeftTimeStr}` : `${peerOrigStart} - ${peerNewEndStr}`}
-                          <span className={`ml-1 text-[10px] font-black ${isIncrease ? 'text-amber-700' : 'text-emerald-700'}`}>
-                            ({isIncrease ? `-${timeDiff.diffHours}h` : `+${Math.abs(timeDiff.diffHours)}h`})
-                          </span>
+                          {peer.hasShift ? (
+                            <>
+                              {isIncrease ? `${peerOrigStart} - ${peerLeftTimeStr}` : `${peerOrigStart} - ${peerNewEndStr}`}
+                              <span className={`ml-1 text-[10px] font-black ${isIncrease ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                ({isIncrease ? `-${timeDiff.diffHours}h` : `+${Math.abs(timeDiff.diffHours)}h`})
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-emerald-700">
+                              {remStart} - {remEnd} (+{remHours}h làm hộ)
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-purple-100">
@@ -919,13 +1035,19 @@ export default function ModalXepLichQuick({
                         className="w-4 h-4 rounded text-purple-700 focus:ring-purple-500 cursor-pointer"
                       />
                       <span className="text-[11.5px]">
-                        {isIncrease ? (
-                          <>
-                            Tự động rút ngắn ca của <b>{peer.name}</b> về <b>{peerLeftTimeStr}</b>
-                          </>
+                        {peer.hasShift ? (
+                          isIncrease ? (
+                            <>
+                              Tự động rút ngắn ca của <b>{peer.name}</b> về <b>{peerLeftTimeStr}</b>
+                            </>
+                          ) : (
+                            <>
+                              Tự động tăng ca cho <b>{peer.name}</b> đến <b>{peerNewEndStr}</b>
+                            </>
+                          )
                         ) : (
                           <>
-                            Tự động tăng ca cho <b>{peer.name}</b> đến <b>{peerNewEndStr}</b>
+                            Tự động tạo ca <b>{remStart}-{remEnd}</b> cho <b>{peer.name}</b> nhận làm hộ
                           </>
                         )}
                       </span>
