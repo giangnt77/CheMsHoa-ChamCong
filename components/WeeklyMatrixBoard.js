@@ -1668,17 +1668,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                - Phía Chủ/Admin: Hiện thông tin đăng ký rảnh. Khi Chủ bấm OFF -> đè chữ OFF thay thế. */
                             <div className="py-1 text-center space-y-1 overflow-hidden">
                               {readOnly ? (
-                                /* === PHÍA NHÂN VIÊN === */
+                                /* === PHÍA NHÂN VIÊN: CHỈ HIỆN 🛑 OFF GỌN GÀNG, KHÔNG HIỆN GHI CHÚ === */
                                 empAvail?.is_admin_assigned ? (
-                                  /* Chủ đã bấm gán OFF -> Hiện badge OFF nổi bật kèm ghi chú */
-                                  <div className="text-rose-600 font-black text-[11px] uppercase px-2 py-1 rounded-xl bg-rose-50 border-2 border-rose-300 inline-block shadow-sm max-w-full">
-                                    <div>🛑 OFF</div>
-                                    {empAvail.note && (
-                                      <div className="text-[9.5px] font-extrabold normal-case text-rose-800 tracking-tight mt-0.5 truncate max-w-[105px]" title={empAvail.note}>
-                                        {empAvail.note}
-                                      </div>
-                                    )}
-                                  </div>
+                                  <span className="text-rose-600 font-black text-[11px] uppercase px-2.5 py-1 rounded-xl bg-rose-50 border-2 border-rose-300 inline-block shadow-sm">
+                                    🛑 OFF
+                                  </span>
                                 ) : (
                                   /* Chưa có lịch, chưa gán OFF -> Đang xếp lịch */
                                   <span className="text-purple-700 font-extrabold text-[10.5px] px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 inline-block shadow-2xs">
