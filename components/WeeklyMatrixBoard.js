@@ -690,7 +690,208 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setLocalSchedule((prev) => {
       let updated = [...prev];
       datesToApply.forEach((dStr) => {
-        // Nếu là ca chỉnh sửa đã có ID
+        // =========================================================================
+        // TRƯỜNG HỢP 1: HOÁN ĐỔI CA HOÀN TOÀN GIỮA 2 NHÂN VIÊN (SWAP EMPLOYEES)
+        // =========================================================================
+        if (data.swapEmployeeId) {
+          const empA = employees.find((e) => e.id === data.employeeId);
+          const empB = employees.find((e) => e.id === data.swapEmployeeId);
+          const empAName = empA?.name || 'Nhân viên';
+          const empBName = empB?.name || 'Nhân viên';
+
+          const idxA = updated.findIndex((s) => s.employee_id === data.employeeId && s.date === dStr);
+          const idxB = updated.findIndex((s) => s.employee_id === data.swapEmployeeId && s.date === dStr);
+
+          if (idxA !== -1 && idxB !== -1) {
+            // Cả 2 đều có ca -> Hoán đổi ca cho nhau
+            const shiftA = { ...updated[idxA] };
+            const shiftB = { ...updated[idxB] };
+
+            updated[idxA] = {
+              ...shiftB,
+              id: shiftA.id,
+              employee_id: data.employeeId,
+              note: `[Đổi ca với ${empBName}]`,
+              isDirty: true,
+            };
+
+            updated[idxB] = {
+              ...shiftA,
+              id: shiftB.id,
+              employee_id: data.swapEmployeeId,
+              note: `[Đổi ca với ${empAName}]`,
+              isDirty: true,
+            };
+          } else if (idxA !== -1 && idxB === -1) {
+            // A có ca, B ĐANG OFF -> Xóa ca cũ của A trong DB và tạo ca mới cho B
+            const shiftA = { ...updated[idxA] };
+
+            // Đánh dấu xóa ID ca cũ của A trong Supabase
+            if (shiftA.id && !String(shiftA.id).startsWith('draft_')) {
+              setDeletedShiftIds((prev) => [...prev, shiftA.id]);
+            }
+
+            // Xóa mọi ca của A trong ngày này
+            updated = updated.filter((s) => !(s.employee_id === data.employeeId && s.date === dStr));
+
+            // Tạo ca mới cho B
+            const newShiftForB = {
+              id: `draft_${Date.now()}_${data.swapEmployeeId}`,
+              employee_id: data.swapEmployeeId,
+              branch_id: data.branchId || shiftA.branch_id,
+              branches: targetBranch,
+              date: dStr,
+              start_time: data.startTime || shiftA.start_time,
+              end_time: data.endTime || shiftA.end_time,
+              hours: data.hours || shiftA.hours,
+              note: `[Đổi ca từ ${empAName}]`,
+              isDraft: true,
+              isDirty: true,
+            };
+            updated.push(newShiftForB);
+
+            // Bật cờ 🛑 OFF cho A (người nhường ca) kèm ghi chú đổi ca, đồng thời lưu giữ orig_note & orig_type
+            setLocalAvailability((prevAvail) => {
+              const nextAvail = [...prevAvail];
+              const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
+              if (availBIdx >= 0) {
+                nextAvail[availBIdx] = { ...nextAvail[availBIdx], is_admin_assigned: false };
+              }
+
+              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
+              if (availAIdx >= 0) {
+                const cur = nextAvail[availAIdx];
+                nextAvail[availAIdx] = {
+                  ...cur,
+                  orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
+                  orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
+                  note: `Đổi ca với ${empBName}`,
+                  is_admin_assigned: true,
+                };
+              } else {
+                nextAvail.push({
+                  id: `draft_avail_${Date.now()}_${data.employeeId}`,
+                  employee_id: data.employeeId,
+                  date: dStr,
+                  type: 'off',
+                  orig_note: '',
+                  orig_type: 'off',
+                  note: `Đổi ca với ${empBName}`,
+                  is_admin_assigned: true,
+                });
+              }
+              return nextAvail;
+            });
+          } else if (idxA === -1 && idxB !== -1) {
+            // A ĐANG OFF, B có ca -> Xóa ca cũ của B trong DB và tạo ca mới cho A
+            const shiftB = { ...updated[idxB] };
+
+            // Đánh dấu xóa ID ca cũ của B trong Supabase
+            if (shiftB.id && !String(shiftB.id).startsWith('draft_')) {
+              setDeletedShiftIds((prev) => [...prev, shiftB.id]);
+            }
+
+            // Xóa mọi ca của B trong ngày này
+            updated = updated.filter((s) => !(s.employee_id === data.swapEmployeeId && s.date === dStr));
+
+            // Tạo ca mới cho A
+            const newShiftForA = {
+              id: `draft_${Date.now()}_${data.employeeId}`,
+              employee_id: data.employeeId,
+              branch_id: data.branchId || shiftB.branch_id,
+              branches: targetBranch,
+              date: dStr,
+              start_time: data.startTime || shiftB.start_time,
+              end_time: data.endTime || shiftB.end_time,
+              hours: data.hours || shiftB.hours,
+              note: `[Đổi ca từ ${empBName}]`,
+              isDraft: true,
+              isDirty: true,
+            };
+            updated.push(newShiftForA);
+
+            // Bật cờ 🛑 OFF cho B (người nhường ca) kèm ghi chú đổi ca, đồng thời lưu giữ orig_note & orig_type
+            setLocalAvailability((prevAvail) => {
+              const nextAvail = [...prevAvail];
+              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
+              if (availAIdx >= 0) {
+                nextAvail[availAIdx] = { ...nextAvail[availAIdx], is_admin_assigned: false };
+              }
+
+              const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
+              if (availBIdx >= 0) {
+                const cur = nextAvail[availBIdx];
+                nextAvail[availBIdx] = {
+                  ...cur,
+                  orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
+                  orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
+                  note: `Đổi ca với ${empAName}`,
+                  is_admin_assigned: true,
+                };
+              } else {
+                nextAvail.push({
+                  id: `draft_avail_${Date.now()}_${data.swapEmployeeId}`,
+                  employee_id: data.swapEmployeeId,
+                  date: dStr,
+                  type: 'off',
+                  orig_note: '',
+                  orig_type: 'off',
+                  note: `Đổi ca với ${empAName}`,
+                  is_admin_assigned: true,
+                });
+              }
+              return nextAvail;
+            });
+          } else {
+            // Cả A và B đều chưa có ca trước đó -> Tạo ca mới cho B, gán OFF cho A
+            const newShiftForB = {
+              id: `draft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              employee_id: data.swapEmployeeId,
+              branch_id: data.branchId,
+              branches: targetBranch,
+              date: dStr,
+              start_time: data.startTime,
+              end_time: data.endTime,
+              hours: data.hours,
+              note: `[Đổi ca từ ${empAName}]`,
+              isDraft: true,
+              isDirty: true,
+            };
+            updated.push(newShiftForB);
+
+            setLocalAvailability((prevAvail) => {
+              const nextAvail = [...prevAvail];
+              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
+              if (availAIdx >= 0) {
+                const cur = nextAvail[availAIdx];
+                nextAvail[availAIdx] = {
+                  ...cur,
+                  orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
+                  orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
+                  note: `Đổi ca với ${empBName}`,
+                  is_admin_assigned: true,
+                };
+              } else {
+                nextAvail.push({
+                  id: `draft_avail_${Date.now()}_${data.employeeId}`,
+                  employee_id: data.employeeId,
+                  date: dStr,
+                  type: 'off',
+                  orig_note: '',
+                  orig_type: 'off',
+                  note: `Đổi ca với ${empBName}`,
+                  is_admin_assigned: true,
+                });
+              }
+              return nextAvail;
+            });
+          }
+          return; // Hoàn thành hoán đổi, không tạo ca thường cho A
+        }
+
+        // =========================================================================
+        // TRƯỜNG HỢP 2: TẠO MỚI / CHỈNH SỬA CA LÀM THÔNG THƯỜNG
+        // =========================================================================
         const existingIdx = updated.findIndex((s) => s.id && s.id === data.editId);
         if (existingIdx !== -1) {
           updated[existingIdx] = {
@@ -808,113 +1009,6 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             updated.push(newPeerShift);
           }
         }
-
-        // Hoán đổi ca làm hoàn toàn giữa 2 nhân viên (Full Shift Swap)
-        if (data.swapEmployeeId) {
-          const empA = employees.find((e) => e.id === data.employeeId);
-          const empB = employees.find((e) => e.id === data.swapEmployeeId);
-          const empAName = empA?.name || 'Nhân viên';
-          const empBName = empB?.name || 'Nhân viên';
-
-          const idxA = updated.findIndex((s) => s.employee_id === data.employeeId && s.date === dStr);
-          const idxB = updated.findIndex((s) => s.employee_id === data.swapEmployeeId && s.date === dStr);
-
-          if (idxA !== -1 && idxB !== -1) {
-            // Cả 2 đều có ca -> Hoán đổi ca cho nhau
-            const shiftA = { ...updated[idxA] };
-            const shiftB = { ...updated[idxB] };
-
-            updated[idxA] = {
-              ...shiftB,
-              id: shiftA.id,
-              employee_id: data.employeeId,
-              note: `[Đổi ca với ${empBName}]`,
-              isDirty: true,
-            };
-
-            updated[idxB] = {
-              ...shiftA,
-              id: shiftB.id,
-              employee_id: data.swapEmployeeId,
-              note: `[Đổi ca với ${empAName}]`,
-              isDirty: true,
-            };
-          } else if (idxA !== -1 && idxB === -1) {
-            // B chưa có ca (Đang OFF) -> Chuyển toàn bộ ca của A sang cho B
-            updated[idxA] = {
-              ...updated[idxA],
-              employee_id: data.swapEmployeeId,
-              note: `[Đổi ca từ ${empAName}]`,
-              isDirty: true,
-            };
-
-            // Gán trạng thái 🛑 OFF + Ghi chú cho A (người nhường ca) & Tắt cờ OFF của B (người nhận ca)
-            setLocalAvailability((prevAvail) => {
-              const nextAvail = [...prevAvail];
-              const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
-              if (availBIdx >= 0) {
-                nextAvail[availBIdx] = { ...nextAvail[availBIdx], is_admin_assigned: false };
-              }
-
-              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
-              if (availAIdx >= 0) {
-                nextAvail[availAIdx] = {
-                  ...nextAvail[availAIdx],
-                  type: 'off',
-                  is_admin_assigned: true,
-                  note: `Đổi ca với ${empBName}`,
-                };
-              } else {
-                nextAvail.push({
-                  id: `draft_avail_${Date.now()}_${data.employeeId}`,
-                  employee_id: data.employeeId,
-                  date: dStr,
-                  type: 'off',
-                  note: `Đổi ca với ${empBName}`,
-                  is_admin_assigned: true,
-                });
-              }
-              return nextAvail;
-            });
-          } else if (idxA === -1 && idxB !== -1) {
-            // A chưa có ca (Đang OFF) -> Chuyển ca của B sang cho A
-            updated[idxB] = {
-              ...updated[idxB],
-              employee_id: data.employeeId,
-              note: `[Đổi ca từ ${empBName}]`,
-              isDirty: true,
-            };
-
-            // Gán trạng thái 🛑 OFF + Ghi chú cho B (người nhường ca) & Tắt cờ OFF của A (người nhận ca)
-            setLocalAvailability((prevAvail) => {
-              const nextAvail = [...prevAvail];
-              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
-              if (availAIdx >= 0) {
-                nextAvail[availAIdx] = { ...nextAvail[availAIdx], is_admin_assigned: false };
-              }
-
-              const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
-              if (availBIdx >= 0) {
-                nextAvail[availBIdx] = {
-                  ...nextAvail[availBIdx],
-                  type: 'off',
-                  is_admin_assigned: true,
-                  note: `Đổi ca với ${empAName}`,
-                };
-              } else {
-                nextAvail.push({
-                  id: `draft_avail_${Date.now()}_${data.swapEmployeeId}`,
-                  employee_id: data.swapEmployeeId,
-                  date: dStr,
-                  type: 'off',
-                  note: `Đổi ca với ${empAName}`,
-                  is_admin_assigned: true,
-                });
-              }
-              return nextAvail;
-            });
-          }
-        }
       });
       return updated;
     });
@@ -951,16 +1045,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
     setLocalSchedule((prev) => prev.filter((s) => !(s.employee_id === employeeId && s.date === targetDateStr)));
 
-    // Bật flag is_admin_assigned = true, cập nhật note nếu có
+    // Bật flag is_admin_assigned = true, giữ nguyên 100% type và note đăng ký ban đầu của nhân viên
     setLocalAvailability((prev) => {
       const idx = prev.findIndex((a) => a.employee_id === employeeId && a.date === targetDateStr);
       if (idx >= 0) {
         const updated = [...prev];
         updated[idx] = {
           ...updated[idx],
-          type: 'off',
           is_admin_assigned: true,
-          note: customNote !== '' ? customNote : (updated[idx].note || ''),
         };
         return updated;
       }
@@ -971,7 +1063,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           employee_id: employeeId,
           date: targetDateStr,
           type: 'off',
-          note: customNote || '',
+          note: '',
           is_admin_assigned: true,
         },
       ];
@@ -987,8 +1079,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setLocalAvailability((prev) => {
       const idx = prev.findIndex((a) => a.employee_id === employeeId && a.date === targetDateStr);
       if (idx >= 0) {
+        const cur = prev[idx];
         const updated = [...prev];
-        updated[idx] = { ...updated[idx], is_admin_assigned: false };
+        updated[idx] = {
+          ...cur,
+          note: cur.orig_note !== undefined ? cur.orig_note : cur.note,
+          type: cur.orig_type !== undefined ? cur.orig_type : cur.type,
+          is_admin_assigned: false,
+        };
         return updated;
       }
       return prev;
@@ -1628,7 +1726,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                           className={`p-1.5 border-r border-purple-100 text-center align-middle transition-all w-[12.28%] min-w-[115px] max-w-[135px] overflow-hidden group ${readOnly ? 'cursor-default select-none' : 'cursor-pointer hover:bg-purple-100/60'
                             }`}
                         >
-                          {empShifts.length > 0 ? (
+                          {/* Phía Nhân Viên khi Admin CHƯA BẤM CHỐT LỊCH: Luôn hiển thị 'Đang xếp lịch' */}
+                          {readOnly && !isWeekLocked ? (
+                            <div className="py-1 text-center">
+                              <span className="text-purple-700 font-extrabold text-[10.5px] px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 inline-block shadow-2xs">
+                                ⏳ Đang xếp lịch
+                              </span>
+                            </div>
+                          ) : empShifts.length > 0 ? (
                             /* Có Ca Phân Công -> Phô diễn màu sắc tươi sáng chuẩn DB 100% */
                             <div className="space-y-1">
                               {empShifts.map((shift) => {
@@ -1685,7 +1790,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                   /* Chủ đã bấm OFF -> Hiện badge OFF lớn nổi bật kèm ghi chú */
                                   <div className="p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border-2 border-rose-400 shadow-sm bg-rose-100 text-rose-700 transition-all hover:scale-[1.02]">
                                     <div className="text-xs font-black">🛑 OFF</div>
-                                    <div className="text-[10px] font-extrabold text-rose-800 opacity-90 mt-0.5 truncate max-w-[110px] mx-auto" title={empAvail.note || 'Nghỉ'}>
+                                    <div
+                                      className="text-[10px] font-extrabold text-rose-800 opacity-90 mt-0.5 truncate max-w-[110px] mx-auto"
+                                      title={empAvail.orig_note ? `${empAvail.note || 'Nghỉ'} (Đăng ký gốc: ${empAvail.orig_note})` : (empAvail.note || 'Nghỉ')}
+                                    >
                                       {empAvail.note || 'Nghỉ'}
                                     </div>
                                   </div>
