@@ -15,11 +15,12 @@ export default function ModalSortEmployees({ isOpen, onClose, employees = [], on
 
   useEffect(() => {
     if (employees && employees.length > 0) {
-      const sorted = [...employees].sort((a, b) => {
-        const isOffA = a.status === 'off';
-        const isOffB = b.status === 'off';
-        if (isOffA !== isOffB) return isOffA ? 1 : -1;
-
+      const activeEmps = employees.filter((e) => {
+        if (e.role === 'owner' || e.role === 'manager') return false;
+        if (e.status === 'off' || e.is_active === false) return false;
+        return true;
+      });
+      const sorted = [...activeEmps].sort((a, b) => {
         const orderA = a.sort_order ?? 999;
         const orderB = b.sort_order ?? 999;
         if (orderA !== orderB) return orderA - orderB;

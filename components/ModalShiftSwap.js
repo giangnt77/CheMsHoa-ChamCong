@@ -186,7 +186,20 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
       .filter((emp) => {
         if (emp.role === 'owner' || emp.role === 'manager') return false;
         const nLower = (emp.name || '').toLowerCase();
-        return !nLower.includes('chủ quán') && !nLower.includes('quản lý');
+        if (nLower.includes('chủ quán') || nLower.includes('quản lý')) return false;
+
+        const targetDate = shiftDate ? String(shiftDate).slice(0, 10) : '';
+        // 1. Kiểm tra ngày bắt đầu vào làm
+        if (targetDate && emp.created_at) {
+          const empStartDate = emp.created_at.slice(0, 10);
+          if (targetDate < empStartDate) return false;
+        }
+        // 2. Kiểm tra ngày nghỉ việc
+        if (emp.status === 'off' || emp.is_active === false) {
+          const resignedDate = emp.resigned_at || emp.off_date || (emp.created_at ? emp.created_at.slice(0, 10) : '1970-01-01');
+          if (targetDate >= resignedDate) return false;
+        }
+        return true;
       })
       .map((emp) => {
         const empScheds = daySchedules.filter(

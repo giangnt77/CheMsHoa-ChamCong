@@ -480,9 +480,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       // Nếu tuần đang xem xảy ra TRƯỚC NGÀY NGHỈ VIỆC (startDate < resignedDate) -> Vẫn hiển thị bình thường ở các tuần quá khứ!
       // Nếu tuần đang xem diễn ra SAU KHI ĐÃ NGHỈ VIỆC và không có ca làm -> Ẩn khỏi bảng ma trận chính để tránh rác hàng OFF!
       if (emp.status === 'off' || emp.is_active === false) {
-        const resignedDate = emp.resigned_at || emp.off_date || (emp.updated_at ? emp.updated_at.slice(0, 10) : '2099-12-31');
-        if (startDate < resignedDate) {
-          matrix.push(emp); // Tuần quá khứ trước khi nghỉ -> Vẫn hiện trên bảng!
+        const resignedDate = emp.resigned_at || emp.off_date || (emp.created_at ? emp.created_at.slice(0, 10) : '1970-01-01');
+        const hasShiftsInThisWeek = (weekDays || []).some(
+          (dStr) => (scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []).length > 0
+        );
+
+        if (hasShiftsInThisWeek || startDate < resignedDate) {
+          matrix.push(emp); // Tuần quá khứ trước khi nghỉ hoặc có ca làm -> Vẫn hiện trên bảng!
         } else {
           permanentOffList.push({
             employee: emp,
@@ -836,13 +840,79 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               isDirty: true,
             };
           } else if (idxA !== -1 && idxB === -1) {
-            // B chưa có ca -> Chuyển toàn bộ ca của A sang cho B
+            // B chưa có ca (Đang OFF) -> Chuyển toàn bộ ca của A sang cho B
             updated[idxA] = {
               ...updated[idxA],
               employee_id: data.swapEmployeeId,
               note: `[Đổi ca từ ${empAName}]`,
               isDirty: true,
             };
+
+            // Gán trạng thái 🛑 OFF + Ghi chú cho A (người nhường ca) & Tắt cờ OFF của B (người nhận ca)
+            setLocalAvailability((prevAvail) => {
+              const nextAvail = [...prevAvail];
+              const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
+              if (availBIdx >= 0) {
+                nextAvail[availBIdx] = { ...nextAvail[availBIdx], is_admin_assigned: false };
+              }
+
+              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
+              if (availAIdx >= 0) {
+                nextAvail[availAIdx] = {
+                  ...nextAvail[availAIdx],
+                  type: 'off',
+                  is_admin_assigned: true,
+                  note: `Đổi ca với ${empBName}`,
+                };
+              } else {
+                nextAvail.push({
+                  id: `draft_avail_${Date.now()}_${data.employeeId}`,
+                  employee_id: data.employeeId,
+                  date: dStr,
+                  type: 'off',
+                  note: `Đổi ca với ${empBName}`,
+                  is_admin_assigned: true,
+                });
+              }
+              return nextAvail;
+            });
+          } else if (idxA === -1 && idxB !== -1) {
+            // A chưa có ca (Đang OFF) -> Chuyển ca của B sang cho A
+            updated[idxB] = {
+              ...updated[idxB],
+              employee_id: data.employeeId,
+              note: `[Đổi ca từ ${empBName}]`,
+              isDirty: true,
+            };
+
+            // Gán trạng thái 🛑 OFF + Ghi chú cho B (người nhường ca) & Tắt cờ OFF của A (người nhận ca)
+            setLocalAvailability((prevAvail) => {
+              const nextAvail = [...prevAvail];
+              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
+              if (availAIdx >= 0) {
+                nextAvail[availAIdx] = { ...nextAvail[availAIdx], is_admin_assigned: false };
+              }
+
+              const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
+              if (availBIdx >= 0) {
+                nextAvail[availBIdx] = {
+                  ...nextAvail[availBIdx],
+                  type: 'off',
+                  is_admin_assigned: true,
+                  note: `Đổi ca với ${empAName}`,
+                };
+              } else {
+                nextAvail.push({
+                  id: `draft_avail_${Date.now()}_${data.swapEmployeeId}`,
+                  employee_id: data.swapEmployeeId,
+                  date: dStr,
+                  type: 'off',
+                  note: `Đổi ca với ${empAName}`,
+                  is_admin_assigned: true,
+                });
+              }
+              return nextAvail;
+            });
           }
         }
       });
@@ -868,8 +938,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     setHasUnsavedChanges(true);
   }
 
-  // 2.5. Gán ca OFF đè lên (CHỈ bật flag is_admin_assigned, GIỮ NGUYÊN ghi chú gốc của NV)
-  function handleAssignOff(employeeId, targetDateStr) {
+  // 2.5. Gán ca OFF đè lên kèm ghi chú
+  function handleAssignOff(employeeId, targetDateStr, customNote = '') {
     if (!employeeId || !targetDateStr) return;
 
     // Xóa ca phân công cũ trong daySchedule nếu có
@@ -881,22 +951,27 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
     setLocalSchedule((prev) => prev.filter((s) => !(s.employee_id === employeeId && s.date === targetDateStr)));
 
-    // Bật flag is_admin_assigned = true, giữ nguyên type/note gốc
+    // Bật flag is_admin_assigned = true, cập nhật note nếu có
     setLocalAvailability((prev) => {
       const idx = prev.findIndex((a) => a.employee_id === employeeId && a.date === targetDateStr);
       if (idx >= 0) {
         const updated = [...prev];
-        updated[idx] = { ...updated[idx], is_admin_assigned: true };
+        updated[idx] = {
+          ...updated[idx],
+          type: 'off',
+          is_admin_assigned: true,
+          note: customNote !== '' ? customNote : (updated[idx].note || ''),
+        };
         return updated;
       }
       return [
         ...prev,
         {
-          id: `draft_avail_${Date.now()}`,
+          id: `draft_avail_${Date.now()}_${employeeId}`,
           employee_id: employeeId,
           date: targetDateStr,
           type: 'off',
-          note: '',
+          note: customNote || '',
           is_admin_assigned: true,
         },
       ];
@@ -971,13 +1046,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         );
       }
 
-      // 3. CẬP NHẬT CÁC THAY ĐỔI TRẠNG THÁI OFF BỞI CHỦ (gán OFF hoặc xóa OFF) - Chạy song song
       const origAvailMap = {};
       availability.forEach((a) => { origAvailMap[`${a.employee_id}_${a.date}`] = a; });
       const changedAvails = localAvailability.filter((a) => {
         const orig = origAvailMap[`${a.employee_id}_${a.date}`];
-        // Bản ghi mới (draft) hoặc is_admin_assigned thay đổi so với DB gốc
-        return String(a.id).startsWith('draft_avail_') || (orig && !!orig.is_admin_assigned !== !!a.is_admin_assigned);
+        // Bản ghi mới (draft) hoặc is_admin_assigned / note / type thay đổi so với DB gốc
+        return (
+          String(a.id).startsWith('draft_avail_') ||
+          !orig ||
+          !!orig.is_admin_assigned !== !!a.is_admin_assigned ||
+          (orig.note || '') !== (a.note || '') ||
+          orig.type !== a.type
+        );
       });
       if (changedAvails.length > 0) {
         await Promise.all(
@@ -1590,10 +1670,15 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                               {readOnly ? (
                                 /* === PHÍA NHÂN VIÊN === */
                                 empAvail?.is_admin_assigned ? (
-                                  /* Chủ đã bấm gán OFF -> Hiện badge OFF nổi bật */
-                                  <span className="text-rose-600 font-black text-[11px] uppercase px-2.5 py-1 rounded-xl bg-rose-50 border-2 border-rose-300 inline-block shadow-sm">
-                                    🛑 OFF
-                                  </span>
+                                  /* Chủ đã bấm gán OFF -> Hiện badge OFF nổi bật kèm ghi chú */
+                                  <div className="text-rose-600 font-black text-[11px] uppercase px-2 py-1 rounded-xl bg-rose-50 border-2 border-rose-300 inline-block shadow-sm max-w-full">
+                                    <div>🛑 OFF</div>
+                                    {empAvail.note && (
+                                      <div className="text-[9.5px] font-extrabold normal-case text-rose-800 tracking-tight mt-0.5 truncate max-w-[105px]" title={empAvail.note}>
+                                        {empAvail.note}
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : (
                                   /* Chưa có lịch, chưa gán OFF -> Đang xếp lịch */
                                   <span className="text-purple-700 font-extrabold text-[10.5px] px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 inline-block shadow-2xs">
@@ -1603,10 +1688,12 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                               ) : (
                                 /* === PHÍA CHỦ / ADMIN === */
                                 empAvail?.is_admin_assigned ? (
-                                  /* Chủ đã bấm OFF -> Hiện badge OFF lớn nổi bật (tương tự badge ca làm) */
+                                  /* Chủ đã bấm OFF -> Hiện badge OFF lớn nổi bật kèm ghi chú */
                                   <div className="p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border-2 border-rose-400 shadow-sm bg-rose-100 text-rose-700 transition-all hover:scale-[1.02]">
                                     <div className="text-xs font-black">🛑 OFF</div>
-                                    <div className="text-[10px] font-extrabold opacity-80 mt-0.5">Nghỉ</div>
+                                    <div className="text-[10px] font-extrabold text-rose-800 opacity-90 mt-0.5 truncate max-w-[110px] mx-auto" title={empAvail.note || 'Nghỉ'}>
+                                      {empAvail.note || 'Nghỉ'}
+                                    </div>
                                   </div>
                                 ) : empAvail ? (
                                   /* Nhân viên đã đăng ký rảnh -> Hiện thông tin đăng ký */
@@ -1878,8 +1965,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                     })}
                                   </div>
                                 ) : empAvail?.is_admin_assigned ? (
-                                  <div className="text-rose-600 font-black text-[11px] uppercase p-1 rounded-md bg-rose-50 border border-rose-200 flex justify-center items-center min-h-[26px]">
-                                    🛑 OFF
+                                  <div className="text-rose-600 font-black text-[11px] uppercase p-1 rounded-md bg-rose-50 border border-rose-200 flex flex-col justify-center items-center min-h-[26px]">
+                                    <span>🛑 OFF</span>
+                                    {empAvail.note && (
+                                      <span className="text-[9px] font-extrabold normal-case text-rose-800 tracking-tight mt-0.5 truncate max-w-[85px]">
+                                        {empAvail.note}
+                                      </span>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-slate-400 font-bold text-xs">

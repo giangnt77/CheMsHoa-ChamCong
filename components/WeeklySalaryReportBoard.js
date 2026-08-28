@@ -198,7 +198,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
         // - Nếu mốc tuần đang xem xảy ra TRƯỚC NGÀY NGHỈ VIỆC (startDate < resignedDate) -> Vẫn giữ lại nhân viên để hiện báo cáo quá khứ!
         // - Nếu mốc tuần đang xem xảy ra SAU KHI ĐÃ NGHỈ VIỆC (startDate >= resignedDate) VÀ KHÔNG CÓ CA LÀM NÀO -> Mới ẩn đi!
         if (emp.status === 'off' || emp.is_active === false) {
-          const resignedDate = emp.resigned_at || emp.off_date || (emp.updated_at ? emp.updated_at.slice(0, 10) : '2099-12-31');
+          const resignedDate = emp.resigned_at || emp.off_date || (emp.created_at ? emp.created_at.slice(0, 10) : '1970-01-01');
           if (startDate >= resignedDate && !hasShiftsInThisWeek) {
             return false;
           }

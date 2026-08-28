@@ -69,20 +69,44 @@ export default function ModalXepLichQuick({
 
   const hours = calcHours(startTime, endTime);
 
-  // Lọc danh sách nhân viên thực sự (loại bỏ hoàn toàn Owner / Manager)
+  // Lọc danh sách nhân viên thực sự (loại bỏ hoàn toàn Owner / Manager và người đã nghỉ việc trước/vào ngày này)
   const staffOnlyEmployees = useMemo(() => {
     if (!employees) return [];
+    const targetDate = date ? String(date).slice(0, 10) : '';
+
     return employees.filter((e) => {
       if (e.role === 'owner' || e.role === 'manager') return false;
       const nLower = (e.name || '').toLowerCase();
-      return (
-        !nLower.includes('chủ quán') &&
-        !nLower.includes('quản lý') &&
-        !nLower.includes('owner') &&
-        !nLower.includes('manager')
-      );
+      if (
+        nLower.includes('chủ quán') ||
+        nLower.includes('quản lý') ||
+        nLower.includes('owner') ||
+        nLower.includes('manager')
+      ) {
+        return false;
+      }
+
+      // 1. Kiểm tra ngày bắt đầu vào làm (Nếu ngày đang xếp xảy ra TRƯỚC ngày vào làm -> Ẩn)
+      if (targetDate && e.created_at) {
+        const empStartDate = e.created_at.slice(0, 10);
+        if (targetDate < empStartDate) return false;
+      }
+
+      // 2. Kiểm tra ngày nghỉ việc (Nếu đã nghỉ việc vào hoặc trước ngày này -> Ẩn)
+      if (e.status === 'off' || e.is_active === false) {
+        // Nếu nhân viên này có ca làm việc thực tế được gán trong ngày này -> Vẫn cho phép hiển thị để xem/sửa
+        const hasShiftOnThisDay = (daySchedule || []).some((s) => s.employee_id === e.id);
+        if (hasShiftOnThisDay) return true;
+
+        const resignedDate = e.resigned_at || e.off_date || (e.created_at ? e.created_at.slice(0, 10) : '1970-01-01');
+        if (targetDate >= resignedDate) {
+          return false; // Đã nghỉ việc từ mốc này -> Ẩn hoàn toàn khỏi danh sách!
+        }
+      }
+
+      return true;
     });
-  }, [employees]);
+  }, [employees, date, daySchedule]);
 
   // 1. Trích xuất ca gốc ban đầu (nếu ca này từng được điều chỉnh và có tag [Gốc: ...])
   const origShiftInfo = useMemo(() => {
