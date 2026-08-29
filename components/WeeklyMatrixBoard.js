@@ -204,8 +204,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const startDate = weekDays[0];
   const endDate = weekDays[6];
 
-  // Danh sách các ca có phát sinh đổi ca / làm thay / tăng ca / về sớm trong tuần
+  // Danh sách các ca có phát sinh đổi ca / làm thay / tăng ca / về sớm trong tuần (Chỉ áp dụng khi tuần ĐÃ CHỐT LỊCH)
   const adjustedShiftsInWeek = useMemo(() => {
+    if (!isWeekLocked) return [];
     const activeSched = localSchedule.length > 0 ? localSchedule : schedule;
     return activeSched.filter((s) => {
       if (!s || !s.note) return false;
@@ -216,10 +217,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
         n.includes('làm thay') ||
         n.includes('tăng ca') ||
         n.includes('về sớm') ||
-        n.includes('gánh ca')
+        n.includes('gánh ca') ||
+        n.includes('[đổi ca')
       );
     });
-  }, [localSchedule, schedule]);
+  }, [localSchedule, schedule, isWeekLocked]);
 
   const tableContainerRef = useRef(null);
 
@@ -711,7 +713,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               ...shiftB,
               id: shiftA.id,
               employee_id: data.employeeId,
-              note: `[Đổi ca với ${empBName}]`,
+              note: isWeekLocked ? `[Đổi ca với ${empBName}]` : (shiftB.note || ''),
               isDirty: true,
             };
 
@@ -719,7 +721,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               ...shiftA,
               id: shiftB.id,
               employee_id: data.swapEmployeeId,
-              note: `[Đổi ca với ${empAName}]`,
+              note: isWeekLocked ? `[Đổi ca với ${empAName}]` : (shiftA.note || ''),
               isDirty: true,
             };
           } else if (idxA !== -1 && idxB === -1) {
@@ -744,13 +746,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               start_time: data.startTime || shiftA.start_time,
               end_time: data.endTime || shiftA.end_time,
               hours: data.hours || shiftA.hours,
-              note: `[Đổi ca từ ${empAName}]`,
+              note: isWeekLocked ? `[Đổi ca từ ${empAName}]` : '',
               isDraft: true,
               isDirty: true,
             };
             updated.push(newShiftForB);
 
-            // Bật cờ 🛑 OFF cho A (người nhường ca) kèm ghi chú đổi ca, đồng thời lưu giữ orig_note & orig_type
+            // Bật cờ 🛑 OFF cho A (người nhường ca) kèm ghi chú đổi ca (nếu đã chốt lịch), đồng thời lưu giữ orig_note & orig_type
             setLocalAvailability((prevAvail) => {
               const nextAvail = [...prevAvail];
               const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
@@ -765,7 +767,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   ...cur,
                   orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
                   orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
-                  note: `Đổi ca với ${empBName}`,
+                  note: isWeekLocked ? `Đổi ca với ${empBName}` : (cur.orig_note || cur.note || ''),
                   is_admin_assigned: true,
                 };
               } else {
@@ -776,7 +778,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   type: 'off',
                   orig_note: '',
                   orig_type: 'off',
-                  note: `Đổi ca với ${empBName}`,
+                  note: isWeekLocked ? `Đổi ca với ${empBName}` : '',
                   is_admin_assigned: true,
                 });
               }
@@ -804,13 +806,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               start_time: data.startTime || shiftB.start_time,
               end_time: data.endTime || shiftB.end_time,
               hours: data.hours || shiftB.hours,
-              note: `[Đổi ca từ ${empBName}]`,
+              note: isWeekLocked ? `[Đổi ca từ ${empBName}]` : '',
               isDraft: true,
               isDirty: true,
             };
             updated.push(newShiftForA);
 
-            // Bật cờ 🛑 OFF cho B (người nhường ca) kèm ghi chú đổi ca, đồng thời lưu giữ orig_note & orig_type
+            // Bật cờ 🛑 OFF cho B (người nhường ca) kèm ghi chú đổi ca (nếu đã chốt lịch), đồng thời lưu giữ orig_note & orig_type
             setLocalAvailability((prevAvail) => {
               const nextAvail = [...prevAvail];
               const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
@@ -825,7 +827,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   ...cur,
                   orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
                   orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
-                  note: `Đổi ca với ${empAName}`,
+                  note: isWeekLocked ? `Đổi ca với ${empAName}` : (cur.orig_note || cur.note || ''),
                   is_admin_assigned: true,
                 };
               } else {
@@ -836,7 +838,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   type: 'off',
                   orig_note: '',
                   orig_type: 'off',
-                  note: `Đổi ca với ${empAName}`,
+                  note: isWeekLocked ? `Đổi ca với ${empAName}` : '',
                   is_admin_assigned: true,
                 });
               }
@@ -853,7 +855,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               start_time: data.startTime,
               end_time: data.endTime,
               hours: data.hours,
-              note: `[Đổi ca từ ${empAName}]`,
+              note: isWeekLocked ? `[Đổi ca từ ${empAName}]` : '',
               isDraft: true,
               isDirty: true,
             };

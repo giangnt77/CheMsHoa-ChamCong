@@ -57,17 +57,25 @@ export default function ModalXepLichQuick({
 
   if (!isOpen) return null;
 
-  // Tính số giờ
+  // Tính số giờ (Bắt buộc giờ ra > giờ vào)
   function calcHours(st, et) {
     if (!st || !et || st === et) return 0;
     const [sh, sm] = st.split(':').map(Number);
     const [eh, em] = et.split(':').map(Number);
-    let h = (eh * 60 + em - (sh * 60 + sm)) / 60;
-    if (h < 0) h += 24;
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+    if (endMins <= startMins) return 0;
+    const h = (endMins - startMins) / 60;
     return Math.round(h * 100) / 100;
   }
 
   const hours = calcHours(startTime, endTime);
+  const isTimeInvalid = useMemo(() => {
+    if (!startTime || !endTime) return true;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    return (eh * 60 + em) <= (sh * 60 + sm);
+  }, [startTime, endTime]);
 
   // Lọc danh sách nhân viên thực sự (loại bỏ hoàn toàn Owner / Manager và người đã nghỉ việc trước/vào ngày này)
   const staffOnlyEmployees = useMemo(() => {
@@ -268,6 +276,12 @@ export default function ModalXepLichQuick({
   async function handleSubmit(e) {
     e.preventDefault();
     if (!selectedEmpId) return;
+
+    if (isTimeInvalid || hours <= 0) {
+      alert(`⚠️ Giờ ra (${endTime}) phải lớn hơn giờ vào (${startTime})! Vui lòng chọn lại giờ làm.`);
+      return;
+    }
+
     setSubmitting(true);
 
     // Tự động gỡ bỏ cờ OFF nếu nhân viên này đang bị gán OFF mà lại được xếp ca làm mới!
@@ -280,19 +294,22 @@ export default function ModalXepLichQuick({
       }
     }
 
-    // Tự động đảm bảo ghi chú có thông tin ca gốc khi sửa giờ
+    // Tự động đảm bảo ghi chú có thông tin ca gốc khi sửa giờ (CHỈ KHI TUẦN ĐÃ ĐƯỢC CHỐT LỊCH)
     let finalNote = note;
-    if (isEditing && origShiftInfo && timeDiff.isChanged) {
+    if (isWeekLocked && isEditing && origShiftInfo && timeDiff.isChanged) {
       if (!finalNote.includes('[Gốc:') && !finalNote.includes('[Ca gốc:')) {
         const diffSign = timeDiff.diffHours > 0 ? `+${timeDiff.diffHours}h` : `${timeDiff.diffHours}h`;
         const caGocTag = `[Gốc: ${origShiftInfo.startTime}-${origShiftInfo.endTime} | ${diffSign}]`;
         finalNote = caGocTag + (finalNote ? ' ' + finalNote : '');
       }
+    } else if (!isWeekLocked) {
+      // Khi tuần chưa chốt (đang xếp nháp), tự động loại bỏ các tag [Gốc: ...] nếu có vô tình bị dính
+      finalNote = finalNote.replace(/\[(?:Ca gốc|Gốc):\s*[^\]]+\]/g, '').trim();
     }
 
-    // Thông tin đồng bộ ca của bạn làm thay nếu có (chỉ khi có thay đổi giờ)
+    // Thông tin đồng bộ ca của bạn làm thay nếu có (CHỈ KHI TUẦN ĐÃ ĐƯỢC CHỐT LỊCH)
     let peerAdjustment = null;
-    if (selectedPeerId && !selectedSwapEmpId && syncPeerShift && timeDiff.diffHours !== 0) {
+    if (isWeekLocked && selectedPeerId && !selectedSwapEmpId && syncPeerShift && timeDiff.diffHours !== 0) {
       const peer = peerStaffOnDay.find((p) => p.employeeId === selectedPeerId);
       peerAdjustment = {
         peerEmployeeId: selectedPeerId,
@@ -744,9 +761,16 @@ export default function ModalXepLichQuick({
             </div>
 
             {/* Footer số giờ */}
-            <div className="text-center text-xs text-purple-900 font-extrabold pt-1.5 border-t border-purple-200/80">
-              ⏱️ Số giờ tự tính: <span className="text-sm font-black text-purple-950">{hours} tiếng</span>
-            </div>
+            {isTimeInvalid ? (
+              <div className="text-center text-xs font-black p-2 rounded-xl bg-rose-100 border border-rose-300 text-rose-900 flex items-center justify-center gap-1.5 animate-pulse">
+                <span>⚠️</span>
+                <span>Giờ ra ({endTime}) phải lớn hơn giờ vào ({startTime})!</span>
+              </div>
+            ) : (
+              <div className="text-center text-xs text-purple-900 font-extrabold pt-1.5 border-t border-purple-200/80">
+                ⏱️ Số giờ tự tính: <span className="text-sm font-black text-purple-950">{hours} tiếng</span>
+              </div>
+            )}
           </div>
 
           {/* ĐIỀU CHỈNH GIỜ & CA GỐC (THIẾT KẾ CARD & CHIP HIỆN ĐẠI, GỌN GÀNG CHO MOBILE) */}
@@ -1108,8 +1132,12 @@ export default function ModalXepLichQuick({
               </button>
               <button
                 type="submit"
-                disabled={submitting || !selectedEmpId}
-                className="flex-1 py-3 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs cursor-pointer border-0 shadow-2xs"
+                disabled={submitting || !selectedEmpId || isTimeInvalid || hours <= 0}
+                className={`flex-1 py-3 rounded-xl font-black text-xs cursor-pointer border-0 shadow-2xs transition-all ${
+                  isTimeInvalid || hours <= 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-purple-700 hover:bg-purple-800 text-white active:scale-95'
+                }`}
               >
                 {submitting ? '⏳ Đang lưu...' : isEditing ? '✅ Cập Nhật Giờ' : '✅ Lưu Ngày Này'}
               </button>

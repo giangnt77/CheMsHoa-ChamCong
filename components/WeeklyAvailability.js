@@ -175,8 +175,31 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
     setHasChanges(true);
   }
 
+  const unassignedDays = useMemo(() => {
+    return days.filter((dateStr) => !availability[dateStr]);
+  }, [days, availability]);
+
+  const isAllDaysRegistered = unassignedDays.length === 0;
+  const registeredCount = days.length - unassignedDays.length;
+
   async function handleSubmit() {
-    // Kiểm tra xem nhân viên có đăng ký nghỉ (off) 3 ngày liên tiếp trở lên trong tuần hay không
+    // 1. BẮT BUỘC ĐĂNG KÝ ĐỦ 100% TẤT CẢ CÁC NGÀY TRONG TUẦN
+    if (!isAllDaysRegistered) {
+      const missingLabels = unassignedDays.map((dStr) => {
+        const d = new Date(dStr + 'T00:00:00');
+        const dayIdx = d.getDay();
+        const name = DAY_NAMES[dayIdx === 0 ? 6 : dayIdx - 1];
+        return `${name} (${d.getDate()}/${d.getMonth() + 1})`;
+      });
+
+      toast.warning(
+        'Chưa chọn đủ tất cả các ngày!',
+        `Bạn còn thiếu ${unassignedDays.length} ngày chưa chọn lịch: ${missingLabels.join(', ')}. Bắt buộc phải đăng ký đầy đủ ${days.length}/${days.length} ngày mới được lưu!`
+      );
+      return;
+    }
+
+    // 2. Kiểm tra xem nhân viên có đăng ký nghỉ (off) 3 ngày liên tiếp trở lên trong tuần hay không
     let consecutiveOff = 0;
     let maxConsecutiveOff = 0;
     for (const dateStr of days) {
@@ -343,11 +366,26 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
               <span className="font-black text-purple-950">{getWeekLabel()}</span>
             </span>
           </p>
-          {weekType === 'special_month' && (
-            <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-900 border border-rose-300 text-xs font-black animate-pulse">
-              🔥 Chế độ Dịp Đặc Biệt (Tết/Lễ) - Đăng ký kéo dài 1 Tháng
-            </span>
-          )}
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {isAllDaysRegistered ? (
+              <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 text-xs font-black flex items-center gap-1 shadow-2xs">
+                <span>✅</span>
+                <span>Đã chọn đủ {days.length}/{days.length} ngày</span>
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-950 border border-amber-300 text-xs font-black flex items-center gap-1 shadow-2xs animate-pulse">
+                <span>⚠️</span>
+                <span>Đã chọn: {registeredCount}/{days.length} ngày (Còn thiếu {unassignedDays.length} ngày)</span>
+              </span>
+            )}
+
+            {weekType === 'special_month' && (
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-900 border border-rose-300 text-xs font-black animate-pulse">
+                🔥 Chế độ Dịp Đặc Biệt (Tết/Lễ) - Đăng ký kéo dài 1 Tháng
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -372,14 +410,14 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                       ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-purple-50 shadow-xs ring-1 ring-amber-400'
                       : status === 'off'
                         ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
-                        : 'border-amber-300 bg-amber-50/60 ring-1 ring-amber-300/60'
+                        : 'border-amber-300 bg-amber-50/60 ring-1 ring-amber-300/60 border-dashed'
                   : status === 'full'
                     ? 'border-emerald-300 bg-emerald-50/90 shadow-2xs'
                     : status === 'option'
                       ? 'border-purple-300 bg-purple-50/90 shadow-2xs'
                       : status === 'off'
                         ? 'border-rose-300 bg-rose-50/90 shadow-2xs'
-                        : 'border-purple-100 bg-purple-50/30'
+                        : 'border-amber-300/90 bg-amber-50/30 border-dashed shadow-2xs'
               } ${isLocked ? 'opacity-90' : ''}`}
             >
               {/* Day Header */}
@@ -398,12 +436,16 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
                     </span>
                   )}
                 </div>
-                {status && (
+                {status ? (
                   <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-white text-purple-950 border border-purple-200 shadow-2xs flex items-center gap-1">
                     {isLocked && <span>🔒</span>}
                     {status === 'full' && '💪 Chọn Cả Ngày'}
                     {status === 'option' && '📝 Chọn Tùy Ca'}
                     {status === 'off' && '🛑 Chọn Xin Nghỉ'}
+                  </span>
+                ) : (
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs flex items-center gap-1 animate-pulse">
+                    <span>⚠️</span> Chưa chọn lịch
                   </span>
                 )}
               </div>
@@ -506,16 +548,21 @@ export default function WeeklyAvailability({ employee, onUpdate }) {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${hasChanges
-                  ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                }`}
+              className={`w-full py-3.5 rounded-xl font-black text-sm sm:text-base border-0 cursor-pointer shadow-xs transition-all active:scale-95 ${
+                !isAllDaysRegistered
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-md ring-2 ring-amber-400'
+                  : hasChanges
+                    ? 'bg-purple-700 hover:bg-purple-800 text-white animate-pulse shadow-md'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'
+              }`}
             >
               {submitting
                 ? '⏳ Đang lưu lịch...'
-                : hasChanges
-                  ? '🚀 CẬP NHẬT & CHỐT LỊCH ĐĂNG KÝ'
-                  : '✅ ĐÃ CHỐT ĐĂNG KÝ LỊCH (Bấm để cập nhật lại)'}
+                : !isAllDaysRegistered
+                  ? `⚠️ CÒN THIẾU ${unassignedDays.length} NGÀY CHƯA CHỌN (CHỌN ĐỦ ${days.length}/${days.length} NGÀY ĐỂ LƯU)`
+                  : hasChanges
+                    ? `🚀 CẬP NHẬT & CHỐT LỊCH ĐĂNG KÝ (${registeredCount}/${days.length} NGÀY)`
+                    : `✅ ĐÃ CHỐT ĐĂNG KÝ LỊCH (${days.length}/${days.length} NGÀY)`}
             </button>
             <p className="text-[11px] sm:text-xs text-center text-purple-700 font-extrabold">
               💡 Hạn sửa chữa & chốt lịch: Mở tự do từ <span className="text-purple-950 font-black">Thứ 2 đến hết Thứ 7</span>. Hệ thống sẽ tự động khóa chốt lịch vào Chủ Nhật!

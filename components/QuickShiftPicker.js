@@ -66,11 +66,12 @@ export default function QuickShiftPicker({ onSubmit, loading }) {
 
   // Calculate hours for custom mode
   function calcHours(start, end) {
+    if (!start || !end || start === end) return 0;
     const [sh, sm] = start.split(':').map(Number);
     const [eh, em] = end.split(':').map(Number);
-    let h = (eh * 60 + em - (sh * 60 + sm)) / 60;
-    if (h < 0) h += 24;
-    return Math.round(h * 100) / 100;
+    if (eh * 60 + em <= sh * 60 + sm) return 0;
+    const diff = (eh * 60 + em - (sh * 60 + sm)) / 60;
+    return Math.round(diff * 100) / 100;
   }
 
   async function handleConfirm() {
