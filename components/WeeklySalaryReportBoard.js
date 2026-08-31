@@ -5,6 +5,7 @@ import {
   getBranches,
   getScheduleByDateRange,
   getEmployeeRates,
+  getAllEmployeeRates,
   calculateSalaryFromShifts,
   updateEmployeesSortOrders,
   getAllPenaltiesByMonth,
@@ -14,28 +15,13 @@ import {
   formatCurrency,
   formatDateISO,
   getBranchColorStyle,
+  getMondayOfCurrentWeek,
+  getWeekDaysFromMonday,
+  getCurrentMonth,
 } from '@/lib/utils';
 
 import ModalEmployeeSalaryDetail from '@/components/ModalEmployeeSalaryDetail';
 import ModalWeekPicker from '@/components/ModalWeekPicker';
-
-function getMondayOfCurrentWeek() {
-  const today = new Date();
-  const day = today.getDay(); // 0=CN, 1=T2...
-  const daysToSub = day === 0 ? 6 : day - 1;
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysToSub);
-  return formatDateISO(monday);
-}
-
-function getWeekDaysFromMonday(mondayStr) {
-  const days = [];
-  const [y, m, d] = mondayStr.split('-').map(Number);
-  for (let i = 0; i < 7; i++) {
-    const dt = new Date(y, m - 1, d + i);
-    days.push(formatDateISO(dt));
-  }
-  return days;
-}
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -47,16 +33,9 @@ function getEffectiveRateForDate(emp, ratesList, dateStr) {
   return active ? active.hourly_rate : defaultRate;
 }
 
-function getCurrentMonthStr() {
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-}
-
 export default function WeeklySalaryReportBoard({ employees = [], toast, onSelectPenaltyEmployee }) {
   const [currentMonday, setCurrentMonday] = useState(getMondayOfCurrentWeek());
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthStr());
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [schedule, setSchedule] = useState([]);
   const [monthSchedule, setMonthSchedule] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -84,12 +63,13 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   async function loadWeekSalaryData() {
     setLoading(true);
     try {
-      const [schedData, monthSchedData, branchData, allPenalties, holidayData] = await Promise.all([
+      const [schedData, monthSchedData, branchData, allPenalties, holidayData, allRatesData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getScheduleByDateRange(monthStartDate, monthEndDate),
         getBranches(),
         getAllPenaltiesByMonth(selectedMonth),
         getHolidaySettings(),
+        getAllEmployeeRates(),
       ]);
       setSchedule(schedData);
       setMonthSchedule(monthSchedData || []);
@@ -104,14 +84,11 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
       });
       setPenaltiesMap(pMap);
 
-      // Tải mốc tăng lương cho tất cả nhân viên
-      const ratesPromises = employees.map((emp) =>
-        getEmployeeRates(emp.id).then((rList) => ({ empId: emp.id, rates: rList }))
-      );
-      const ratesResults = await Promise.all(ratesPromises);
+      // Tạo map mốc lương theo employee_id tức thì (1 query duy nhất)
       const rMap = {};
-      ratesResults.forEach(({ empId, rates }) => {
-        rMap[empId] = rates;
+      (allRatesData || []).forEach((r) => {
+        if (!rMap[r.employee_id]) rMap[r.employee_id] = [];
+        rMap[r.employee_id].push(r);
       });
       setRatesMap(rMap);
     } catch (err) {
@@ -143,14 +120,16 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
 
   function prevMonth() {
     const [y, m] = selectedMonth.split('-').map(Number);
-    const newMonthStr = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
-    setSelectedMonth(newMonthStr);
+    const newY = m === 1 ? y - 1 : y;
+    const newM = m === 1 ? 12 : m - 1;
+    setSelectedMonth(`${newY}-${String(newM).padStart(2, '0')}`);
   }
 
   function nextMonth() {
     const [y, m] = selectedMonth.split('-').map(Number);
-    const newMonthStr = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
-    setSelectedMonth(newMonthStr);
+    const newY = m === 12 ? y + 1 : y;
+    const newM = m === 12 ? 1 : m + 1;
+    setSelectedMonth(`${newY}-${String(newM).padStart(2, '0')}`);
   }
 
   function goCurrentMonth() {
@@ -168,44 +147,85 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
     return map;
   }, [schedule]);
 
-  // Sắp xếp & lọc danh sách nhân viên: Bỏ hẳn Owner/Manager & bỏ hoàn toàn nhân viên đã nghỉ luôn mà không có ca làm trong tuần
-  const sortedEmployees = useMemo(() => {
-    if (!employees) return [];
-    return [...employees]
-      .filter((emp) => {
-        // 1. Lọc bỏ tài khoản Chủ Quán & Quản Lý / Owner & Manager
-        const nameLower = (emp.name || '').toLowerCase().trim();
-        const roleLower = (emp.role || '').toLowerCase().trim();
-        if (
-          roleLower === 'owner' ||
-          roleLower === 'manager' ||
-          nameLower === 'owner' ||
-          nameLower === 'manager' ||
-          nameLower.includes('owner') ||
-          nameLower.includes('manager') ||
-          nameLower.includes('chủ quán') ||
-          nameLower.includes('quản lý')
-        ) {
-          return false;
-        }
+  // Hàm kiểm tra tài khoản Quản trị / Chủ quán (Không tính vào chi phí lương nhân viên)
+  const isManagementAccount = (emp) => {
+    if (!emp) return false;
+    const nameLower = String(emp.name || '').toLowerCase().trim();
+    const roleLower = String(emp.role || '').toLowerCase().trim();
+    return (
+      roleLower === 'owner' ||
+      roleLower === 'manager' ||
+      nameLower === 'owner' ||
+      nameLower === 'manager' ||
+      nameLower.includes('owner') ||
+      nameLower.includes('manager') ||
+      nameLower.includes('chủ quán') ||
+      nameLower.includes('quản lý')
+    );
+  };
 
-        // 2. Kiểm tra xem nhân viên có ca phân công nào trong tuần này không
+  // Index map gom tất cả ca làm của nhân viên trong tháng được chọn
+  const monthScheduleByEmp = useMemo(() => {
+    const map = {};
+    (monthSchedule || []).forEach((item) => {
+      if (item.date && item.date.startsWith(selectedMonth)) {
+        if (!map[item.employee_id]) map[item.employee_id] = [];
+        map[item.employee_id].push(item);
+      }
+    });
+    return map;
+  }, [monthSchedule, selectedMonth]);
+
+  // Sắp xếp & lọc danh sách nhân viên:
+  // - Nếu có ca trong tuần đang xem -> HIỆN
+  // - Nếu có ca trong tháng đang xem -> HIỆN
+  // - Nếu nhân viên đang hoạt động -> HIỆN
+  // - Chỉ ẩn nhân viên đã nghỉ ('off') nếu họ KHÔNG CÓ ca làm trong tuần lẫn tháng này
+  const sortedEmployees = useMemo(() => {
+    // 1. Tạo danh sách tất cả nhân viên từ prop và bổ sung nhân viên xuất hiện trong ca làm tháng
+    const allEmpMap = {};
+    (employees || []).forEach((emp) => {
+      if (emp && !isManagementAccount(emp)) {
+        allEmpMap[emp.id] = { ...emp };
+      }
+    });
+
+    // Bổ sung nhân viên có ca làm trong tháng nếu chưa có trong prop employees
+    (monthSchedule || []).forEach((s) => {
+      if (s.employee_id && !allEmpMap[s.employee_id]) {
+        const fallbackEmp = s.employees || { id: s.employee_id, name: s.employee_name || 'Nhân viên', hourly_rate: 20000 };
+        if (!isManagementAccount(fallbackEmp)) {
+          allEmpMap[s.employee_id] = fallbackEmp;
+        }
+      }
+    });
+
+    const empList = Object.values(allEmpMap);
+
+    return empList
+      .filter((emp) => {
+        // 1. Có ca làm trong tuần đang xem
         const hasShiftsInThisWeek = (weekDays || []).some(
           (dStr) => (scheduleByEmpAndDate[`${emp.id}_${dStr}`] || []).length > 0
         );
 
-        // 3. NGHỈ VIỆC / OFF CỐ ĐỊNH ('off'):
-        // - Nếu mốc tuần đang xem xảy ra TRƯỚC NGÀY NGHỈ VIỆC (startDate < resignedDate) -> Vẫn giữ lại nhân viên để hiện báo cáo quá khứ!
-        // - Nếu mốc tuần đang xem xảy ra SAU KHI ĐÃ NGHỈ VIỆC (startDate >= resignedDate) VÀ KHÔNG CÓ CA LÀM NÀO -> Mới ẩn đi!
-        if (emp.status === 'off' || emp.is_active === false) {
-          const resignedDate = emp.resigned_at || emp.off_date || (emp.created_at ? emp.created_at.slice(0, 10) : '1970-01-01');
-          if (startDate >= resignedDate && !hasShiftsInThisWeek) {
-            return false;
-          }
+        // 2. Có ca làm trong tháng đang xem
+        const hasShiftsInThisMonth = (monthScheduleByEmp[emp.id] || []).length > 0;
+
+        // 3. Nếu có ca làm trong tuần HOẶC trong tháng đang xem -> Bắt buộc hiển thị
+        if (hasShiftsInThisWeek || hasShiftsInThisMonth) {
+          return true;
         }
 
-        const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
-        return empStartDate <= endDate; // Chỉ hiển thị nhân viên đã vào làm mốc tuần này
+        // 4. Nếu nhân viên đang hoạt động (không phải status 'off')
+        const isActive = emp.status !== 'off' && emp.is_active !== false;
+        if (isActive) {
+          const empStartDate = emp.created_at ? emp.created_at.slice(0, 10) : '2000-01-01';
+          return empStartDate <= monthEndDate || empStartDate <= endDate;
+        }
+
+        // 5. Nhân viên đã nghỉ việc ('off') và không có ca nào trong tuần lẫn tháng -> Ẩn
+        return false;
       })
       .sort((a, b) => {
         const isOffA = a.status === 'off';
@@ -215,9 +235,9 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
         const orderA = a.sort_order ?? 999;
         const orderB = b.sort_order ?? 999;
         if (orderA !== orderB) return orderA - orderB;
-        return a.name.localeCompare(b.name);
+        return (a.name || '').localeCompare(b.name || '');
       });
-  }, [employees, startDate, endDate, weekDays, scheduleByEmpAndDate]);
+  }, [employees, monthSchedule, monthScheduleByEmp, endDate, monthEndDate, weekDays, scheduleByEmpAndDate]);
 
   // Danh sách nhân viên sau khi áp dụng bộ lọc nhanh theo từ khóa (Tên / Biệt danh)
   const filteredEmployees = useMemo(() => {
@@ -230,20 +250,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
     });
   }, [sortedEmployees, searchQuery]);
 
-  // Index map dữ liệu ca làm tháng theo employeeId_date (chỉ lọc các ca đúng thuộc selectedMonth)
-  const monthScheduleByEmpAndDate = useMemo(() => {
-    const map = {};
-    (monthSchedule || []).forEach((item) => {
-      if (item.date && item.date.startsWith(selectedMonth)) {
-        const key = `${item.employee_id}_${item.date}`;
-        if (!map[key]) map[key] = [];
-        map[key].push(item);
-      }
-    });
-    return map;
-  }, [monthSchedule, selectedMonth]);
-
-  // Tính tổng lương tháng cho từng nhân viên & toàn bộ nhân viên
+  // Tính tổng lương tháng cho từng nhân viên & toàn bộ nhân viên chuẩn xác 100%
   const { empMonthlyTotals, grandTotalMonthlySalary, grandTotalMonthlyHours, grandTotalMonthlyBonus, grandTotalMonthlyPenalty, grandTotalMonthlyNet } = useMemo(() => {
     const empTotals = {};
     let totalSal = 0;
@@ -251,17 +258,8 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
     let totalBon = 0;
     let totalPen = 0;
 
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    const mStr = String(m).padStart(2, '0');
-
-    const allDaysInMonth = [];
-    for (let i = 1; i <= lastDay; i++) {
-      allDaysInMonth.push(`${y}-${mStr}-${String(i).padStart(2, '0')}`);
-    }
-
     sortedEmployees.forEach((emp) => {
-      const empShifts = allDaysInMonth.flatMap((dStr) => monthScheduleByEmpAndDate[`${emp.id}_${dStr}`] || []);
+      const empShifts = monthScheduleByEmp[emp.id] || [];
       const empRates = ratesMap[emp.id] || [];
       const defaultRate = emp.hourly_rate || 20000;
 
@@ -304,13 +302,13 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
 
     return {
       empMonthlyTotals: empTotals,
-      grandTotalMonthlySalary: totalSal,
-      grandTotalMonthlyHours: totalHrs,
-      grandTotalMonthlyBonus: totalBon,
-      grandTotalMonthlyPenalty: totalPen,
-      grandTotalMonthlyNet: totalSal + totalBon - totalPen,
+      grandTotalMonthlySalary: Math.round(totalSal),
+      grandTotalMonthlyHours: Math.round(totalHrs * 100) / 100,
+      grandTotalMonthlyBonus: Math.round(totalBon),
+      grandTotalMonthlyPenalty: Math.round(totalPen),
+      grandTotalMonthlyNet: Math.round(totalSal + totalBon - totalPen),
     };
-  }, [sortedEmployees, monthScheduleByEmpAndDate, ratesMap, selectedMonth, penaltiesMap, holidays]);
+  }, [sortedEmployees, monthScheduleByEmp, ratesMap, penaltiesMap, holidays]);
 
 
 
@@ -629,6 +627,11 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                       <div className="flex items-center justify-center gap-1 text-[9.5px] pt-0.5 font-bold">
                         {grandTotalMonthlyBonus > 0 && <span className="text-emerald-200">🎁+{formatCurrency(grandTotalMonthlyBonus)}</span>}
                         {grandTotalMonthlyPenalty > 0 && <span className="text-rose-200">⚠️-{formatCurrency(grandTotalMonthlyPenalty)}</span>}
+                      </div>
+                    )}
+                    {grandTotalMonthlyPenalty > 0 && (
+                      <div className="text-[10px] font-black text-amber-100 pt-0.5 border-t border-amber-500/70 mt-0.5" title="Lương ca gốc (chưa trừ phạt)">
+                        {formatCurrency(grandTotalMonthlySalary)}
                       </div>
                     )}
                   </td>

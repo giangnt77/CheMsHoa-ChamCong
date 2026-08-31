@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllEmployees } from '@/lib/supabase';
+import { getAllEmployees, verifyAdminPin } from '@/lib/supabase';
 import { getInitials } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
@@ -18,7 +18,7 @@ export default function AdminSelector({ onSelect }) {
   async function loadAdminAccounts() {
     setLoading(true);
     try {
-      const all = await getAllEmployees();
+      const all = await getAllEmployees(false);
       // Lọc danh sách nhân viên có role admin / manager
       const admins = all.filter((e) => e.role === 'owner' || e.role === 'manager');
 
@@ -27,15 +27,15 @@ export default function AdminSelector({ onSelect }) {
       } else {
         // Fallback tài khoản mặc định nếu DB chưa phân role
         setAdminAccounts([
-          { id: 'admin-owner', name: 'Chủ Quán', role: 'owner', pin: '888888' },
-          { id: 'admin-manager', name: 'Quản Lý', role: 'manager', pin: '666666' },
+          { id: 'admin-owner', name: 'Chủ Quán', role: 'owner' },
+          { id: 'admin-manager', name: 'Quản Lý', role: 'manager' },
         ]);
       }
     } catch (err) {
       console.error(err);
       setAdminAccounts([
-        { id: 'admin-owner', name: 'Chủ Quán', role: 'owner', pin: '888888' },
-        { id: 'admin-manager', name: 'Quản Lý', role: 'manager', pin: '666666' },
+        { id: 'admin-owner', name: 'Chủ Quán', role: 'owner' },
+        { id: 'admin-manager', name: 'Quản Lý', role: 'manager' },
       ]);
     }
     setLoading(false);
@@ -67,12 +67,10 @@ export default function AdminSelector({ onSelect }) {
     setPinInput((prev) => prev.slice(0, -1));
   }
 
-  function verifyPin(inputPin) {
-    const ownerPin = process.env.NEXT_PUBLIC_ADMIN_PIN || '123456';
-    const defaultPin = selectedAcc.role === 'manager' ? '666666' : '888888';
-    const correctPin = selectedAcc.pin || defaultPin;
+  async function verifyPin(inputPin) {
+    const isValid = await verifyAdminPin(selectedAcc.id || selectedAcc.role, inputPin);
 
-    if (inputPin === correctPin || inputPin === ownerPin || inputPin === '1234') {
+    if (isValid) {
       toast.success(
         'Đăng nhập Admin thành công',
         `Xin chào ${selectedAcc.name} (${selectedAcc.role === 'manager' ? 'Quản Lý' : 'Chủ Quán'})!`
@@ -192,13 +190,13 @@ export default function AdminSelector({ onSelect }) {
                   type="button"
                   onClick={() => {
                     toast.info(
-                      'Gợi ý mã PIN',
-                      selectedAcc.role === 'manager' ? 'Mã PIN Quản Lý mặc định: 666666' : 'Mã PIN Chủ Quán mặc định: 888888 hoặc 123456'
+                      'Quên mã PIN?',
+                      'Vui lòng liên hệ Chủ Quán để được cấp lại mã PIN đăng nhập Admin.'
                     );
                   }}
                   className="py-3 bg-transparent text-purple-600 hover:text-purple-950 rounded-xl text-[11px] font-bold border-0 cursor-pointer flex items-center justify-center text-center"
                 >
-                  Gợi ý PIN
+                  Quên PIN?
                 </button>
                 <button
                   type="button"

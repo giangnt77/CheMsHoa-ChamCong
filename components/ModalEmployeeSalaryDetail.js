@@ -347,7 +347,7 @@ export default function ModalEmployeeSalaryDetail({
                       </span>
                     </div>
                     <div className="text-xs font-semibold text-slate-500 font-mono mt-0.5">
-                      📞 {empData.phone || empData.pin || `Mã: NV-${empData.id?.slice(0, 6)}`}
+                      📞 {empData.phone || `Mã: NV-${empData.id?.slice(0, 6)}`}
                       {empData.relative_phone && (
                         <span className="ml-2 text-slate-400 font-sans text-[11px]">
                           (Người thân: {empData.relative_phone})

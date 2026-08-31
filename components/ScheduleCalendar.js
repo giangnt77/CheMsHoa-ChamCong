@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getScheduleByDateRange, getBranches } from '@/lib/supabase';
-import { getCalendarDays, getToday } from '@/lib/utils';
+import {
+  getCalendarDays,
+  getToday,
+  formatDateISO,
+  getMondayOfCurrentWeek,
+  getWeekDaysFromMonday,
+} from '@/lib/utils';
 
 /**
  * ScheduleCalendar — Calendar tháng hiển thị lịch làm việc chính thức.
@@ -16,31 +22,6 @@ const MONTH_NAMES = [
 ];
 
 const DAY_HEADERS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-
-function formatDateISO(dateObj) {
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function getMondayOfCurrentWeek() {
-  const today = new Date();
-  const day = today.getDay(); // 0=CN, 1=T2...
-  const daysToSub = day === 0 ? 6 : day - 1;
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysToSub);
-  return formatDateISO(monday);
-}
-
-function getWeekDaysFromMonday(mondayStr) {
-  const [y, m, d] = mondayStr.split('-').map(Number);
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const dayObj = new Date(y, m - 1, d + i);
-    days.push(formatDateISO(dayObj));
-  }
-  return days;
-}
 
 function formatBranchDisplayName(name = '') {
   if (!name) return '';

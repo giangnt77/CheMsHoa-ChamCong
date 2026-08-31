@@ -10,6 +10,7 @@ import {
   getHolidayForDate,
   getSpecialEventMode,
 } from '@/lib/supabase';
+import { getToday, formatDateISO } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
 /**
@@ -17,18 +18,12 @@ import { useToast } from '@/components/Toast';
  * Thao tác chọn thay đổi ở bộ nhớ tạm trước, sau đó bấm nút "XÁC NHẬN ĐĂNG KÝ" mới lưu vào DB.
  */
 
-function formatDateISO(dateObj) {
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function getThisWeekDays() {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=CN, 1=T2...
+  const [y, m, d] = getToday().split('-').map(Number);
+  const todayDate = new Date(y, m - 1, d);
+  const dayOfWeek = todayDate.getDay(); // 0=CN, 1=T2...
   const daysToSub = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysToSub);
+  const monday = new Date(y, m - 1, d - daysToSub);
 
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -39,10 +34,11 @@ function getThisWeekDays() {
 }
 
 function getNextWeekDays() {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=CN, 1=T2...
+  const [y, m, d] = getToday().split('-').map(Number);
+  const todayDate = new Date(y, m - 1, d);
+  const dayOfWeek = todayDate.getDay(); // 0=CN, 1=T2...
   const daysUntilNextMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
-  const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextMonday);
+  const nextMonday = new Date(y, m - 1, d + daysUntilNextMonday);
 
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -53,10 +49,11 @@ function getNextWeekDays() {
 }
 
 function getSpecialMonthDays() {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
+  const [y, m, d] = getToday().split('-').map(Number);
+  const todayDate = new Date(y, m - 1, d);
+  const dayOfWeek = todayDate.getDay();
   const daysUntilNextMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
-  const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextMonday);
+  const nextMonday = new Date(y, m - 1, d + daysUntilNextMonday);
 
   const days = [];
   // 4 Tuần = 28 Ngày liên tiếp cho Dịp Đặc Biệt (Tết/Lễ)

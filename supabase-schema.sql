@@ -61,6 +61,7 @@ CREATE TABLE branches (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   color TEXT DEFAULT '#f59e0b',
+  is_active BOOLEAN DEFAULT true,
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -130,10 +131,16 @@ CREATE TABLE shift_swaps (
   target_employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
   target_employee_name TEXT NOT NULL,
   shift_date DATE NOT NULL,
+  request_type TEXT DEFAULT 'swap',     -- 'swap' (Đổi ca) | 'time_change' (Báo giờ làm)
+  time_change_type TEXT DEFAULT 'swap', -- 'overtime' | 'early_leave' | 'late_arrival' | 'swap'
+  original_time TEXT DEFAULT '',
+  adjusted_time TEXT DEFAULT '',
+  extra_hours DECIMAL(4,2) DEFAULT 0,
+  branch_name TEXT DEFAULT '',
   my_shift_info TEXT DEFAULT '',
   target_shift_info TEXT DEFAULT '',
   reason TEXT DEFAULT '',
-  status TEXT DEFAULT 'pending',       -- 'pending' (Chờ duyệt) | 'approved' (Đồng ý) | 'rejected' (Từ chối)
+  status TEXT DEFAULT 'pending',        -- 'pending' (Chờ duyệt) | 'approved' (Đồng ý) | 'rejected' (Từ chối)
   rejection_reason TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -217,4 +224,56 @@ BEGIN
   END IF;
 END $$;
 
+-- --------------------------------------------
+-- BƯỚC 13: CÁC HÀM XÁC THỰC BẢO MẬT TẦNG DATABASE (RPC SECURITY DEFINER)
+-- --------------------------------------------
+CREATE OR REPLACE FUNCTION verify_employee_pin(p_employee_id UUID, p_input_pin TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM employees
+    WHERE id = p_employee_id AND pin = TRIM(p_input_pin)
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION verify_admin_pin(p_role_or_id TEXT, p_input_pin TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM employees
+    WHERE (id::TEXT = p_role_or_id OR role = p_role_or_id)
+      AND pin = TRIM(p_input_pin)
+  );
+END;
+$$;
+
 NOTIFY pgrst, 'reload schema';
+
+-- ============================================
+-- SCRIPT NÂNG CẤP AN TOÀN CHO DATABASE ĐANG CHẠY TRÊN WEB
+-- (Chạy đoạn này nếu Database cũ chưa có đủ các cột mở rộng, KHÔNG làm mất dữ liệu cũ!)
+-- ============================================
+-- ALTER TABLE branches ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+-- ALTER TABLE shift_swaps ADD COLUMN IF NOT EXISTS request_type TEXT DEFAULT 'swap';
+-- ALTER TABLE shift_swaps ADD COLUMN IF NOT EXISTS time_change_type TEXT DEFAULT 'swap';
+-- ALTER TABLE shift_swaps ADD COLUMN IF NOT EXISTS original_time TEXT DEFAULT '';
+-- ALTER TABLE shift_swaps ADD COLUMN IF NOT EXISTS adjusted_time TEXT DEFAULT '';
+-- ALTER TABLE shift_swaps ADD COLUMN IF NOT EXISTS extra_hours DECIMAL(4,2) DEFAULT 0;
+-- ALTER TABLE shift_swaps ADD COLUMN IF NOT EXISTS branch_name TEXT DEFAULT '';
+-- ALTER TABLE employees ADD COLUMN IF NOT EXISTS nickname TEXT DEFAULT '';
+-- ALTER TABLE employees ADD COLUMN IF NOT EXISTS nickname_updated_at TIMESTAMPTZ;
+-- ALTER TABLE employees ADD COLUMN IF NOT EXISTS off_start_date DATE;
+-- ALTER TABLE employees ADD COLUMN IF NOT EXISTS off_end_date DATE;
+-- ALTER TABLE employees ADD COLUMN IF NOT EXISTS resigned_at DATE;
+-- ALTER TABLE penalties ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE;
+-- ALTER TABLE penalties ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'penalty';
+-- NOTIFY pgrst, 'reload schema';
+
+

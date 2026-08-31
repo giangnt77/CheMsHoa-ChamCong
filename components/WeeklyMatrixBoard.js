@@ -18,7 +18,14 @@ import {
   getAllEmployeeRates,
   calculateSalaryFromShifts,
 } from '@/lib/supabase';
-import { getBranchColorStyle, getToday, formatCurrency } from '@/lib/utils';
+import {
+  getBranchColorStyle,
+  getToday,
+  formatCurrency,
+  formatDateISO,
+  getMondayOfCurrentWeek,
+  getWeekDaysFromMonday,
+} from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
 import ModalSortEmployees from './ModalSortEmployees';
 import ModalBlockOffDays from './ModalBlockOffDays';
@@ -102,30 +109,7 @@ function getShiftAdjustmentDisplay(shift) {
  * Bấm vào bất kỳ ô ngày của Nhân viên để mở Modal Xếp Lịch / Chỉnh Sửa / Xóa Ca.
  */
 
-function formatDateISO(dateObj) {
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
-function getWeekDaysFromMonday(mondayStr) {
-  const [y, m, d] = mondayStr.split('-').map(Number);
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const dayObj = new Date(y, m - 1, d + i);
-    days.push(formatDateISO(dayObj));
-  }
-  return days;
-}
-
-function getMondayOfCurrentWeek() {
-  const today = new Date();
-  const day = today.getDay(); // 0=CN, 1=T2...
-  const daysToSub = day === 0 ? 6 : day - 1;
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysToSub);
-  return formatDateISO(monday);
-}
 
 function formatBranchDisplayName(name = '') {
   if (!name) return '';

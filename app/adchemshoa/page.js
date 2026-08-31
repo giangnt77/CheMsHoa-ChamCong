@@ -22,6 +22,7 @@ import {
   createBranch,
   updateBranch,
   deleteBranch,
+  restoreBranch,
   getAvailabilityByDateRange,
   getScheduleByDateRange,
   getScheduleByEmployee,
@@ -44,6 +45,8 @@ import {
   getHolidaySettings,
   adminUpdateEmployeeNickname,
   checkNicknameCooldown,
+  verifyAdminPin,
+  exportAllDataToJSON,
 } from '@/lib/supabase';
 import {
   getCurrentMonth,
@@ -59,6 +62,8 @@ import {
 import ModalSortEmployees from '@/components/ModalSortEmployees';
 import AdminSelector from '@/components/AdminSelector';
 import AdminShiftSwapManager from '@/components/AdminShiftSwapManager';
+import BranchSalaryMonthlyReport from '@/components/BranchSalaryMonthlyReport';
+import { downloadExcelBackup } from '@/lib/excel-export';
 
 function AdminContent() {
   const toast = useToast();
@@ -98,6 +103,56 @@ function AdminContent() {
     setIsEditingNotice(false);
     await saveAnnouncementNotice(newText);
     toast.success('Đã cập nhật', 'Nội dung thông báo quan trọng đã được lưu đồng bộ toàn hệ thống!');
+  }
+
+  // Backup data state & handlers
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [isBackingUpExcel, setIsBackingUpExcel] = useState(false);
+  const [isBackingUpJson, setIsBackingUpJson] = useState(false);
+
+  async function handleExportExcel() {
+    setIsBackingUpExcel(true);
+    try {
+      toast.info('Đang tạo file Excel...', 'Đang tổng hợp 8 sheet dữ liệu (Nhân viên, Lịch làm, Đăng ký, Lương...)...');
+      const { fileName, rowCounts } = await downloadExcelBackup();
+      toast.success(
+        'Tải File Excel Thành Công!',
+        `Đã tải file "${fileName}" (${rowCounts.schedule} ca làm, ${rowCounts.employees} nhân viên).`
+      );
+      setShowBackupModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi xuất Excel', 'Không thể tạo file Excel: ' + err.message);
+    } finally {
+      setIsBackingUpExcel(false);
+    }
+  }
+
+  async function handleExportJson() {
+    setIsBackingUpJson(true);
+    try {
+      toast.info('Đang sao lưu JSON...', 'Đang trích xuất toàn bộ dữ liệu 8 bảng từ hệ thống...');
+      const data = await exportAllDataToJSON();
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const now = new Date();
+      const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chems_hoa_backup_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Sao Lưu JSON Thành Công!', `Đã tải về máy file: chems_hoa_backup_${dateStr}.json`);
+      setShowBackupModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi sao lưu', 'Không thể trích xuất dữ liệu: ' + err.message);
+    } finally {
+      setIsBackingUpJson(false);
+    }
   }
 
   // Data
@@ -460,15 +515,30 @@ function AdminContent() {
     }
   }
 
+  const [branchTabFilter, setBranchTabFilter] = useState('active'); // 'active' | 'hidden'
+
   async function handleDeleteBranchItem(branchId, branchName) {
-    if (confirm(`Bạn có chắc chắn muốn XÓA chi nhánh "${branchName}"?`)) {
+    if (confirm(`Bạn có chắc chắn muốn ẨN chi nhánh "${branchName}" khỏi danh sách hoạt động? (Dữ liệu ca làm và lương các tháng cũ vẫn được bảo tồn 100%).`)) {
       try {
         await deleteBranch(branchId);
-        toast.success('Đã xóa', `Đã xóa chi nhánh ${branchName}`);
+        toast.success('Đã ẩn', `Đã ẩn chi nhánh ${branchName}`);
         loadInitialData();
       } catch (err) {
         console.error(err);
-        toast.error('Lỗi', 'Không thể xóa chi nhánh');
+        toast.error('Lỗi', 'Không thể ẩn chi nhánh');
+      }
+    }
+  }
+
+  async function handleRestoreBranchItem(branchId, branchName) {
+    if (confirm(`Bạn có muốn HIỆN LẠI chi nhánh "${branchName}" trong danh sách hoạt động?`)) {
+      try {
+        await restoreBranch(branchId);
+        toast.success('Đã hiện lại', `Đã khôi phục chi nhánh ${branchName} thành công!`);
+        loadInitialData();
+      } catch (err) {
+        console.error(err);
+        toast.error('Lỗi', 'Không thể khôi phục chi nhánh');
       }
     }
   }
@@ -498,6 +568,14 @@ function AdminContent() {
     if (!staffEmployees) return [];
     return staffEmployees.filter((e) => e.status === 'off');
   }, [staffEmployees]);
+
+  const activeBranches = useMemo(() => {
+    return (branches || []).filter((b) => b.is_active !== false);
+  }, [branches]);
+
+  const hiddenBranches = useMemo(() => {
+    return (branches || []).filter((b) => b.is_active === false);
+  }, [branches]);
 
   async function handleCreateNewEmployee(e) {
     e.preventDefault();
@@ -627,15 +705,10 @@ function AdminContent() {
     e.preventDefault();
     const ownerPin = process.env.NEXT_PUBLIC_ADMIN_PIN || '123456';
 
-    // Đọc danh sách nhân viên để check role của PIN trong DB
-    let allEmps = [];
-    try {
-      allEmps = await getAllEmployees();
-    } catch (err) { }
+    const isOwner = pinInput === ownerPin || pinInput === '888888' || (await verifyAdminPin('owner', pinInput));
+    const isManager = !isOwner && (pinInput === '666666' || (await verifyAdminPin('manager', pinInput)));
 
-    const matchedEmp = allEmps.find((emp) => String(emp.pin) === String(pinInput));
-
-    if (pinInput === '666666' || (matchedEmp && matchedEmp.role === 'manager')) {
+    if (isManager) {
       // Vai trò QUẢN LÝ (Chỉ Xếp Lịch)
       setIsUnlocked(true);
       setAdminRole('manager');
@@ -645,12 +718,7 @@ function AdminContent() {
       setPinError(false);
       toast.success('Đăng nhập Quản Lý', 'Quyền Quản Lý: Được xem & xếp lịch làm việc');
       loadInitialData();
-    } else if (
-      pinInput === ownerPin ||
-      pinInput === '888888' ||
-      pinInput === '1234' ||
-      (matchedEmp && (matchedEmp.role === 'owner' || !matchedEmp.role))
-    ) {
+    } else if (isOwner) {
       // Vai trò CHỦ QUÁN (Full Access)
       setIsUnlocked(true);
       setAdminRole('owner');
@@ -684,8 +752,8 @@ function AdminContent() {
     setLoading(true);
     try {
       const [empData, branchData, holidayData] = await Promise.all([
-        getAllEmployees(),
-        getBranches(),
+        getAllEmployees(true),
+        getBranches(true),
         getHolidaySettings(),
       ]);
       setEmployees(empData);
@@ -1060,6 +1128,19 @@ function AdminContent() {
                 <span>{specialEventMode ? 'Dịp Đặc Biệt: ON' : 'Dịp Đặc Biệt'}</span>
               </button>
 
+              {/* Nút Sao Lưu Dữ Liệu Toàn Bộ Hệ Thống (Chủ Quán) */}
+              {adminRole === 'owner' && (
+                <button
+                  type="button"
+                  onClick={() => setShowBackupModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border border-purple-800 cursor-pointer shadow-2xs transition-all active:scale-95 flex items-center gap-1.5"
+                  title="Bấm để tải về file Excel (.xlsx) hoặc file sao lưu (.json) toàn bộ dữ liệu hệ thống"
+                >
+                  <span>📦</span>
+                  <span>Sao Lưu Dữ Liệu</span>
+                </button>
+              )}
+
               {/* Nút Bật & Sửa Thông Báo Quan Trọng */}
               <button
                 type="button"
@@ -1381,27 +1462,6 @@ function AdminContent() {
                                             >
                                               🔑
                                             </button>
-                                            <button
-                                              type="button"
-                                              onClick={async () => {
-                                                if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}"?`)) {
-                                                  try {
-                                                    await deleteEmployee(emp.id);
-                                                    toast.success('Đã xóa', `Đã xóa ${emp.name}`);
-                                                    if (selectedEmployee?.id === emp.id) setSelectedEmployee(null);
-                                                    loadInitialData();
-                                                  } catch (err) {
-                                                    console.error(err);
-                                                    toast.error('Lỗi', 'Không thể xóa');
-                                                  }
-                                                }
-                                              }}
-                                              className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                                                }`}
-                                              title="Xóa nhân viên"
-                                            >
-                                              🗑️
-                                            </button>
                                           </>
                                         )}
                                       </div>
@@ -1518,27 +1578,6 @@ function AdminContent() {
                                                 title="Đổi PIN nhân viên"
                                               >
                                                 🔑
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={async () => {
-                                                  if (confirm(`Bạn có chắc chắn muốn XÓA nhân viên "${emp.name}"?`)) {
-                                                    try {
-                                                      await deleteEmployee(emp.id);
-                                                      toast.success('Đã xóa', `Đã xóa ${emp.name}`);
-                                                      if (selectedEmployee?.id === emp.id) setSelectedEmployee(null);
-                                                      loadInitialData();
-                                                    } catch (err) {
-                                                      console.error(err);
-                                                      toast.error('Lỗi', 'Không thể xóa');
-                                                    }
-                                                  }
-                                                }}
-                                                className={`p-1 rounded-lg border-0 cursor-pointer transition-all text-xs ${isSelected ? 'bg-rose-900 text-rose-200 hover:bg-rose-800' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                                                  }`}
-                                                title="Xóa hẳn khỏi hệ thống"
-                                              >
-                                                🗑️
                                               </button>
                                             </>
                                           )}
@@ -2429,76 +2468,193 @@ function AdminContent() {
             </div>
           )}
 
-          {/* TAB 4: QUẢN LÝ CHI NHÁNH */}
+          {/* TAB 4: QUẢN LÝ CHI NHÁNH & BÁO CÁO CHI PHÍ LƯƠNG */}
           {adminRole === 'owner' && activeTab === 'branches' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="bg-white rounded-3xl p-5 border border-purple-200/90 shadow-2xs flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <h2 className="font-black text-lg text-purple-950 flex items-center gap-2">
-                    <span>🏢</span> Danh Sách Chi Nhánh Hệ Thống ({branches.length} chi nhánh)
-                  </h2>
-                  <p className="text-xs font-bold text-purple-700 mt-0.5">
-                    Thêm, sửa tên, màu sắc hiển thị và thứ tự sắp xếp các chi nhánh
-                  </p>
+            <div className="space-y-6 animate-fade-in">
+              {/* PHẦN 1: BÁO CÁO TỔNG CHI PHÍ LƯƠNG TỪNG CHI NHÁNH THEO THÁNG */}
+              <BranchSalaryMonthlyReport
+                branches={branches}
+                employees={employees}
+                toast={toast}
+              />
+
+              {/* PHẦN 2: DANH SÁCH CHI NHÁNH HỆ THỐNG */}
+              <div className="bg-white rounded-3xl p-5 border border-purple-200/90 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="font-black text-lg text-purple-950 flex items-center gap-2">
+                      <span>🏢</span> Danh Sách Chi Nhánh Hệ Thống
+                    </h2>
+                    <p className="text-xs font-bold text-purple-700 mt-0.5">
+                      Thêm, sửa tên, màu sắc hiển thị, ẩn hoặc khôi phục các chi nhánh
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenAddBranch}
+                      className="px-4 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs cursor-pointer shadow-xs transition-all active:scale-95 border-0 flex items-center gap-1.5"
+                    >
+                      <span>➕</span> Thêm Chi Nhánh Mới
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleOpenAddBranch}
-                  className="px-4 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs cursor-pointer shadow-xs transition-all active:scale-95 border-0 flex items-center gap-1.5"
-                >
-                  <span>➕</span> Thêm Chi Nhánh Mới
-                </button>
-              </div>
+                {/* TAB CHUYỂN ĐỔI: ĐANG HOẠT ĐỘNG vs ĐÃ ẨN */}
+                <div className="flex items-center gap-2 border-b border-purple-100 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setBranchTabFilter('active')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border-0 flex items-center gap-1.5 ${
+                      branchTabFilter === 'active'
+                        ? 'bg-purple-900 text-white shadow-2xs'
+                        : 'bg-purple-100/70 text-purple-900 hover:bg-purple-200'
+                    }`}
+                  >
+                    <span>🟢 Đang Hoạt Động</span>
+                    <span className="bg-white/20 px-1.5 py-0.2 rounded-md text-[10px]">
+                      {activeBranches.length}
+                    </span>
+                  </button>
 
-              {/* Lưới Chi Nhánh */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {branches.map((b) => {
-                  const style = getBranchColorStyle(b.name, b.color);
+                  <button
+                    type="button"
+                    onClick={() => setBranchTabFilter('hidden')}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer border-0 flex items-center gap-1.5 ${
+                      branchTabFilter === 'hidden'
+                        ? 'bg-amber-800 text-white shadow-2xs'
+                        : 'bg-amber-100/70 text-amber-900 hover:bg-amber-200'
+                    }`}
+                  >
+                    <span>📦 Đã Ẩn</span>
+                    <span className="bg-white/20 px-1.5 py-0.2 rounded-md text-[10px]">
+                      {hiddenBranches.length}
+                    </span>
+                  </button>
+                </div>
 
-                  return (
-                    <div
-                      key={b.id}
-                      className="p-4 rounded-2xl bg-white border border-purple-200 shadow-2xs space-y-3 relative overflow-hidden transition-all hover:border-purple-300"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-4 h-4 rounded-full border border-purple-300 flex-shrink-0 shadow-2xs"
-                            style={{ backgroundColor: style.hex }}
-                          />
-                          <h3 className="font-black text-base text-purple-950">{b.name}</h3>
-                        </div>
-                        <span className="text-[10px] font-black text-purple-900 bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200">
-                          Thứ tự #{b.sort_order || 1}
-                        </span>
+                {/* Lưới Chi Nhánh: ĐANG HOẠT ĐỘNG */}
+                {branchTabFilter === 'active' && (
+                  <div>
+                    {activeBranches.length === 0 ? (
+                      <div className="p-8 text-center bg-purple-50/50 rounded-2xl border border-purple-200 text-xs font-bold text-purple-600">
+                        Chưa có chi nhánh nào đang hoạt động. Hãy bấm &quot;Thêm Chi Nhánh Mới&quot;.
                       </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {activeBranches.map((b) => {
+                          const style = getBranchColorStyle(b.name, b.color);
 
-                      {b.address && (
-                        <p className="text-xs font-extrabold text-purple-800 flex items-center gap-1">
-                          📍 <span>{b.address}</span>
-                        </p>
-                      )}
+                          return (
+                            <div
+                              key={b.id}
+                              className="p-4 rounded-2xl bg-white border border-purple-200 shadow-2xs space-y-3 relative overflow-hidden transition-all hover:border-purple-300"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="w-4 h-4 rounded-full border border-purple-300 flex-shrink-0 shadow-2xs"
+                                    style={{ backgroundColor: style.hex }}
+                                  />
+                                  <h3 className="font-black text-base text-purple-950">{b.name}</h3>
+                                </div>
+                                <span className="text-[10px] font-black text-purple-900 bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200">
+                                  Thứ tự #{b.sort_order || 1}
+                                </span>
+                              </div>
 
-                      <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-purple-100">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditBranch(b)}
-                          className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
-                        >
-                          ✏️ Sửa
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteBranchItem(b.id, b.name)}
-                          className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white text-xs font-black border border-rose-200 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
-                        >
-                          🗑️ Xóa
-                        </button>
+                              {b.address && (
+                                <p className="text-xs font-extrabold text-purple-800 flex items-center gap-1">
+                                  📍 <span>{b.address}</span>
+                                </p>
+                              )}
+
+                              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-purple-100">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditBranch(b)}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-950 hover:bg-purple-200 text-xs font-black border-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                                >
+                                  ✏️ Sửa
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBranchItem(b.id, b.name)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-900 hover:bg-amber-600 hover:text-white text-xs font-black border border-amber-200/80 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                                  title="Ẩn chi nhánh này khỏi danh sách hoạt động"
+                                >
+                                  👁️ Ẩn
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                  );
-                })}
+                    )}
+                  </div>
+                )}
+
+                {/* Lưới Chi Nhánh: ĐÃ ẨN */}
+                {branchTabFilter === 'hidden' && (
+                  <div>
+                    {hiddenBranches.length === 0 ? (
+                      <div className="p-8 text-center bg-amber-50/50 rounded-2xl border border-amber-200/70 text-xs font-bold text-amber-800">
+                        📦 Hiện tại chưa có chi nhánh nào bị ẩn.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {hiddenBranches.map((b) => {
+                          const style = getBranchColorStyle(b.name, b.color);
+
+                          return (
+                            <div
+                              key={b.id}
+                              className="p-4 rounded-2xl bg-slate-50/80 border border-amber-200/80 shadow-2xs space-y-3 relative overflow-hidden transition-all hover:border-amber-400"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0 opacity-70"
+                                    style={{ backgroundColor: style.hex }}
+                                  />
+                                  <h3 className="font-black text-base text-slate-800">{b.name}</h3>
+                                </div>
+                                <span className="text-[10px] font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                                  Đã ẩn
+                                </span>
+                              </div>
+
+                              {b.address && (
+                                <p className="text-xs font-extrabold text-slate-600 flex items-center gap-1">
+                                  📍 <span>{b.address}</span>
+                                </p>
+                              )}
+
+                              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-200">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditBranch(b)}
+                                  className="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-800 hover:bg-slate-300 text-xs font-black border-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                                >
+                                  ✏️ Sửa
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRestoreBranchItem(b.id, b.name)}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-black border-0 cursor-pointer transition-all active:scale-95 flex items-center gap-1 shadow-2xs"
+                                  title="Khôi phục / Hiện lại chi nhánh này"
+                                >
+                                  🔄 Hiện Lại
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* MODAL THÊM / SỬA CHI NHÁNH */}
@@ -2910,6 +3066,109 @@ function AdminContent() {
                     </div>
                   </div>
                 </form>
+              </div>
+            </div>,
+            document.body
+          )}
+          {/* =========================================================================
+             MODAL TÙY CHỌN SAO LƯU DỮ LIỆU (EXCEL .XLSX & JSON GỐC)
+             ========================================================================= */}
+          {showBackupModal && typeof document !== 'undefined' && createPortal(
+            <div
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setShowBackupModal(false);
+              }}
+              className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+            >
+              <div
+                className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-purple-300 space-y-4 animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">📦</span>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-purple-950 tracking-tight">
+                        Sao Lưu Dữ Liệu Hệ Thống
+                      </h3>
+                      <p className="text-[11px] text-purple-700 font-bold">
+                        Lưu trữ an toàn toàn bộ 8 bảng dữ liệu về máy tính
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowBackupModal(false)}
+                    className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 hover:bg-rose-600 hover:text-white border-0 flex items-center justify-center cursor-pointer text-xs font-black transition-all"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-purple-950 text-xs font-bold leading-relaxed space-y-1">
+                  <p className="font-black text-purple-900 flex items-center gap-1">
+                    <span>💡</span> Dữ liệu được sao lưu gồm:
+                  </p>
+                  <p className="text-[11px] text-purple-800">
+                    Danh sách nhân viên, Chi nhánh, Toàn bộ lịch làm việc, Lịch sử tính lương, Đăng ký rảnh, Thưởng/Phạt, Yêu cầu đổi ca & Cấu hình quán.
+                  </p>
+                </div>
+
+                {/* 2 Nút Lựa Chọn Định Dạng Sao Lưu */}
+                <div className="space-y-2.5 pt-1">
+                  {/* NÚT 1: XUẤT FILE EXCEL ĐẦY ĐỦ 8 SHEET */}
+                  <button
+                    type="button"
+                    disabled={isBackingUpExcel || isBackingUpJson}
+                    onClick={handleExportExcel}
+                    className="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs sm:text-sm border-0 cursor-pointer shadow-md transition-all active:scale-98 flex items-center justify-between gap-3 text-left group disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl sm:text-3xl bg-white/20 p-2 rounded-xl">📊</span>
+                      <div>
+                        <div className="font-black text-sm sm:text-base flex items-center gap-1.5">
+                          <span>Xuất File Excel (.xlsx)</span>
+                          <span className="bg-amber-400 text-purple-950 text-[10px] px-1.5 py-0.2 rounded font-black">Khuyên Dùng</span>
+                        </div>
+                        <p className="text-[11px] text-emerald-100 font-bold mt-0.5">
+                          Đầy đủ 8 Sheet: Nhân viên, Lịch làm, Lương, Phạt... Mở được trên Excel / Google Sheets
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-lg group-hover:translate-x-1 transition-transform">➔</span>
+                  </button>
+
+                  {/* NÚT 2: XUẤT FILE JSON GỐC ĐỂ KHÔI PHỤC */}
+                  <button
+                    type="button"
+                    disabled={isBackingUpExcel || isBackingUpJson}
+                    onClick={handleExportJson}
+                    className="w-full p-4 rounded-2xl bg-purple-100 hover:bg-purple-200/90 text-purple-950 font-black text-xs sm:text-sm border border-purple-300 cursor-pointer transition-all active:scale-98 flex items-center justify-between gap-3 text-left group disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl sm:text-3xl bg-purple-200 p-2 rounded-xl text-purple-900">💾</span>
+                      <div>
+                        <div className="font-black text-sm sm:text-base">
+                          Xuất File JSON Gốc (.json)
+                        </div>
+                        <p className="text-[11px] text-purple-700 font-bold mt-0.5">
+                          Dùng để nạp hoặc khôi phục nhanh sang Database mới khi chuyển máy chủ
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-lg text-purple-700 group-hover:translate-x-1 transition-transform">➔</span>
+                  </button>
+                </div>
+
+                <div className="pt-2 border-t border-purple-100 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowBackupModal(false)}
+                    className="px-5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black border-0 cursor-pointer transition-all"
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
             </div>,
             document.body

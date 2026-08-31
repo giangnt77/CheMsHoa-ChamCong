@@ -29,26 +29,21 @@ export default function AdminShiftSwapManager() {
   const [tgBotToken, setTgBotToken] = useState('');
   const [tgChatId, setTgChatId] = useState('');
   const [fetchingChatId, setFetchingChatId] = useState(false);
-
   function handleOpenTelegramModal() {
     if (typeof window !== 'undefined') {
-      const savedToken = localStorage.getItem('chems_telegram_bot_token');
-      const savedChatId = localStorage.getItem('chems_telegram_chat_id');
-      const token = (savedToken && !savedToken.startsWith('8514257668')) ? savedToken : '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
-      const chatId = (savedChatId && savedChatId !== '5766522088') ? savedChatId : '5616165281';
-      setTgBotToken(token);
-      setTgChatId(chatId);
-      localStorage.setItem('chems_telegram_bot_token', token);
-      localStorage.setItem('chems_telegram_chat_id', chatId);
+      const savedToken = localStorage.getItem('chems_telegram_bot_token') || '';
+      const savedChatId = localStorage.getItem('chems_telegram_chat_id') || '';
+      setTgBotToken(savedToken);
+      setTgChatId(savedChatId);
     }
     setShowTelegramModal(true);
   }
 
   async function handleAutoFetchChatId() {
-    const token = tgBotToken.trim() || '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
     setFetchingChatId(true);
     try {
-      const res = await fetch(`/api/telegram/get-updates?token=${encodeURIComponent(token)}`);
+      const queryParam = tgBotToken.trim() ? `?token=${encodeURIComponent(tgBotToken.trim())}` : '';
+      const res = await fetch(`/api/telegram/get-updates${queryParam}`);
       const data = await res.json();
       if (data && data.ok && Array.isArray(data.result) && data.result.length > 0) {
         const lastMsg = data.result[data.result.length - 1];

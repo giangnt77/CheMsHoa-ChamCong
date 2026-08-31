@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getEmployees, updateEmployeePin } from '@/lib/supabase';
+import { getEmployees, verifyEmployeePin } from '@/lib/supabase';
 import { getInitials } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
@@ -60,14 +60,20 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
   }
 
   // Khi bấm chọn 1 Nhân viên từ danh sách
-  function handleSelectEmployeeCard(emp) {
+  async function handleSelectEmployeeCard(emp) {
     const savedPin = localStorage.getItem(`chemshoa_saved_pin_${emp.id}`);
-    const actualPin = emp.pin || '123456';
 
-    if (savedPin === actualPin) {
-      // Đúng máy chính chủ -> Vào thẳng không cần nhập PIN!
-      onSelect(emp.name, false);
-      return;
+    if (savedPin) {
+      // Xác thực an toàn với Database mà không cần tải PIN về máy
+      const isValid = await verifyEmployeePin(emp.id, savedPin);
+      if (isValid) {
+        // Đúng máy chính chủ -> Vào thẳng không cần nhập PIN!
+        onSelect(emp.name, false);
+        return;
+      } else {
+        // PIN đã bị Admin đổi trên hệ thống -> Xóa cache PIN cũ
+        localStorage.removeItem(`chemshoa_saved_pin_${emp.id}`);
+      }
     }
 
     // Yêu cầu nhập PIN 6 số do Admin cấp
@@ -103,12 +109,13 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     setPinInput((prev) => prev.slice(0, -1));
   }
 
-  // Xác thực mã PIN 6 số
-  function verifyPin(inputPin) {
-    const correctPin = selectedEmp.pin || '123456';
-    if (inputPin === correctPin) {
+  // Xác thực mã PIN 6 số an toàn
+  async function verifyPin(inputPin) {
+    if (!selectedEmp) return;
+    const isValid = await verifyEmployeePin(selectedEmp.id, inputPin);
+    if (isValid) {
       if (rememberPin) {
-        localStorage.setItem(`chemshoa_saved_pin_${selectedEmp.id}`, correctPin);
+        localStorage.setItem(`chemshoa_saved_pin_${selectedEmp.id}`, inputPin);
       } else {
         localStorage.removeItem(`chemshoa_saved_pin_${selectedEmp.id}`);
       }
@@ -119,25 +126,6 @@ export default function EmployeeSelector({ onSelect, loading: parentLoading }) {
     }
   }
 
-  // Lưu mã PIN lần đầu
-  async function saveNewPin(p1, p2) {
-    if (p1 !== p2) {
-      toast.error('Lỗi', 'Mã PIN xác nhận không trùng khớp!');
-      setPinConfirmInput('');
-      return;
-    }
-    setSubmittingPin(true);
-    try {
-      await updateEmployeePin(selectedEmp.id, p1);
-      localStorage.setItem(`chemshoa_saved_pin_${selectedEmp.id}`, p1);
-      toast.success('Đã tạo PIN', 'Đã lưu mã PIN cá nhân của bạn');
-      onSelect(selectedEmp.name, false);
-    } catch (err) {
-      console.error(err);
-      toast.error('Lỗi', 'Không thể tạo PIN');
-    }
-    setSubmittingPin(false);
-  }
 
   if (loading) {
     return (

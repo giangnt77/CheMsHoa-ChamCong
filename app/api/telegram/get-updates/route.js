@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get('token') || process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
+  const DEFAULT_BOT_TOKEN = '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
+  const token = searchParams.get('token') || process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || DEFAULT_BOT_TOKEN;
+
+  if (!token) {
+    return NextResponse.json({ ok: false, message: 'Thiếu Telegram Bot Token' }, { status: 400 });
+  }
 
   const endpoints = [
     `https://api.telegram.org/bot${token}/getUpdates`,

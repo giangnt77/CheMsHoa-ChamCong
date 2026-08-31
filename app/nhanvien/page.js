@@ -23,6 +23,7 @@ import {
   getHolidaySettings,
   updateEmployeeNickname,
   checkNicknameCooldown,
+  verifyEmployeePin,
 } from '@/lib/supabase';
 import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN, validateNickname } from '@/lib/utils';
 
@@ -312,29 +313,32 @@ function EmployeeContent() {
       } else {
         // Kiểm tra nếu PIN đã bị Admin thay đổi trên hệ thống
         const savedPin = localStorage.getItem(`chemshoa_saved_pin_${emp.id}`);
-        const actualPin = emp.pin || '123456';
 
-        if (savedPin && savedPin !== actualPin) {
-          // Mã PIN đã bị Admin đổi -> Xóa bộ nhớ cũ & yêu cầu nhập PIN mới
-          localStorage.removeItem('chemshoa_employee_name');
-          localStorage.removeItem(`chemshoa_saved_pin_${emp.id}`);
-          setEmployee(null);
-          toast.warning('Mã PIN thay đổi', 'Admin đã thay đổi mã PIN của bạn. Vui lòng nhập mã PIN mới!');
-        } else {
-          setEmployee(emp);
-          const todayStr = getToday();
-          localStorage.setItem('chemshoa_employee_name', emp.name);
-          localStorage.setItem('chemshoa_login_date', todayStr);
-
-          // Cập nhật mảng Lịch Sử Đăng Nhập lên thiết bị này (Đưa ID vừa đăng nhập lên vị trí ĐẦU TIÊN)
-          try {
-            let recent = JSON.parse(localStorage.getItem('chemshoa_recent_logins') || '[]');
-            recent = [emp.id, ...recent.filter((id) => id !== emp.id)].slice(0, 6);
-            localStorage.setItem('chemshoa_recent_logins', JSON.stringify(recent));
-          } catch (e) { }
-
-          if (showToast) toast.success('Đăng nhập', `Xin chào ${emp.name}!`);
+        if (savedPin) {
+          const isValid = await verifyEmployeePin(emp.id, savedPin);
+          if (!isValid) {
+            // Mã PIN đã bị Admin đổi -> Xóa bộ nhớ cũ & yêu cầu nhập PIN mới
+            localStorage.removeItem('chemshoa_employee_name');
+            localStorage.removeItem(`chemshoa_saved_pin_${emp.id}`);
+            setEmployee(null);
+            toast.warning('Mã PIN thay đổi', 'Admin đã thay đổi mã PIN của bạn. Vui lòng nhập mã PIN mới!');
+            return;
+          }
         }
+
+        setEmployee(emp);
+        const todayStr = getToday();
+        localStorage.setItem('chemshoa_employee_name', emp.name);
+        localStorage.setItem('chemshoa_login_date', todayStr);
+
+        // Cập nhật mảng Lịch Sử Đăng Nhập lên thiết bị này (Đưa ID vừa đăng nhập lên vị trí ĐẦU TIÊN)
+        try {
+          let recent = JSON.parse(localStorage.getItem('chemshoa_recent_logins') || '[]');
+          recent = [emp.id, ...recent.filter((id) => id !== emp.id)].slice(0, 6);
+          localStorage.setItem('chemshoa_recent_logins', JSON.stringify(recent));
+        } catch (e) { }
+
+        if (showToast) toast.success('Đăng nhập', `Xin chào ${emp.name}!`);
       }
     } catch (err) {
       console.error(err);
@@ -1015,7 +1019,7 @@ function EmployeeContent() {
                       <span>Quy định thời gian đổi biệt danh:</span>
                     </div>
                     <p className="text-amber-800 leading-snug">
-                      Sau khi bấm <strong>"Lưu Biệt Danh"</strong>, bạn sẽ <strong>không thể đổi lại trong vòng 2 tháng (60 ngày)</strong> tiếp theo. Hãy chọn biệt danh thật ưng ý nhé!
+                      Sau khi bấm <strong>&quot;Lưu Biệt Danh&quot;</strong>, bạn sẽ <strong>không thể đổi lại trong vòng 2 tháng (60 ngày)</strong> tiếp theo. Hãy chọn biệt danh thật ưng ý nhé!
                     </p>
                   </div>
 
