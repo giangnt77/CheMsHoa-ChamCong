@@ -579,9 +579,14 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                           <div className="text-xs font-black tracking-tight">{formatCurrency(empMTotal.netSalary)}</div>
                           <div className="text-[9.5px] font-extrabold text-purple-900">({empMTotal.totalHours}h • {empMTotal.shiftCount} ca)</div>
                           {(empMTotal.totalBonus > 0 || empMTotal.totalPenalty > 0) && (
-                            <div className="flex items-center justify-center gap-1 text-[9px] pt-0.5 border-t border-amber-400/60 font-bold">
-                              {empMTotal.totalBonus > 0 && <span className="text-emerald-900 font-extrabold">🎁+{formatCurrency(empMTotal.totalBonus)}</span>}
-                              {empMTotal.totalPenalty > 0 && <span className="text-rose-900 font-extrabold">⚠️-{formatCurrency(empMTotal.totalPenalty)}</span>}
+                            <div className="space-y-0.5 pt-0.5 border-t border-amber-400/70 font-bold mt-0.5">
+                              <div className="flex items-center justify-center gap-1 text-[9px]">
+                                {empMTotal.totalBonus > 0 && <span className="text-emerald-950 font-extrabold">🎁+{formatCurrency(empMTotal.totalBonus)}</span>}
+                                {empMTotal.totalPenalty > 0 && <span className="text-rose-950 font-extrabold">⚠️-{formatCurrency(empMTotal.totalPenalty)}</span>}
+                              </div>
+                              <div className="text-[8.5px] font-black text-purple-900/80 pt-0.5 border-t border-amber-400/40" title="Lương ca gốc (chưa tính thưởng/phạt)">
+                                Gốc: {formatCurrency(empMTotal.grossSalary)}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -624,14 +629,14 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                     <div className="text-xs sm:text-sm font-black text-white">{formatCurrency(grandTotalMonthlyNet)}</div>
                     <div className="text-[10px] font-extrabold text-amber-100">({grandTotalMonthlyHours}h)</div>
                     {(grandTotalMonthlyBonus > 0 || grandTotalMonthlyPenalty > 0) && (
-                      <div className="flex items-center justify-center gap-1 text-[9.5px] pt-0.5 font-bold">
-                        {grandTotalMonthlyBonus > 0 && <span className="text-emerald-200">🎁+{formatCurrency(grandTotalMonthlyBonus)}</span>}
-                        {grandTotalMonthlyPenalty > 0 && <span className="text-rose-200">⚠️-{formatCurrency(grandTotalMonthlyPenalty)}</span>}
-                      </div>
-                    )}
-                    {grandTotalMonthlyPenalty > 0 && (
-                      <div className="text-[10px] font-black text-amber-100 pt-0.5 border-t border-amber-500/70 mt-0.5" title="Lương ca gốc (chưa trừ phạt)">
-                        {formatCurrency(grandTotalMonthlySalary)}
+                      <div className="space-y-0.5 pt-0.5 border-t border-amber-500/70 mt-1">
+                        <div className="flex items-center justify-center gap-1 text-[9.5px] font-bold">
+                          {grandTotalMonthlyBonus > 0 && <span className="text-emerald-200">🎁+{formatCurrency(grandTotalMonthlyBonus)}</span>}
+                          {grandTotalMonthlyPenalty > 0 && <span className="text-rose-200">⚠️-{formatCurrency(grandTotalMonthlyPenalty)}</span>}
+                        </div>
+                        <div className="text-[10px] font-black text-amber-100 pt-0.5 border-t border-amber-500/50" title="Lương ca gốc (chưa cộng thưởng/trừ phạt)">
+                          Gốc: {formatCurrency(grandTotalMonthlySalary)}
+                        </div>
                       </div>
                     )}
                   </td>
