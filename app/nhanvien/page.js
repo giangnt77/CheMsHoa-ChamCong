@@ -85,10 +85,11 @@ function EmployeeContent() {
     '📌 THÔNG BÁO TỪ QUẢN LÝ:\n- Hãy chốt và đăng ký lịch rảnh tuần tới trước 22:00 Chủ Nhật hàng tuần.\n- Kiểm tra các ngày Cao Điểm cấm Off trước khi gửi yêu cầu xin nghỉ!'
   );
 
-  // State Quản Lý Đổi Ca & Chi Tiết Lỗi Phạt
+  // State Quản Lý Đổi Ca & Chi Tiết Lỗi Phạt / Thưởng
   const [shiftSwaps, setShiftSwaps] = useState([]);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showPenaltyDetailModal, setShowPenaltyDetailModal] = useState(false);
+  const [showBonusDetailModal, setShowBonusDetailModal] = useState(false);
   const [swapFilterMonth, setSwapFilterMonth] = useState(getCurrentMonth());
 
   useEffect(() => {
@@ -212,6 +213,24 @@ function EmployeeContent() {
   const totalPenaltyAmount = useMemo(() => {
     return penaltyList.reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
   }, [penaltyList]);
+
+  // Lọc danh sách khoản thưởng / phụ cấp
+  const bonusList = useMemo(() => {
+    if (!empPenalties) return [];
+    return empPenalties.filter((p) => {
+      const isBonus = p.type === 'bonus' || (p.reason && (p.reason.toLowerCase().startsWith('[thưởng]') || p.reason.toLowerCase().startsWith('[bonus]')));
+      return isBonus;
+    });
+  }, [empPenalties]);
+
+  const totalBonusAmount = useMemo(() => {
+    return bonusList.reduce((sum, p) => sum + Math.abs(p.amount || 0), 0);
+  }, [bonusList]);
+
+  // Lương thực nhận = Lương ca làm + Thưởng - Phạt
+  const netSalary = useMemo(() => {
+    return Math.max(0, Math.round(monthlySalary + totalBonusAmount - totalPenaltyAmount));
+  }, [monthlySalary, totalBonusAmount, totalPenaltyAmount]);
 
   function handlePrevMonth() {
     const [y, m] = selectedMonth.split('-').map(Number);
@@ -542,27 +561,61 @@ function EmployeeContent() {
                 </div>
               </div>
 
-              {/* Ô Khoanh Giữa (LƯƠNG TÍCH LŨY HÔM NAY) — TO NỔI BẬT RỰC RỠ ⚡ */}
+              {/* Ô Khoanh Giữa (THỰC NHẬN TÍCH LŨY HÔM NAY) — TO NỔI BẬT RỰC RỠ ⚡ */}
               <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-emerald-100/90 to-teal-50 border-2 border-emerald-400 shadow-md text-center space-y-1">
                 <div className="text-xs sm:text-sm text-emerald-900 font-black uppercase tracking-wider">
-                  LƯƠNG TÍCH LŨY HÔM NAY
+                  THỰC NHẬN TÍCH LŨY HÔM NAY
                 </div>
                 <div className="text-2xl sm:text-4xl font-black text-emerald-700 tracking-tight drop-shadow-xs">
-                  {formatCurrency(monthlySalary)}
+                  {formatCurrency(netSalary)}
                 </div>
+                {(totalBonusAmount > 0 || totalPenaltyAmount > 0) && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1 text-[11px] font-bold text-slate-600">
+                    <span className="text-purple-900 bg-purple-100/80 px-2 py-0.5 rounded-full">
+                      Lương ca: {formatCurrency(monthlySalary)}
+                    </span>
+                    {totalBonusAmount > 0 && (
+                      <span className="text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                        +Thưởng: {formatCurrency(totalBonusAmount)}
+                      </span>
+                    )}
+                    {totalPenaltyAmount > 0 && (
+                      <span className="text-rose-800 bg-rose-100/80 px-2 py-0.5 rounded-full">
+                        -Phạt: {formatCurrency(totalPenaltyAmount)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Ô Khoanh Dưới Cùng (TIỀN PHẠT LỖI DỰ KIẾN) — BẤM VÀO ĐỂ XEM CHI TIẾT DANH SÁCH LỖI ⚡ */}
-              <div
-                onClick={() => setShowPenaltyDetailModal(true)}
-                className="p-2.5 sm:p-3 bg-rose-50/80 hover:bg-rose-100/90 rounded-xl border border-rose-200/90 text-center space-y-0.5 cursor-pointer transition-all active:scale-95 hover:scale-[1.01] hover:shadow-xs border-rose-200 group"
-                title="Bấm để xem danh sách chi tiết các lỗi phạt"
-              >
-                <div className="text-[10px] sm:text-xs text-rose-800 font-black uppercase tracking-wider">
-                  Tiền phạt lỗi dự kiến:
-                </div>
-                <div className="text-xs sm:text-sm font-extrabold text-rose-600">
-                  {formatCurrency(totalPenaltyAmount)}
+              {/* Ô Khoanh Dưới Cùng (THƯỞNG & PHẠT LỖI DỰ KIẾN) */}
+              <div className={`grid gap-2 ${totalBonusAmount > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {totalBonusAmount > 0 && (
+                  <div
+                    onClick={() => setShowBonusDetailModal(true)}
+                    className="p-2.5 sm:p-3 bg-emerald-50/80 hover:bg-emerald-100/90 rounded-xl border border-emerald-200/90 text-center space-y-0.5 cursor-pointer transition-all active:scale-95 hover:scale-[1.01] hover:shadow-xs group"
+                    title="Bấm để xem danh sách chi tiết các khoản thưởng"
+                  >
+                    <div className="text-[10px] sm:text-xs text-emerald-800 font-black uppercase tracking-wider">
+                      Tiền thưởng / Phụ cấp:
+                    </div>
+                    <div className="text-xs sm:text-sm font-extrabold text-emerald-600">
+                      +{formatCurrency(totalBonusAmount)}
+                    </div>
+                  </div>
+                )}
+
+                <div
+                  onClick={() => setShowPenaltyDetailModal(true)}
+                  className="p-2.5 sm:p-3 bg-rose-50/80 hover:bg-rose-100/90 rounded-xl border border-rose-200/90 text-center space-y-0.5 cursor-pointer transition-all active:scale-95 hover:scale-[1.01] hover:shadow-xs group"
+                  title="Bấm để xem danh sách chi tiết các lỗi phạt"
+                >
+                  <div className="text-[10px] sm:text-xs text-rose-800 font-black uppercase tracking-wider">
+                    Tiền phạt lỗi dự kiến:
+                  </div>
+                  <div className="text-xs sm:text-sm font-extrabold text-rose-600">
+                    {totalPenaltyAmount > 0 ? `-${formatCurrency(totalPenaltyAmount)}` : formatCurrency(0)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -940,6 +993,82 @@ function EmployeeContent() {
                   <button
                     type="button"
                     onClick={() => setShowPenaltyDetailModal(false)}
+                    className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs active:scale-95 transition-all"
+                  >
+                    ✕ Đóng Màn Hình
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* ================= MODAL XEM CHI TIẾT NỘI DUNG THƯỞNG / PHỤ CẤP ================= */}
+          {showBonusDetailModal && typeof document !== 'undefined' && createPortal(
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+              <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full border border-emerald-200 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+                {/* Header Modal */}
+                <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-lg">
+                      🎁
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base text-emerald-950">Chi Tiết Tiền Thưởng & Phụ Cấp</h3>
+                      <p className="text-xs text-purple-700 font-bold">
+                        Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]} • {employee.name}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowBonusDetailModal(false)}
+                    className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center border-0 cursor-pointer text-sm font-black"
+                    title="Đóng"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Nội dung danh sách các khoản thưởng */}
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                  {bonusList.length === 0 ? (
+                    <div className="py-8 text-center space-y-2 bg-purple-50/60 rounded-2xl border border-purple-200 p-4">
+                      <div className="text-3xl">✨</div>
+                      <p className="text-xs sm:text-sm font-black text-purple-900">
+                        Chưa có khoản thưởng hay phụ cấp nào trong Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}.
+                      </p>
+                    </div>
+                  ) : (
+                    bonusList.map((item, idx) => (
+                      <div
+                        key={item.id || idx}
+                        className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 flex items-center justify-between gap-3 shadow-2xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] font-black text-emerald-950 flex items-center gap-1">
+                            <span>📅</span> {item.date ? item.date.split('-').reverse().join('/') : 'Trong tháng'}
+                          </div>
+                          <div className="text-xs font-extrabold text-purple-950 leading-snug">
+                            {item.reason || 'Khen thưởng / Phụ cấp'}
+                          </div>
+                        </div>
+                        <div className="text-xs sm:text-sm font-black text-emerald-600 shrink-0 bg-white px-2.5 py-1 rounded-xl border border-emerald-200 shadow-2xs">
+                          +{formatCurrency(Math.abs(item.amount || 0))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer Tổng Tiền & Nút Đóng */}
+                <div className="pt-2 border-t border-purple-100 flex items-center justify-between gap-2">
+                  <div className="text-xs font-black text-purple-950">
+                    Tổng tiền thưởng: <span className="text-emerald-600 font-black text-sm">+{formatCurrency(totalBonusAmount)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowBonusDetailModal(false)}
                     className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black border-0 cursor-pointer shadow-2xs active:scale-95 transition-all"
                   >
                     ✕ Đóng Màn Hình

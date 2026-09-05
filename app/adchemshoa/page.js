@@ -846,7 +846,7 @@ function AdminContent() {
     let bonus = 0;
     let penalty = 0;
     allLifetimePenalties.forEach(p => {
-      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      const isBonus = p.type === 'bonus' || (p.reason && (p.reason.toLowerCase().startsWith('[thưởng]') || p.reason.toLowerCase().startsWith('[bonus]')));
       if (isBonus) bonus += Math.abs(p.amount);
       else penalty += Math.abs(p.amount);
     });
@@ -861,7 +861,7 @@ function AdminContent() {
       totalPenalty: penalty,
       netSalary,
     };
-  }, [selectedEmployee, allLifetimeSched, empRates, allLifetimePenalties]);
+  }, [selectedEmployee, allLifetimeSched, empRates, allLifetimePenalties, holidays]);
 
   async function handleAddRate(e) {
     e.preventDefault();
@@ -889,7 +889,7 @@ function AdminContent() {
     }
   }
 
-  async function handleAssignBranch(employeeId, branchId, startTime = '08:00', endTime = '13:00', hours = 5) {
+  async function handleAssignBranch(employeeId, branchId, startTime = '08:30', endTime = '14:30', hours = 6) {
     try {
       await upsertSchedule({
         employeeId,
@@ -1009,7 +1009,7 @@ function AdminContent() {
     let totalPenalty = 0;
 
     empPenalties.forEach((p) => {
-      const isBonus = p.type === 'bonus' || (p.reason && p.reason.startsWith('[THƯỞNG]'));
+      const isBonus = p.type === 'bonus' || (p.reason && (p.reason.toLowerCase().startsWith('[thưởng]') || p.reason.toLowerCase().startsWith('[bonus]')));
       if (isBonus) {
         totalBonus += Math.abs(p.amount);
       } else {
@@ -1028,7 +1028,7 @@ function AdminContent() {
       netSalary,
       shiftDetails,
     };
-  }, [selectedEmployee, empSchedule, empPenalties, empRates]);
+  }, [selectedEmployee, empSchedule, empPenalties, empRates, holidays]);
 
   function prevMonth() {
     const [y, m] = selectedMonth.split('-').map(Number);

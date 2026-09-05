@@ -12,9 +12,9 @@ const PRESET_SHIFTS = [
     id: 'morning',
     label: 'Ca Sáng',
     icon: '🌅',
-    startTime: '07:00',
-    endTime: '12:00',
-    hours: 5,
+    startTime: '08:30',
+    endTime: '14:30',
+    hours: 6,
     color: 'from-amber-400 to-orange-500',
     bgGlow: 'rgba(251, 191, 36, 0.15)',
     borderColor: 'rgba(251, 191, 36, 0.3)',
@@ -23,9 +23,9 @@ const PRESET_SHIFTS = [
     id: 'afternoon',
     label: 'Ca Chiều',
     icon: '🌞',
-    startTime: '13:00',
+    startTime: '14:00',
     endTime: '18:00',
-    hours: 5,
+    hours: 4,
     color: 'from-orange-400 to-red-500',
     bgGlow: 'rgba(249, 115, 22, 0.15)',
     borderColor: 'rgba(249, 115, 22, 0.3)',
@@ -34,9 +34,9 @@ const PRESET_SHIFTS = [
     id: 'evening',
     label: 'Ca Tối',
     icon: '🌙',
-    startTime: '18:00',
+    startTime: '17:00',
     endTime: '22:00',
-    hours: 4,
+    hours: 5,
     color: 'from-indigo-400 to-purple-500',
     bgGlow: 'rgba(129, 140, 248, 0.15)',
     borderColor: 'rgba(129, 140, 248, 0.3)',
@@ -48,8 +48,8 @@ export default function QuickShiftPicker({ onSubmit, loading }) {
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [selectedShift, setSelectedShift] = useState(null);
   const [customMode, setCustomMode] = useState(false);
-  const [customStart, setCustomStart] = useState('08:00');
-  const [customEnd, setCustomEnd] = useState('12:00');
+  const [customStart, setCustomStart] = useState('08:30');
+  const [customEnd, setCustomEnd] = useState('14:30');
   const [note, setNote] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);

@@ -336,8 +336,8 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
 
     return {
       empWeeklyTotals: empTotals,
-      grandTotalSalary: totalSal,
-      grandTotalHours: totalHrs,
+      grandTotalSalary: Math.round(totalSal),
+      grandTotalHours: Math.round(totalHrs * 100) / 100,
     };
   }, [sortedEmployees, weekDays, scheduleByEmpAndDate, ratesMap, holidays]);
 
@@ -526,13 +526,29 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
 
                                   const branchObj = branches.find((b) => b.id === shift.branch_id) || shift.branches;
                                   const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
-                                  const { grossSalary: shiftSalary } = calculateSalaryFromShifts([shift], empRates, defaultRate, holidays);
+                                  const { grossSalary: shiftSalary, totalHours: shiftHours } = calculateSalaryFromShifts([shift], empRates, defaultRate, holidays);
+
+                                  // Kiểm tra xem đây có phải là ca gãy (có khoảng nghỉ giữa ca gốc và ca làm thay)
+                                  let splitTimeDisplay = null;
+                                  if (shift.note) {
+                                    const splitMatch = shift.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})[^\]]*\].*?\((\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
+                                    if (splitMatch) {
+                                      const s1 = splitMatch[1];
+                                      const e1 = splitMatch[2];
+                                      const s2 = splitMatch[3];
+                                      const e2 = splitMatch[4];
+                                      if (e1 < s2 || e2 < s1) {
+                                        splitTimeDisplay = `${s1}-${e1} & ${s2}-${e2}`;
+                                      }
+                                    }
+                                  }
 
                                   return (
                                     <div
                                       key={shift.id}
                                       className="p-1 rounded-xl bg-purple-50/90 border text-center shadow-2xs space-y-0.5"
                                       style={{ borderColor: `${branchStyle.hex}60` }}
+                                      title={shift.note ? `${shift.note} (${shiftHours}h)` : `${timeRange} (${shiftHours}h)`}
                                     >
                                       <div className="flex items-center justify-center gap-0.5">
                                         <span
@@ -544,9 +560,21 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                                           {branchStyle.badgeText || branchObj?.name}
                                         </span>
                                       </div>
-                                      <div className="text-[10.5px] font-black text-purple-950 tracking-tight">{timeRange}</div>
-                                      <div className="text-[9.5px] font-black text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded-md border border-emerald-200">
-                                        {formatCurrency(shiftSalary)}
+
+                                      {/* Khung giờ làm việc: Tách 2 dòng rõ ràng nếu là ca gãy */}
+                                      {splitTimeDisplay ? (
+                                        <div className="text-[10px] font-black text-purple-950 tracking-tight leading-tight">
+                                          <div>{splitTimeDisplay.split(' & ')[0]}</div>
+                                          <div className="text-[9px] text-purple-700 font-extrabold">&amp; {splitTimeDisplay.split(' & ')[1]}</div>
+                                        </div>
+                                      ) : (
+                                        <div className="text-[10.5px] font-black text-purple-950 tracking-tight">{timeRange}</div>
+                                      )}
+
+                                      {/* Tiền lương kèm số giờ làm thực tế để đối soát minh bạch */}
+                                      <div className="text-[9.5px] font-black text-emerald-700 bg-emerald-100/70 px-1 py-0.5 rounded-md border border-emerald-200 flex items-center justify-center gap-0.5">
+                                        <span className="text-[9px] text-purple-950 font-black">({shiftHours}h)</span>
+                                        <span>{formatCurrency(shiftSalary)}</span>
                                       </div>
                                     </div>
                                   );
@@ -617,7 +645,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                     return (
                       <td key={dStr} className="py-3 px-2 border-r border-purple-800 text-center">
                         <div className="text-xs font-black text-emerald-300">{formatCurrency(daySal)}</div>
-                        <div className="text-[10px] font-extrabold text-purple-200">{dayHrs}h</div>
+                        <div className="text-[10px] font-extrabold text-purple-200">{Math.round(dayHrs * 100) / 100}h</div>
                       </td>
                     );
                   })}

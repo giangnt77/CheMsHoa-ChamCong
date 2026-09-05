@@ -639,6 +639,9 @@ export default function ModalEmployeeSalaryDetail({
                       const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
                       const sTime = s.start_time ? s.start_time.slice(0, 5) : '08:30';
                       const eTime = s.end_time ? s.end_time.slice(0, 5) : '22:00';
+                      const splitMatch = s.note ? s.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})[^\]]*\].*?\((\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i) : null;
+                      const isSplit = splitMatch && (splitMatch[2] < splitMatch[3] || splitMatch[4] < splitMatch[1]);
+                      const timeRangeDisplay = isSplit ? `${splitMatch[1]}-${splitMatch[2]} & ${splitMatch[3]}-${splitMatch[4]}` : `${sTime}-${eTime}`;
 
                       return (
                         <div
@@ -672,7 +675,7 @@ export default function ModalEmployeeSalaryDetail({
 
                           {/* Hàng 2: Khung Giờ & Số Giờ */}
                           <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-700">
-                            <span>🕒 {sTime}-{eTime}</span>
+                            <span title={timeRangeDisplay}>🕒 {timeRangeDisplay}</span>
                             <span className="font-black text-purple-900">⏳ {s.hours}h</span>
                           </div>
 

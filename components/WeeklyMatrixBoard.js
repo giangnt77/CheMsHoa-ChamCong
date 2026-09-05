@@ -25,6 +25,7 @@ import {
   formatDateISO,
   getMondayOfCurrentWeek,
   getWeekDaysFromMonday,
+  calculateHours,
 } from '@/lib/utils';
 import ModalXepLichQuick from './ModalXepLichQuick';
 import ModalSortEmployees from './ModalSortEmployees';
@@ -35,6 +36,9 @@ import ModalAdjustedShiftsList from './ModalAdjustedShiftsList';
 
 function calculateShiftHours(shift) {
   if (!shift) return 0;
+  if (shift.hours && Number(shift.hours) > 0) {
+    return Number(shift.hours);
+  }
   if (shift.duration_hours && Number(shift.duration_hours) > 0) {
     return Number(shift.duration_hours);
   }
@@ -693,11 +697,16 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
             const shiftA = { ...updated[idxA] };
             const shiftB = { ...updated[idxB] };
 
+            const origAStart = shiftA.start_time?.slice(0, 5) || data.startTime;
+            const origAEnd = shiftA.end_time?.slice(0, 5) || data.endTime;
+            const origBStart = shiftB.start_time?.slice(0, 5);
+            const origBEnd = shiftB.end_time?.slice(0, 5);
+
             updated[idxA] = {
               ...shiftB,
               id: shiftA.id,
               employee_id: data.employeeId,
-              note: isWeekLocked ? `[Đổi ca với ${empBName}]` : (shiftB.note || ''),
+              note: isWeekLocked ? `[Gốc: ${origAStart}-${origAEnd} | Đổi ca với ${empBName}]` : (shiftB.note || ''),
               isDirty: true,
             };
 
@@ -705,9 +714,23 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               ...shiftA,
               id: shiftB.id,
               employee_id: data.swapEmployeeId,
-              note: isWeekLocked ? `[Đổi ca với ${empAName}]` : (shiftA.note || ''),
+              note: isWeekLocked ? `[Gốc: ${origBStart}-${origBEnd} | Đổi ca với ${empAName}]` : (shiftA.note || ''),
               isDirty: true,
             };
+
+            // Đảm bảo cả 2 nhân viên đều không bị dính cờ OFF khi hoán đổi ca đi làm với nhau
+            setLocalAvailability((prevAvail) => {
+              const nextAvail = [...prevAvail];
+              const availAIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
+              if (availAIdx >= 0) {
+                nextAvail[availAIdx] = { ...nextAvail[availAIdx], is_admin_assigned: false };
+              }
+              const availBIdx = nextAvail.findIndex((a) => a.employee_id === data.swapEmployeeId && a.date === dStr);
+              if (availBIdx >= 0) {
+                nextAvail[availBIdx] = { ...nextAvail[availBIdx], is_admin_assigned: false };
+              }
+              return nextAvail;
+            });
           } else if (idxA !== -1 && idxB === -1) {
             // A có ca, B ĐANG OFF -> Xóa ca cũ của A trong DB và tạo ca mới cho B
             const shiftA = { ...updated[idxA] };
@@ -911,10 +934,75 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
         // Tự động đồng bộ ca đối ứng 2 chiều cho nhân viên làm thay/bị thay
         if (data.peerAdjustment && data.peerAdjustment.peerEmployeeId) {
+          const peerId = data.peerAdjustment.peerEmployeeId;
           const peerIdx = updated.findIndex(
-            (s) => s.employee_id === data.peerAdjustment.peerEmployeeId && s.date === dStr
+            (s) => s.employee_id === peerId && s.date === dStr
           );
-          if (peerIdx !== -1) {
+          const currentEmp = employees.find((e) => e.id === data.employeeId);
+          const currentEmpName = currentEmp?.name || 'Bạn';
+
+          if (data.peerAdjustment.type === 'full_off') {
+            // TRƯỜNG HỢP 2: BẠN ĐƯỢC LÀM THAY NGHỈ HOÀN TOÀN NGÀY ĐÓ -> XÓA CA VÀ GÁN TRẠNG THÁI OFF
+            const peerShift = peerIdx !== -1 ? { ...updated[peerIdx] } : null;
+
+            if (peerShift && peerShift.id && !String(peerShift.id).startsWith('draft_')) {
+              setDeletedShiftIds((prev) => [...prev, peerShift.id]);
+            }
+
+            // Xóa ca của peer trong ngày này
+            updated = updated.filter((s) => !(s.employee_id === peerId && s.date === dStr));
+
+            let baseStart = peerShift?.start_time ? peerShift.start_time.slice(0, 5) : '14:00';
+            let baseEnd = peerShift?.end_time ? peerShift.end_time.slice(0, 5) : '22:00';
+            if (peerShift?.note) {
+              const match = peerShift.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
+              if (match) {
+                baseStart = match[1];
+                baseEnd = match[2];
+              }
+            }
+            const cleanReason = (data.peerAdjustment.peerOffReason || 'Bận việc riêng')
+              .replace(/\[(?:Ca gốc|Gốc):\s*[^\]]+\]/g, '')
+              .trim() || 'Bận việc riêng';
+            const offNote = isWeekLocked
+              ? `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay trọn ca] ${cleanReason}`
+              : cleanReason;
+
+            // Bật cờ 🛑 OFF cho peer trong localAvailability
+            setLocalAvailability((prevAvail) => {
+              const nextAvail = [...prevAvail];
+              const availIdx = nextAvail.findIndex((a) => a.employee_id === peerId && a.date === dStr);
+              if (availIdx >= 0) {
+                const cur = nextAvail[availIdx];
+                const realOrigNote = (cur.orig_note && !cur.orig_note.includes('[Gốc:') && !cur.orig_note.includes('làm thay') && !cur.orig_note.includes('Đổi ca'))
+                  ? cur.orig_note
+                  : (!cur.is_admin_assigned && cur.note && !cur.note.includes('[Gốc:') && !cur.note.includes('làm thay') && !cur.note.includes('Đổi ca'))
+                  ? cur.note
+                  : '';
+                nextAvail[availIdx] = {
+                  ...cur,
+                  orig_note: realOrigNote,
+                  orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
+                  type: 'off',
+                  note: offNote,
+                  is_admin_assigned: true,
+                };
+              } else {
+                nextAvail.push({
+                  id: `draft_avail_${Date.now()}_${peerId}`,
+                  employee_id: peerId,
+                  date: dStr,
+                  type: 'off',
+                  orig_note: '',
+                  orig_type: 'off',
+                  note: offNote,
+                  is_admin_assigned: true,
+                });
+              }
+              return nextAvail;
+            });
+          } else if (peerIdx !== -1) {
+            // TRƯỜNG HỢP 1: BẠN ĐƯỢC LÀM THAY VẪN ĐI LÀM 1 PHẦN (VỀ SỚM)
             const peerShift = updated[peerIdx];
             const curPeerStart = peerShift.start_time ? peerShift.start_time.slice(0, 5) : '09:00';
             const curPeerEnd = peerShift.end_time ? peerShift.end_time.slice(0, 5) : '18:00';
@@ -930,29 +1018,44 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               }
             }
 
-            const currentEmp = employees.find((e) => e.id === data.employeeId);
-            const currentEmpName = currentEmp?.name || 'Bạn';
-
             const [bsh, bsm] = baseStart.split(':').map(Number);
             const [beh, bem] = baseEnd.split(':').map(Number);
             let baseHours = (beh * 60 + bem - (bsh * 60 + bsm)) / 60;
             if (baseHours < 0) baseHours += 24;
 
+            let newPeerStart = baseStart;
             let newPeerEnd = baseEnd;
             let newPeerHours = baseHours;
             let peerNote = '';
 
-            const { type, hoursDiff } = data.peerAdjustment;
+            const { type, hoursDiff, remainingStartTime, remainingEndTime } = data.peerAdjustment;
             const diffH = Math.abs(hoursDiff || 0);
 
             if (type === 'reduce') {
-              // Rút ngắn ca của peer (ví dụ Khoa 22:00 - 4h = 18:00)
-              newPeerHours = Math.max(0, baseHours - diffH);
-              const targetMinutes = (bsh * 60 + bsm + Math.round(newPeerHours * 60)) % (24 * 60);
-              const ehStr = String(Math.floor(targetMinutes / 60)).padStart(2, '0');
-              const emStr = String(targetMinutes % 60).padStart(2, '0');
-              newPeerEnd = `${ehStr}:${emStr}`;
-              peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay từ ${newPeerEnd}]`;
+              // Rút ngắn ca của peer:
+              // TH1: Làm thay phần đuôi (về sớm) - ví dụ ca 14:00-22:00 được làm thay từ 19:00 -> ca mới 14:00 - 19:00
+              if (remainingStartTime && remainingStartTime > baseStart && remainingStartTime < baseEnd) {
+                newPeerStart = baseStart;
+                newPeerEnd = remainingStartTime;
+                newPeerHours = calculateHours(newPeerStart, newPeerEnd);
+                peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay từ ${newPeerEnd}]`;
+              }
+              // TH2: Làm thay phần đầu (đi trễ) - ví dụ ca 08:30-17:00 được làm thay 08:30-12:00 -> ca mới 12:00 - 17:00
+              else if (remainingEndTime && remainingEndTime > baseStart && remainingEndTime < baseEnd) {
+                newPeerStart = remainingEndTime;
+                newPeerEnd = baseEnd;
+                newPeerHours = calculateHours(newPeerStart, newPeerEnd);
+                peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay đến ${newPeerStart}]`;
+              }
+              // TH3: Mặc định lùi giờ kết thúc theo diffH
+              else {
+                newPeerHours = Math.max(0, baseHours - diffH);
+                const targetMinutes = (bsh * 60 + bsm + Math.round(newPeerHours * 60)) % (24 * 60);
+                const ehStr = String(Math.floor(targetMinutes / 60)).padStart(2, '0');
+                const emStr = String(targetMinutes % 60).padStart(2, '0');
+                newPeerEnd = `${ehStr}:${emStr}`;
+                peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay ${diffH}h]`;
+              }
             } else if (type === 'increase') {
               // Tăng ca cho peer (ví dụ Duy 17:00 + 4h = 21:00)
               newPeerHours = baseHours + diffH;
@@ -965,6 +1068,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
             updated[peerIdx] = {
               ...peerShift,
+              start_time: newPeerStart,
               end_time: newPeerEnd,
               hours: Math.round(newPeerHours * 100) / 100,
               note: peerNote,
@@ -1031,13 +1135,18 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
     setLocalSchedule((prev) => prev.filter((s) => !(s.employee_id === employeeId && s.date === targetDateStr)));
 
-    // Bật flag is_admin_assigned = true, giữ nguyên 100% type và note đăng ký ban đầu của nhân viên
+    // Bật flag is_admin_assigned = true, lưu ghi chú lý do OFF và bảo lưu thông tin gốc
     setLocalAvailability((prev) => {
       const idx = prev.findIndex((a) => a.employee_id === employeeId && a.date === targetDateStr);
       if (idx >= 0) {
+        const cur = prev[idx];
         const updated = [...prev];
         updated[idx] = {
-          ...updated[idx],
+          ...cur,
+          orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
+          orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
+          note: customNote || (isWeekLocked ? (cur.note || 'Nghỉ') : ''),
+          type: 'off',
           is_admin_assigned: true,
         };
         return updated;
@@ -1049,13 +1158,19 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           employee_id: employeeId,
           date: targetDateStr,
           type: 'off',
-          note: '',
+          orig_note: '',
+          orig_type: 'off',
+          note: customNote || (isWeekLocked ? 'Nghỉ' : ''),
           is_admin_assigned: true,
         },
       ];
     });
 
     setHasUnsavedChanges(true);
+    if (toast) {
+      const emp = employees.find((e) => e.id === employeeId);
+      toast.info('Đã gán OFF', `Đã chuyển ca của ${emp?.nickname || emp?.name || 'nhân viên'} sang OFF${customNote ? ` (${customNote})` : ''}`);
+    }
   }
 
   // 2.6. Xóa ca OFF — quay về trạng thái ban đầu (thấy lại ghi chú đăng ký của NV)
@@ -1729,17 +1844,41 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                 const timeRange = `${startTimeStr}-${endTimeStr}`;
                                 const branchDisplayName = formatBranchDisplayName(shift.branches?.name);
 
+                                // Kiểm tra xem đây có phải là ca gãy (có khoảng nghỉ giữa ca gốc và ca làm thay)
+                                let splitTimeDisplay = null;
+                                if (shift.note) {
+                                  const splitMatch = shift.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})[^\]]*\].*?\((\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i);
+                                  if (splitMatch) {
+                                    const s1 = splitMatch[1];
+                                    const e1 = splitMatch[2];
+                                    const s2 = splitMatch[3];
+                                    const e2 = splitMatch[4];
+                                    if (e1 < s2 || e2 < s1) {
+                                      splitTimeDisplay = `${s1}-${e1} & ${s2}-${e2}`;
+                                    }
+                                  }
+                                }
+
                                 return (
                                   <div
                                     key={shift.id}
                                     className="p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border shadow-2xs transition-all hover:scale-[1.02]"
                                     style={style.badgeStyle}
                                   >
-                                    <div className="text-xs font-black tracking-tight">{timeRange}</div>
+                                    <div className="text-xs font-black tracking-tight">
+                                      {splitTimeDisplay ? (
+                                        <div className="flex flex-col leading-tight text-[10.5px]">
+                                          <span>{splitTimeDisplay.split(' & ')[0]}</span>
+                                          <span className="text-[9.5px] opacity-90">&amp; {splitTimeDisplay.split(' & ')[1]}</span>
+                                        </div>
+                                      ) : (
+                                        timeRange
+                                      )}
+                                    </div>
                                     <div className="text-xs font-black opacity-95 mt-0.5">
                                       {branchDisplayName}
                                     </div>
-                                    {!readOnly && shift.note && (
+                                    {shift.note && (
                                       <div
                                         className="text-[10px] font-extrabold opacity-95 truncate max-w-[110px] mx-auto mt-0.5"
                                         title={shift.note}
@@ -1776,12 +1915,22 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                   /* Chủ đã bấm OFF -> Hiện badge OFF lớn nổi bật kèm ghi chú */
                                   <div className="p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border-2 border-rose-400 shadow-sm bg-rose-100 text-rose-700 transition-all hover:scale-[1.02]">
                                     <div className="text-xs font-black">🛑 OFF</div>
-                                    <div
-                                      className="text-[10px] font-extrabold text-rose-800 opacity-90 mt-0.5 truncate max-w-[110px] mx-auto"
-                                      title={empAvail.orig_note ? `${empAvail.note || 'Nghỉ'} (Đăng ký gốc: ${empAvail.orig_note})` : (empAvail.note || 'Nghỉ')}
-                                    >
-                                      {empAvail.note || 'Nghỉ'}
-                                    </div>
+                                    {empAvail.note ? (
+                                      <div
+                                        className="text-[10px] font-extrabold text-rose-800 opacity-90 mt-0.5 line-clamp-2 leading-tight break-words max-w-[115px] mx-auto"
+                                        title={
+                                          empAvail.orig_note &&
+                                          !empAvail.orig_note.includes('[Gốc:') &&
+                                          !empAvail.orig_note.includes('làm thay') &&
+                                          !empAvail.orig_note.includes('Đổi ca') &&
+                                          empAvail.orig_note !== empAvail.note
+                                            ? `${empAvail.note} (Đăng ký gốc: ${empAvail.orig_note})`
+                                            : empAvail.note
+                                        }
+                                      >
+                                        {empAvail.note}
+                                      </div>
+                                    ) : null}
                                   </div>
                                 ) : empAvail ? (
                                   /* Nhân viên đã đăng ký rảnh -> Hiện thông tin đăng ký */

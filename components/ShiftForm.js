@@ -5,8 +5,8 @@ import { getToday, calculateHours } from '@/lib/utils';
 
 export default function ShiftForm({ onSubmit, loading }) {
   const [date, setDate] = useState(getToday());
-  const [startTime, setStartTime] = useState('08:00');
-  const [endTime, setEndTime] = useState('12:00');
+  const [startTime, setStartTime] = useState('08:30');
+  const [endTime, setEndTime] = useState('14:30');
   const [note, setNote] = useState('');
 
   const hours = calculateHours(startTime, endTime);
