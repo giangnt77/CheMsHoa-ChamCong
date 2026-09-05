@@ -774,7 +774,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   ...cur,
                   orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
                   orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
-                  note: isWeekLocked ? `Đổi ca với ${empBName}` : (cur.orig_note || cur.note || ''),
+                  type: cur.orig_type || cur.type || 'full',
+                  note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
+                  admin_note: isWeekLocked ? `Đổi ca với ${empBName}` : '',
                   is_admin_assigned: true,
                 };
               } else {
@@ -782,10 +784,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   id: `draft_avail_${Date.now()}_${data.employeeId}`,
                   employee_id: data.employeeId,
                   date: dStr,
-                  type: 'off',
+                  type: 'full',
                   orig_note: '',
-                  orig_type: 'off',
-                  note: isWeekLocked ? `Đổi ca với ${empBName}` : '',
+                  orig_type: 'full',
+                  note: '',
+                  admin_note: isWeekLocked ? `Đổi ca với ${empBName}` : '',
                   is_admin_assigned: true,
                 });
               }
@@ -834,7 +837,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   ...cur,
                   orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
                   orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
-                  note: isWeekLocked ? `Đổi ca với ${empAName}` : (cur.orig_note || cur.note || ''),
+                  type: cur.orig_type || cur.type || 'full',
+                  note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
+                  admin_note: isWeekLocked ? `Đổi ca với ${empAName}` : '',
                   is_admin_assigned: true,
                 };
               } else {
@@ -842,10 +847,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   id: `draft_avail_${Date.now()}_${data.swapEmployeeId}`,
                   employee_id: data.swapEmployeeId,
                   date: dStr,
-                  type: 'off',
+                  type: 'full',
                   orig_note: '',
-                  orig_type: 'off',
-                  note: isWeekLocked ? `Đổi ca với ${empAName}` : '',
+                  orig_type: 'full',
+                  note: '',
+                  admin_note: isWeekLocked ? `Đổi ca với ${empAName}` : '',
                   is_admin_assigned: true,
                 });
               }
@@ -877,7 +883,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   ...cur,
                   orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
                   orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
-                  note: `Đổi ca với ${empBName}`,
+                  type: cur.orig_type || cur.type || 'full',
+                  note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
+                  admin_note: `Đổi ca với ${empBName}`,
                   is_admin_assigned: true,
                 };
               } else {
@@ -885,10 +893,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   id: `draft_avail_${Date.now()}_${data.employeeId}`,
                   employee_id: data.employeeId,
                   date: dStr,
-                  type: 'off',
+                  type: 'full',
                   orig_note: '',
-                  orig_type: 'off',
-                  note: `Đổi ca với ${empBName}`,
+                  orig_type: 'full',
+                  note: '',
+                  admin_note: `Đổi ca với ${empBName}`,
                   is_admin_assigned: true,
                 });
               }
@@ -983,8 +992,9 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   ...cur,
                   orig_note: realOrigNote,
                   orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
-                  type: 'off',
-                  note: offNote,
+                  type: cur.orig_type || cur.type || 'full',
+                  note: realOrigNote,
+                  admin_note: offNote,
                   is_admin_assigned: true,
                 };
               } else {
@@ -992,10 +1002,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   id: `draft_avail_${Date.now()}_${peerId}`,
                   employee_id: peerId,
                   date: dStr,
-                  type: 'off',
+                  type: 'full',
                   orig_note: '',
-                  orig_type: 'off',
-                  note: offNote,
+                  orig_type: 'full',
+                  note: '',
+                  admin_note: offNote,
                   is_admin_assigned: true,
                 });
               }
@@ -1135,18 +1146,22 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
     setLocalSchedule((prev) => prev.filter((s) => !(s.employee_id === employeeId && s.date === targetDateStr)));
 
-    // Bật flag is_admin_assigned = true, lưu ghi chú lý do OFF và bảo lưu thông tin gốc
+    // Bật flag is_admin_assigned = true, TUYỆT ĐỐI KHÔNG ĐÈ HỎNG type và note đăng ký ban đầu của nhân viên
     setLocalAvailability((prev) => {
       const idx = prev.findIndex((a) => a.employee_id === employeeId && a.date === targetDateStr);
       if (idx >= 0) {
         const cur = prev[idx];
         const updated = [...prev];
+        const origType = cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full');
+        const origNote = cur.orig_note !== undefined ? cur.orig_note : (cur.note || '');
         updated[idx] = {
           ...cur,
-          orig_note: cur.orig_note !== undefined ? cur.orig_note : (cur.note || ''),
-          orig_type: cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full'),
-          note: customNote || (isWeekLocked ? (cur.note || 'Nghỉ') : ''),
-          type: 'off',
+          orig_note: origNote,
+          orig_type: origType,
+          // Giữ nguyên 100% đăng ký gốc của nhân viên
+          type: origType,
+          note: origNote,
+          admin_note: customNote || (isWeekLocked ? 'Nghỉ' : ''),
           is_admin_assigned: true,
         };
         return updated;
@@ -1157,10 +1172,11 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           id: `draft_avail_${Date.now()}_${employeeId}`,
           employee_id: employeeId,
           date: targetDateStr,
-          type: 'off',
+          type: 'full',
           orig_note: '',
-          orig_type: 'off',
-          note: customNote || (isWeekLocked ? 'Nghỉ' : ''),
+          orig_type: 'full',
+          note: '',
+          admin_note: customNote || (isWeekLocked ? 'Nghỉ' : ''),
           is_admin_assigned: true,
         },
       ];
@@ -1186,6 +1202,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           ...cur,
           note: cur.orig_note !== undefined ? cur.orig_note : cur.note,
           type: cur.orig_type !== undefined ? cur.orig_type : cur.type,
+          admin_note: '',
           is_admin_assigned: false,
         };
         return updated;
@@ -1261,7 +1278,13 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       if (changedAvails.length > 0) {
         await Promise.all(
           changedAvails.map((a) =>
-            upsertAvailability(a.employee_id, a.date, a.type || 'off', a.note || '', !!a.is_admin_assigned)
+            upsertAvailability(
+              a.employee_id,
+              a.date,
+              a.orig_type || a.type || 'full',
+              a.orig_note !== undefined ? a.orig_note : (a.note || ''),
+              !!a.is_admin_assigned
+            )
           )
         );
       }
@@ -1328,7 +1351,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                 </div>
               `;
             }).join('');
-          } else if (empAvail?.is_admin_assigned) {
+          } else if (empAvail?.is_admin_assigned || empAvail?.type === 'off') {
             cellContent = `
               <div style="background-color: #fff1f2; color: #e11d48; border-radius: 7px; padding: 5px 2px; font-size: 13.5px; font-weight: 900; text-align: center; border: 1.5px solid #fecdd3; font-family: system-ui, -apple-system, sans-serif; box-sizing: border-box; width: 100%; min-height: 48px; display: flex; justify-content: center; align-items: center; line-height: 1;">
                 🛑 OFF
@@ -1899,7 +1922,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                             <div className="py-1 text-center space-y-1 overflow-hidden">
                               {readOnly ? (
                                 /* === PHÍA NHÂN VIÊN: CHỈ HIỆN 🛑 OFF GỌN GÀNG, KHÔNG HIỆN GHI CHÚ === */
-                                empAvail?.is_admin_assigned ? (
+                                empAvail?.is_admin_assigned || empAvail?.type === 'off' ? (
                                   <span className="text-rose-600 font-black text-[11px] uppercase px-2.5 py-1 rounded-xl bg-rose-50 border-2 border-rose-300 inline-block shadow-sm">
                                     🛑 OFF
                                   </span>
@@ -1915,22 +1938,30 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                   /* Chủ đã bấm OFF -> Hiện badge OFF lớn nổi bật kèm ghi chú */
                                   <div className="p-1.5 rounded-xl font-black text-xs sm:text-sm leading-tight border-2 border-rose-400 shadow-sm bg-rose-100 text-rose-700 transition-all hover:scale-[1.02]">
                                     <div className="text-xs font-black">🛑 OFF</div>
-                                    {empAvail.note ? (
-                                      <div
-                                        className="text-[10px] font-extrabold text-rose-800 opacity-90 mt-0.5 line-clamp-2 leading-tight break-words max-w-[115px] mx-auto"
-                                        title={
-                                          empAvail.orig_note &&
-                                          !empAvail.orig_note.includes('[Gốc:') &&
-                                          !empAvail.orig_note.includes('làm thay') &&
-                                          !empAvail.orig_note.includes('Đổi ca') &&
-                                          empAvail.orig_note !== empAvail.note
-                                            ? `${empAvail.note} (Đăng ký gốc: ${empAvail.orig_note})`
-                                            : empAvail.note
-                                        }
-                                      >
-                                        {empAvail.note}
-                                      </div>
-                                    ) : null}
+                                    {(() => {
+                                      const subtitle = empAvail.admin_note
+                                        ? empAvail.admin_note
+                                        : empAvail.type === 'full'
+                                        ? 'ĐK: Cả ngày'
+                                        : empAvail.type === 'option'
+                                        ? (empAvail.note ? `ĐK: ${empAvail.note}` : 'ĐK: Tùy ca')
+                                        : empAvail.type === 'off'
+                                        ? (empAvail.note ? `Xin off: ${empAvail.note}` : 'Xin nghỉ')
+                                        : (empAvail.note || '');
+                                      if (!subtitle) return null;
+                                      return (
+                                        <div
+                                          className="text-[10px] font-extrabold text-rose-800 opacity-90 mt-0.5 line-clamp-2 leading-tight break-words max-w-[115px] mx-auto"
+                                          title={
+                                            empAvail.admin_note
+                                              ? `${empAvail.admin_note}${empAvail.note ? ` (ĐK gốc: ${empAvail.note})` : ''}`
+                                              : subtitle
+                                          }
+                                        >
+                                          {subtitle}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 ) : empAvail ? (
                                   /* Nhân viên đã đăng ký rảnh -> Hiện thông tin đăng ký */
@@ -2201,7 +2232,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                                       );
                                     })}
                                   </div>
-                                ) : empAvail?.is_admin_assigned ? (
+                                ) : empAvail?.is_admin_assigned || empAvail?.type === 'off' ? (
                                   <div className="text-rose-600 font-black text-[11px] uppercase p-1 rounded-md bg-rose-50 border border-rose-200 flex flex-col justify-center items-center min-h-[26px]">
                                     <span>🛑 OFF</span>
                                     {empAvail.note && (

@@ -665,13 +665,21 @@ export default function ModalXepLichQuick({
                 <span>{date.split('-').reverse().join('/')}</span>
                 {currentAvail && (
                   <span className={`text-[10.5px] px-1.5 py-0.2 rounded-md font-black ${
-                    currentAvail.type === 'off'
+                    currentAvail.is_admin_assigned
+                      ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                      : currentAvail.type === 'off'
                       ? 'bg-rose-100 text-rose-800'
                       : currentAvail.type === 'full'
                       ? 'bg-emerald-100 text-emerald-800'
                       : 'bg-amber-100 text-amber-900'
                   }`}>
-                    {currentAvail.type === 'off' ? '🛑 ĐK: Nghỉ' : currentAvail.type === 'full' ? '💪 ĐK: Cả ngày' : `📝 ${currentAvail.note || 'Tùy ca'}`}
+                    {currentAvail.is_admin_assigned
+                      ? `🛑 Đang gán OFF (ĐK: ${currentAvail.type === 'full' ? 'Cả ngày' : currentAvail.note || 'Tùy ca'})`
+                      : currentAvail.type === 'off'
+                      ? (currentAvail.note ? `🛑 Xin nghỉ: ${currentAvail.note}` : '🛑 ĐK: Nghỉ')
+                      : currentAvail.type === 'full'
+                      ? '💪 ĐK: Cả ngày'
+                      : `📝 ${currentAvail.note || 'Tùy ca'}`}
                   </span>
                 )}
               </div>

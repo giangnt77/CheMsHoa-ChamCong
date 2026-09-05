@@ -291,6 +291,29 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
       return;
     }
 
+    // ---------------------------------------------------------
+    // CẢNH BÁO 2 LỚP: XÁC MINH ĐÃ XIN PHÉP CHỦ QUÁN TRƯỚC KHI GỬI
+    // ---------------------------------------------------------
+    const actionLabel = requestType === 'time_change' ? 'báo giờ làm' : 'đổi ca';
+
+    // Popup Xác Nhận Lớp 1
+    const confirm1 = window.confirm(
+      `Thí chủ đã xin phép Chị Hoa / Anh Giang chưa?\n\nVui lòng xác nhận bạn đã trực tiếp trao đổi và xin phép Chủ Quán về yêu cầu ${actionLabel} này!`
+    );
+    if (!confirm1) {
+      toast.info('Chưa gửi yêu cầu', 'Bạn cần xin phép Chủ Quán trước khi gửi yêu cầu!');
+      return;
+    }
+
+    // Popup Xác Nhận Lớp 2
+    const confirm2 = window.confirm(
+      `Xác nhận lần 2: Thí chủ đã xin phép Chị Hoa / Anh Giang thật chưa?\n\n* Lưu ý nghiêm ngặt: Mọi trường hợp tự ý gửi yêu cầu khi chưa có sự đồng ý của Chủ Quán sẽ bị xử lý kỷ luật theo nội quy của quán!`
+    );
+    if (!confirm2) {
+      toast.warning('Đã hủy', 'Yêu cầu chưa được gửi do chưa có sự đồng ý của Chủ Quán!');
+      return;
+    }
+
     setSubmitting(true);
 
     let ticketPayload = {};
@@ -730,6 +753,19 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
                       </div>
                     </>
                   )}
+                </div>
+              </div>
+
+              {/* Cảnh Báo Quy Định: Xác Minh Đã Xin Phép Chủ Quán */}
+              <div className="p-3 bg-amber-50 border-2 border-amber-300 rounded-2xl flex items-start gap-2.5 text-xs text-amber-950 font-bold animate-fade-in shadow-2xs">
+                <span className="text-base leading-none">⚠️</span>
+                <div className="space-y-0.5">
+                  <p className="font-black text-amber-950 uppercase text-[11px] tracking-wide">
+                    Quy định bắt buộc: Phải xin phép Chủ Quán
+                  </p>
+                  <p className="text-amber-900 font-extrabold text-[11px] leading-relaxed">
+                    Bạn bắt buộc phải trực tiếp xin phép và được sự đồng ý của <strong>Chị Hoa / Anh Giang</strong> trước khi gửi. Hệ thống sẽ kích hoạt xác minh 2 lớp trước khi gửi yêu cầu!
+                  </p>
                 </div>
               </div>
 
