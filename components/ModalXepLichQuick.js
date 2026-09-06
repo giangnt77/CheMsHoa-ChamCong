@@ -615,6 +615,23 @@ export default function ModalXepLichQuick({
     onClose();
   }
 
+  // SUBMIT 4: XÓA CA (QUAY VỀ TRẠNG THÁI BAN ĐẦU)
+  async function handleDeleteShiftOnly() {
+    if (!selectedEmpId) return;
+    try {
+      const shiftToDelete = editItem || (daySchedule && daySchedule.find((s) => s.employee_id === selectedEmpId));
+      if (shiftToDelete && onDelete) {
+        await onDelete(shiftToDelete.id);
+      }
+      if (onRemoveOff) {
+        await onRemoveOff(selectedEmpId, date);
+      }
+    } catch (err) {
+      console.error('Lỗi khi xóa ca:', err);
+    }
+    onClose();
+  }
+
   if (!isOpen || !mounted) return null;
 
   const branchStyle = getBranchColorStyle(currentBranch?.name, currentBranch?.color);
@@ -997,29 +1014,42 @@ export default function ModalXepLichQuick({
                   </button>
                 </div>
 
-                {/* Nút Báo OFF nhanh (1 chạm không cần bảng lý do vì lịch chưa chốt) */}
-                {currentAvail?.is_admin_assigned ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onRemoveOff) onRemoveOff(selectedEmpId, date);
-                      onClose();
-                    }}
-                    className="w-full py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-black text-xs border border-emerald-200 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                  >
-                    <span>↩️</span>
-                    <span>Xóa trạng thái OFF (Quay về đi làm)</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleConfirmOff}
-                    className="w-full py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs border border-rose-200 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                  >
-                    <span>🛑</span>
-                    <span>{isEditing ? 'Xóa ca này (Cho nghỉ OFF)' : 'Gán ca OFF (Cho nghỉ)'}</span>
-                  </button>
-                )}
+                {/* Bố cục cân đối 2 cột: [🗑️ Xóa ca (Về ban đầu)] & [🛑 Gán ca OFF (Cho nghỉ)] */}
+                <div className="pt-0.5">
+                  {currentAvail?.is_admin_assigned ? (
+                    <button
+                      type="button"
+                      onClick={handleDeleteShiftOnly}
+                      className="w-full py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-black text-xs border border-amber-300 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-2xs"
+                      title="Xóa trạng thái OFF, đưa nhân viên trở về đúng phiếu đăng ký ban đầu"
+                    >
+                      <span>↩️</span>
+                      <span>Xóa ca OFF (Quay về trạng thái ban đầu)</span>
+                    </button>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDeleteShiftOnly}
+                        className="py-2.5 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-black text-xs border border-amber-300 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1 text-center shadow-2xs"
+                        title="Xóa ca phân công, đưa nhân viên trở về đúng phiếu đăng ký ban đầu"
+                      >
+                        <span>🗑️</span>
+                        <span className="truncate">Xóa ca (Về ban đầu)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleConfirmOff}
+                        className="py-2.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs border border-rose-200 cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1 text-center shadow-2xs"
+                        title="Gán ca OFF (Cho nghỉ) cho nhân viên này"
+                      >
+                        <span>🛑</span>
+                        <span className="truncate">Gán ca OFF (Cho nghỉ)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

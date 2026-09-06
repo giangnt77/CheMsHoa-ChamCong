@@ -1198,10 +1198,17 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       if (idx >= 0) {
         const cur = prev[idx];
         const updated = [...prev];
+        const resolvedType = cur.orig_type !== undefined
+          ? cur.orig_type
+          : (cur.type === 'off' ? (cur.note ? 'option' : 'full') : (cur.type || 'full'));
+        const resolvedNote = cur.orig_note !== undefined ? cur.orig_note : (cur.note || '');
+
         updated[idx] = {
           ...cur,
-          note: cur.orig_note !== undefined ? cur.orig_note : cur.note,
-          type: cur.orig_type !== undefined ? cur.orig_type : cur.type,
+          orig_type: resolvedType,
+          orig_note: resolvedNote,
+          note: resolvedNote,
+          type: resolvedType,
           admin_note: '',
           is_admin_assigned: false,
         };
@@ -1211,6 +1218,10 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     });
 
     setHasUnsavedChanges(true);
+    if (toast) {
+      const emp = employees.find((e) => e.id === employeeId);
+      toast.success('Đã khôi phục', `Đã trả ca của ${emp?.nickname || emp?.name || 'nhân viên'} về trạng thái ban đầu`);
+    }
   }
 
   // 3. Sao chép ca từ hôm trước (chỉ cập nhật State Local)
