@@ -530,6 +530,46 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [isSortMode, setIsSortMode] = useState(false);
   const [savingSort, setSavingSort] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [nameSortOrder, setNameSortOrder] = useState('default'); // 'default' | 'asc' | 'desc'
+
+  const toggleNameSort = () => {
+    setNameSortOrder((prev) => {
+      if (prev === 'default') return 'asc';
+      if (prev === 'asc') return 'desc';
+      return 'default';
+    });
+  };
+
+  // Danh sách nhân viên hiển thị trên bảng ma trận sau khi lọc/sắp xếp tên (giống bảng QL tính lương)
+  const filteredMatrixOrder = useMemo(() => {
+    let list = [...customMatrixOrder];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((emp) => {
+        const name = (emp.name || '').toLowerCase();
+        const nickname = (emp.nickname || '').toLowerCase();
+        return name.includes(q) || nickname.includes(q);
+      });
+    }
+
+    if (nameSortOrder === 'asc') {
+      list.sort((a, b) => {
+        const nameA = (a.nickname || a.name || '').trim();
+        const nameB = (b.nickname || b.name || '').trim();
+        return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+      });
+    } else if (nameSortOrder === 'desc') {
+      list.sort((a, b) => {
+        const nameA = (a.nickname || a.name || '').trim();
+        const nameB = (b.nickname || b.name || '').trim();
+        return nameB.localeCompare(nameA, 'vi', { sensitivity: 'base' });
+      });
+    }
+
+    return list;
+  }, [customMatrixOrder, searchQuery, nameSortOrder]);
 
   useEffect(() => {
     if (matrixEmployees && matrixEmployees.length > 0) {
@@ -1614,6 +1654,8 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                     if (isSortMode) {
                       handleFinishSorting();
                     } else {
+                      setSearchQuery('');
+                      setNameSortOrder('default');
                       setIsSortMode(true);
                     }
                   }}
@@ -1720,8 +1762,62 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           <thead>
             {/* Hàng 1: Tên Thứ (T2 -> CN) */}
             <tr className="bg-purple-900 text-white border-b border-purple-800">
-              <th className="py-2 px-2 border-r-2 border-purple-300 w-[14%] min-w-[110px] max-w-[140px] text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
-                NHÂN VIÊN
+              <th className="py-2 px-2 border-r-2 border-purple-300 w-[14%] min-w-[125px] max-w-[150px] text-left font-black sticky left-0 z-30 bg-purple-950 text-white shadow-[4px_0_10px_-2px_rgba(0,0,0,0.3)] text-xs">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-1">
+                    <span>NHÂN VIÊN</span>
+                    {!isSortMode && (
+                      <button
+                        type="button"
+                        onClick={toggleNameSort}
+                        title={
+                          nameSortOrder === 'asc'
+                            ? 'Đang xếp A-Z (Bấm để xếp Z-A)'
+                            : nameSortOrder === 'desc'
+                            ? 'Đang xếp Z-A (Bấm về thứ tự mặc định)'
+                            : 'Bấm để sắp xếp theo tên A-Z'
+                        }
+                        className={`px-1 py-0.2 rounded text-[10px] font-black cursor-pointer transition-all ${
+                          nameSortOrder !== 'default'
+                            ? 'bg-amber-400 text-purple-950 shadow-xs'
+                            : 'bg-purple-900/80 text-purple-300 hover:text-white hover:bg-purple-800'
+                        }`}
+                      >
+                        {nameSortOrder === 'asc' ? 'A→Z' : nameSortOrder === 'desc' ? 'Z→A' : '↕'}
+                      </button>
+                    )}
+                  </div>
+                  {searchQuery && (
+                    <span className="text-[10px] bg-amber-400 text-purple-950 font-black px-1.5 py-0.2 rounded shrink-0">
+                      {filteredMatrixOrder.length}/{customMatrixOrder.length}
+                    </span>
+                  )}
+                </div>
+                {!isSortMode ? (
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="🔍 Lọc tên..."
+                      className="w-full pl-2 pr-5 py-0.5 bg-purple-900/90 focus:bg-white border border-purple-700 focus:border-amber-400 rounded-lg text-[11px] font-black text-white focus:text-purple-950 outline-none placeholder:text-purple-300/80 placeholder:font-normal transition-all"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-1 text-purple-300 hover:text-white text-[10px] font-bold cursor-pointer"
+                        title="Xóa bộ lọc"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[10.5px] text-amber-300 font-bold italic">
+                    Chế độ kéo thả
+                  </div>
+                )}
               </th>
               {weekDays.map((dStr, idx) => {
                 const isToday = dStr === getToday();
@@ -1778,8 +1874,14 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                   Không có nhân viên đi làm tuần này.
                 </td>
               </tr>
+            ) : filteredMatrixOrder.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-10 text-purple-600 italic font-bold">
+                  Không tìm thấy nhân viên nào khớp với &quot;{searchQuery}&quot;.
+                </td>
+              </tr>
             ) : (
-              customMatrixOrder.map((emp, idx) => {
+              filteredMatrixOrder.map((emp, idx) => {
                 const isMe = emp.id === highlightEmployeeId;
 
                 const rowBgClass = isMe
@@ -1803,7 +1905,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
                       onTouchStart={(e) => !readOnly && isSortMode && handleDirectTouchStart(e, idx)}
                       onTouchMove={(e) => !readOnly && isSortMode && handleDirectTouchMove(e)}
                       onTouchEnd={handleDirectTouchEnd}
-                      className={`py-2 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-[14%] min-w-[110px] max-w-[140px] truncate ${isSortMode
+                      className={`py-2 px-2 border-r-2 border-purple-300 font-black text-purple-950 text-xs sticky left-0 z-20 ${rowBgClass} shadow-[4px_0_10px_-2px_rgba(107,33,168,0.15)] transition-all w-[14%] min-w-[125px] max-w-[150px] truncate ${isSortMode
                         ? 'cursor-grab active:cursor-grabbing bg-amber-50/80 border-amber-300 hover:bg-amber-100/90'
                         : ''
                         } ${draggedIdx === idx ? 'bg-purple-200/90 opacity-75 border-purple-500 shadow-xl scale-98' : ''}`}
