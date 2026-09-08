@@ -754,14 +754,16 @@ export default function ModalEmployeeSalaryDetail({
                             : 'bg-purple-50/40 hover:bg-purple-100/70 border-purple-200/80'
                         }`}
                       >
-                        {/* Hàng 1: Ngày + Thứ + Chi Nhánh + Thành Tiền */}
+                        {/* Hàng 1: Ngày + Thứ (Khối Date Stamp tinh tế, đồng bộ tông tím thương hiệu) + Chi Nhánh + Thành Tiền */}
                         <div className="flex items-center justify-between gap-1 leading-tight">
                           <div className="flex items-center gap-1 min-w-0">
-                            <span className="px-1.5 py-0.2 rounded-md bg-purple-950 text-amber-300 font-black text-[11px] font-mono shadow-2xs shrink-0">
-                              {s.date.split('-').reverse().slice(0, 2).join('/')}
-                            </span>
-                            <span className="text-[10px] font-black text-purple-800 shrink-0">
-                              {dow}
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-100/90 text-purple-950 border border-purple-300 shadow-2xs shrink-0">
+                              <span className="font-black text-[11px] font-mono tracking-tight">
+                                {s.date.split('-').reverse().slice(0, 2).join('/')}
+                              </span>
+                              <span className={`text-[9.5px] font-black ${dow === 'CN' ? 'text-rose-600' : 'text-purple-700'}`}>
+                                {dow}
+                              </span>
                             </span>
                             <span
                               className="px-1 py-0.2 rounded text-[8.5px] font-black text-white shrink-0 shadow-2xs"
@@ -860,17 +862,17 @@ export default function ModalEmployeeSalaryDetail({
                         <div className="flex items-center justify-between gap-1 leading-tight">
                           <div className="flex items-center gap-1 min-w-0">
                             <span
-                              className={`px-1.5 py-0.2 rounded-md font-black text-[11px] font-mono shadow-2xs shrink-0 ${
+                              className={`px-1.5 py-0.5 rounded-md font-black text-[11px] font-mono shadow-2xs shrink-0 tracking-tight ${
                                 hasShifts
-                                  ? 'bg-purple-950 text-amber-300'
-                                  : 'bg-slate-200 text-slate-600'
+                                  ? 'bg-purple-100 text-purple-950 border border-purple-300'
+                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
                               }`}
                             >
                               {item.dateFormatted}
                             </span>
                             <span
-                              className={`text-[9.5px] font-extrabold ${
-                                item.isWeekend ? 'text-amber-700' : 'text-purple-800'
+                              className={`text-[9.5px] font-black ${
+                                item.dowLabel === 'CN' ? 'text-rose-600' : 'text-purple-800'
                               }`}
                             >
                               {item.dowLabel}
