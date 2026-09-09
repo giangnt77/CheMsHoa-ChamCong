@@ -133,7 +133,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   }
 
   function goCurrentMonth() {
-    setSelectedMonth(getCurrentMonthStr());
+    setSelectedMonth(getCurrentMonth());
   }
 
   // Index map dữ liệu ca làm theo employeeId_date

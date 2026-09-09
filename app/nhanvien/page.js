@@ -163,7 +163,15 @@ function EmployeeContent() {
 
   async function loadEmployeeHours() {
     try {
-      const [year, month] = selectedMonth.split('-').map(Number);
+      let cleanMonth = selectedMonth;
+      if (!cleanMonth || typeof cleanMonth !== 'string' || cleanMonth.includes('NaN') || !cleanMonth.includes('-')) {
+        cleanMonth = getCurrentMonth();
+        setSelectedMonth(cleanMonth);
+      }
+
+      const parts = cleanMonth.split('-').map(Number);
+      const year = parts[0] || new Date().getFullYear();
+      const month = parts[1] || (new Date().getMonth() + 1);
       const lastDay = new Date(year, month, 0).getDate();
       const mStr = String(month).padStart(2, '0');
       const startDate = `${year}-${mStr}-01`;
@@ -172,23 +180,23 @@ function EmployeeContent() {
       const [schedData, rates, penaltiesData, holidayData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getEmployeeRates(employee.id),
-        getPenaltiesByEmployee(employee.id, selectedMonth),
+        getPenaltiesByEmployee(employee.id, cleanMonth),
         getHolidaySettings(),
       ]);
 
-      setEmpRates(rates);
+      setEmpRates(rates || []);
       setEmpPenalties(penaltiesData || []);
 
       // Quy tắc tính lương chuẩn: Chỉ cộng dồn ca làm ĐÃ DIỄN RA (s.date <= getToday())
       // Các ca tương lai được xếp sẵn chưa đến ngày sẽ KHÔNG bị dồn cộng trước!
       const todayStr = getToday();
-      const myShifts = schedData.filter(
+      const myShifts = (schedData || []).filter(
         (s) => s.employee_id === employee.id && s.date <= todayStr
       );
 
       const { totalHours, grossSalary } = calculateSalaryFromShifts(
         myShifts,
-        rates,
+        rates || [],
         employee.hourly_rate || 20000,
         holidayData || []
       );
@@ -232,20 +240,45 @@ function EmployeeContent() {
     return Math.max(0, Math.round(monthlySalary + totalBonusAmount - totalPenaltyAmount));
   }, [monthlySalary, totalBonusAmount, totalPenaltyAmount]);
 
+  // Chuỗi hiển thị Tháng an toàn 100% không bao giờ bị NaN/NaN
+  const displayMonthStr = useMemo(() => {
+    const clean = (selectedMonth && selectedMonth.includes('-') && !selectedMonth.includes('NaN'))
+      ? selectedMonth
+      : getCurrentMonth();
+    const parts = clean.split('-');
+    const y = parts[0] || new Date().getFullYear();
+    const m = parts[1] || String(new Date().getMonth() + 1).padStart(2, '0');
+    return `${m}/${y}`;
+  }, [selectedMonth]);
+
   function handlePrevMonth() {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const d = new Date(y, m - 2, 1);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    setSelectedMonth(`${year}-${month}`);
+    const clean = (!selectedMonth || selectedMonth.includes('NaN') || !selectedMonth.includes('-'))
+      ? getCurrentMonth()
+      : selectedMonth;
+    const parts = clean.split('-').map(Number);
+    let y = parts[0] || new Date().getFullYear();
+    let m = parts[1] || (new Date().getMonth() + 1);
+    m -= 1;
+    if (m < 1) {
+      m = 12;
+      y -= 1;
+    }
+    setSelectedMonth(`${y}-${String(m).padStart(2, '0')}`);
   }
 
   function handleNextMonth() {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const d = new Date(y, m, 1);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    setSelectedMonth(`${year}-${month}`);
+    const clean = (!selectedMonth || selectedMonth.includes('NaN') || !selectedMonth.includes('-'))
+      ? getCurrentMonth()
+      : selectedMonth;
+    const parts = clean.split('-').map(Number);
+    let y = parts[0] || new Date().getFullYear();
+    let m = parts[1] || (new Date().getMonth() + 1);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+    setSelectedMonth(`${y}-${String(m).padStart(2, '0')}`);
   }
 
   function handleOpenNicknameModal() {
@@ -534,7 +567,7 @@ function EmployeeContent() {
                 <div className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200/80">
                   <button onClick={handlePrevMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs">◀</button>
                   <span className="text-xs sm:text-sm font-black text-purple-900">
-                    Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}
+                    Tháng {displayMonthStr}
                   </span>
                   <button onClick={handleNextMonth} className="text-purple-800 hover:text-purple-950 font-black text-xs">▶</button>
                 </div>
@@ -940,7 +973,7 @@ function EmployeeContent() {
                     <div>
                       <h3 className="font-black text-base text-rose-950">Chi Tiết Tiền Phạt Lỗi Dự Kiến</h3>
                       <p className="text-xs text-purple-700 font-bold">
-                        Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]} • {employee.name}
+                        Tháng {displayMonthStr} • {employee.name}
                       </p>
                     </div>
                   </div>
@@ -960,7 +993,7 @@ function EmployeeContent() {
                     <div className="py-8 text-center space-y-2 bg-emerald-50/60 rounded-2xl border border-emerald-200 p-4">
                       <div className="text-3xl">🎉</div>
                       <p className="text-xs sm:text-sm font-black text-emerald-900">
-                        Tuyệt vời! Bạn không có tiền phạt hay lỗi vi phạm nào trong Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}.
+                        Tuyệt vời! Bạn không có tiền phạt hay lỗi vi phạm nào trong Tháng {displayMonthStr}.
                       </p>
                     </div>
                   ) : (
@@ -1016,7 +1049,7 @@ function EmployeeContent() {
                     <div>
                       <h3 className="font-black text-base text-emerald-950">Chi Tiết Tiền Thưởng & Phụ Cấp</h3>
                       <p className="text-xs text-purple-700 font-bold">
-                        Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]} • {employee.name}
+                        Tháng {displayMonthStr} • {employee.name}
                       </p>
                     </div>
                   </div>
@@ -1036,7 +1069,7 @@ function EmployeeContent() {
                     <div className="py-8 text-center space-y-2 bg-purple-50/60 rounded-2xl border border-purple-200 p-4">
                       <div className="text-3xl">✨</div>
                       <p className="text-xs sm:text-sm font-black text-purple-900">
-                        Chưa có khoản thưởng hay phụ cấp nào trong Tháng {selectedMonth.split('-')[1]}/{selectedMonth.split('-')[0]}.
+                        Chưa có khoản thưởng hay phụ cấp nào trong Tháng {displayMonthStr}.
                       </p>
                     </div>
                   ) : (
