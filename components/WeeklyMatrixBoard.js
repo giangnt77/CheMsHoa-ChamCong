@@ -1189,11 +1189,12 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
     // Bật flag is_admin_assigned = true, TUYỆT ĐỐI KHÔNG ĐÈ HỎNG type và note đăng ký ban đầu của nhân viên
     setLocalAvailability((prev) => {
       const idx = prev.findIndex((a) => a.employee_id === employeeId && a.date === targetDateStr);
+      const origInDb = availability.find((a) => a.employee_id === employeeId && a.date === targetDateStr);
       if (idx >= 0) {
         const cur = prev[idx];
         const updated = [...prev];
-        const origType = cur.orig_type !== undefined ? cur.orig_type : (cur.type || 'full');
-        const origNote = cur.orig_note !== undefined ? cur.orig_note : (cur.note || '');
+        const origType = cur.orig_type !== undefined ? cur.orig_type : (origInDb?.orig_type || origInDb?.type || cur.type || 'full');
+        const origNote = cur.orig_note !== undefined ? cur.orig_note : (origInDb?.orig_note !== undefined ? origInDb.orig_note : (origInDb?.note !== undefined ? origInDb.note : (cur.note || '')));
         updated[idx] = {
           ...cur,
           orig_note: origNote,
@@ -1237,11 +1238,21 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
       const idx = prev.findIndex((a) => a.employee_id === employeeId && a.date === targetDateStr);
       if (idx >= 0) {
         const cur = prev[idx];
+        const origInDb = availability.find((a) => a.employee_id === employeeId && a.date === targetDateStr);
+
+        // Nếu bản ghi này là draft tạo bởi admin khi nhân viên chưa từng đăng ký ngày này
+        if (!origInDb && String(cur.id).startsWith('draft_avail_')) {
+          return prev.filter((_, i) => i !== idx);
+        }
+
         const updated = [...prev];
+        // Giữ nguyên 100% type và note đăng ký ban đầu của nhân viên (kể cả type === 'off' xin nghỉ)
         const resolvedType = cur.orig_type !== undefined
           ? cur.orig_type
-          : (cur.type === 'off' ? (cur.note ? 'option' : 'full') : (cur.type || 'full'));
-        const resolvedNote = cur.orig_note !== undefined ? cur.orig_note : (cur.note || '');
+          : (origInDb?.orig_type || origInDb?.type || cur.type || 'full');
+        const resolvedNote = cur.orig_note !== undefined
+          ? cur.orig_note
+          : (origInDb?.orig_note !== undefined ? origInDb.orig_note : (origInDb?.note !== undefined ? origInDb.note : (cur.note || '')));
 
         updated[idx] = {
           ...cur,

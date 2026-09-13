@@ -691,7 +691,11 @@ export default function ModalXepLichQuick({
                       : 'bg-amber-100 text-amber-900'
                   }`}>
                     {currentAvail.is_admin_assigned
-                      ? `🛑 Đang gán OFF (ĐK: ${currentAvail.type === 'full' ? 'Cả ngày' : currentAvail.note || 'Tùy ca'})`
+                      ? (currentAvail.type === 'off'
+                          ? (currentAvail.note ? `🛑 Đang gán OFF (ĐK Xin nghỉ: ${currentAvail.note})` : '🛑 Đang gán OFF (ĐK: Xin nghỉ)')
+                          : currentAvail.type === 'full'
+                          ? '🛑 Đang gán OFF (ĐK: Cả ngày)'
+                          : `🛑 Đang gán OFF (ĐK: ${currentAvail.note || 'Tùy ca'})`)
                       : currentAvail.type === 'off'
                       ? (currentAvail.note ? `🛑 Xin nghỉ: ${currentAvail.note}` : '🛑 ĐK: Nghỉ')
                       : currentAvail.type === 'full'
