@@ -981,6 +981,20 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
           updated.push(newDraft);
         }
 
+        // Tự động gỡ cờ OFF nếu nhân viên này đang bị gán OFF mà vừa được phân ca / nhận làm thay
+        setLocalAvailability((prevAvail) => {
+          const nextAvail = [...prevAvail];
+          const myAvailIdx = nextAvail.findIndex((a) => a.employee_id === data.employeeId && a.date === dStr);
+          if (myAvailIdx >= 0 && nextAvail[myAvailIdx].is_admin_assigned) {
+            nextAvail[myAvailIdx] = {
+              ...nextAvail[myAvailIdx],
+              admin_note: '',
+              is_admin_assigned: false,
+            };
+          }
+          return nextAvail;
+        });
+
         // Tự động đồng bộ ca đối ứng 2 chiều cho nhân viên làm thay/bị thay
         if (data.peerAdjustment && data.peerAdjustment.peerEmployeeId) {
           const peerId = data.peerAdjustment.peerEmployeeId;
@@ -1053,7 +1067,7 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
               return nextAvail;
             });
           } else if (peerIdx !== -1) {
-            // TRƯỜNG HỢP 1: BẠN ĐƯỢC LÀM THAY VẪN ĐI LÀM 1 PHẦN (VỀ SỚM)
+            // TRƯỜNG HỢP 1: BẠN ĐƯỢC LÀM THAY VẪN ĐI LÀM 1 PHẦN (VỀ SỚM HOẶC VÀO TRỄ)
             const peerShift = updated[peerIdx];
             const curPeerStart = peerShift.start_time ? peerShift.start_time.slice(0, 5) : '09:00';
             const curPeerEnd = peerShift.end_time ? peerShift.end_time.slice(0, 5) : '18:00';
@@ -1084,21 +1098,34 @@ export default function WeeklyMatrixBoard({ employees, toast, highlightEmployeeI
 
             if (type === 'reduce') {
               // Rút ngắn ca của peer:
-              // TH1: Làm thay phần đuôi (về sớm) - ví dụ ca 14:00-22:00 được làm thay từ 19:00 -> ca mới 14:00 - 19:00
-              if (remainingStartTime && remainingStartTime > baseStart && remainingStartTime < baseEnd) {
+              // TH1: Làm thay phần đầu (vào trễ) - ví dụ ca 13:00-22:00 được làm thay 13:00-17:00 -> ca mới 17:00 - 22:00
+              if (remainingStartTime && remainingStartTime <= baseStart && remainingEndTime < baseEnd) {
+                newPeerStart = remainingEndTime;
+                newPeerEnd = baseEnd;
+                newPeerHours = calculateHours(newPeerStart, newPeerEnd);
+                peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay đến ${newPeerStart}]`;
+              }
+              // TH2: Làm thay phần đuôi (về sớm) - ví dụ ca 13:00-22:00 được làm thay từ 17:00 -> ca mới 13:00 - 17:00
+              else if (remainingStartTime && remainingStartTime > baseStart && remainingEndTime >= baseEnd) {
                 newPeerStart = baseStart;
                 newPeerEnd = remainingStartTime;
                 newPeerHours = calculateHours(newPeerStart, newPeerEnd);
                 peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay từ ${newPeerEnd}]`;
               }
-              // TH2: Làm thay phần đầu (đi trễ) - ví dụ ca 08:30-17:00 được làm thay 08:30-12:00 -> ca mới 12:00 - 17:00
+              // TH3: Làm thay phần giữa hoặc có mốc cụ thể
+              else if (remainingStartTime && remainingStartTime > baseStart && remainingEndTime < baseEnd) {
+                newPeerStart = baseStart;
+                newPeerEnd = remainingStartTime;
+                newPeerHours = calculateHours(newPeerStart, newPeerEnd);
+                peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay ${remainingStartTime}-${remainingEndTime}]`;
+              }
               else if (remainingEndTime && remainingEndTime > baseStart && remainingEndTime < baseEnd) {
                 newPeerStart = remainingEndTime;
                 newPeerEnd = baseEnd;
                 newPeerHours = calculateHours(newPeerStart, newPeerEnd);
                 peerNote = `[Gốc: ${baseStart}-${baseEnd} | ${currentEmpName} làm thay đến ${newPeerStart}]`;
               }
-              // TH3: Mặc định lùi giờ kết thúc theo diffH
+              // TH4: Mặc định lùi giờ kết thúc theo diffH
               else {
                 newPeerHours = Math.max(0, baseHours - diffH);
                 const targetMinutes = (bsh * 60 + bsm + Math.round(newPeerHours * 60)) % (24 * 60);

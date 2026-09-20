@@ -236,6 +236,7 @@ export default function ModalXepLichQuick({
           name: emp.name || 'Nhân viên',
           nickname: emp.nickname || '',
           hasShift: Boolean(s),
+          branchId: s?.branch_id || null,
           branchName: branchObj?.name || '',
           startTime: curStart,
           endTime: curEnd,
@@ -243,6 +244,12 @@ export default function ModalXepLichQuick({
           origEndTime: origEnd,
           hours: s?.hours || (curStart && curEnd ? calcHours(curStart, curEnd) : 0),
         };
+      })
+      .sort((a, b) => {
+        // Ưu tiên nhân viên ĐANG CÓ CA lên đầu danh sách để dễ chọn làm hộ
+        if (a.hasShift && !b.hasShift) return -1;
+        if (!a.hasShift && b.hasShift) return 1;
+        return a.name.localeCompare(b.name);
       });
   }, [daySchedule, staffOnlyEmployees, selectedEmpId, branches]);
 
@@ -414,11 +421,21 @@ export default function ModalXepLichQuick({
 
     setSubmitting(true);
 
+    // Tự động gỡ cờ OFF nếu nhân viên này đang bị gán OFF mà lại nhận làm thay
+    if (currentAvail?.is_admin_assigned && onRemoveOff) {
+      try {
+        await onRemoveOff(selectedEmpId, date);
+      } catch (err) {
+        console.error('Lỗi khi gỡ cờ OFF:', err);
+      }
+    }
+
     const peer = peerStaffOnDay.find((p) => p.employeeId === selectedPeerId);
     const peerName = peer?.name || 'đồng nghiệp';
     const finalStart = mergedShiftForPeer.startTime;
     const finalEnd = mergedShiftForPeer.endTime;
     const finalHours = mergedShiftForPeer.hours;
+    const targetBranchId = (peer && peer.branchId) ? peer.branchId : selectedBranchId;
 
     let finalNote = '';
     const cleanedNote = (note || '').replace(/\[(?:Ca gốc|Gốc):\s*[^\]]+\]/g, '').trim();
@@ -435,7 +452,7 @@ export default function ModalXepLichQuick({
       .replace(/\[(?:Ca gốc|Gốc):\s*[^\]]+\]/g, '')
       .trim() || 'Bận việc riêng';
 
-    // Thông tin đồng bộ ca cho peer (Kim Vân)
+    // Thông tin đồng bộ ca cho peer
     let peerAdjustment = null;
     if (syncPeerShift && coverHours > 0) {
       peerAdjustment = {
@@ -454,7 +471,7 @@ export default function ModalXepLichQuick({
 
     await onSave({
       employeeId: selectedEmpId,
-      branchId: selectedBranchId,
+      branchId: targetBranchId,
       date,
       startTime: finalStart,
       endTime: finalEnd,
@@ -731,23 +748,26 @@ export default function ModalXepLichQuick({
                 }`}
               >
                 <span>⏰</span>
-                <span>Đổi Giờ</span>
+                <span>{isEditing ? 'Đổi Giờ' : 'Thêm Giờ'}</span>
               </button>
 
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={() => setActiveChangeTab('transfer')}
-                  className={`py-1.5 rounded-xl font-black text-xs flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                    activeChangeTab === 'transfer'
-                      ? 'bg-purple-900 text-white shadow-sm scale-101'
-                      : 'text-purple-950 hover:bg-purple-100/80 font-bold'
-                  }`}
-                >
-                  <span>🔄</span>
-                  <span>Chuyển Ca</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveChangeTab('transfer');
+                  if (!isEditing) {
+                    setTransferType('peer');
+                  }
+                }}
+                className={`py-1.5 rounded-xl font-black text-xs flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                  activeChangeTab === 'transfer'
+                    ? 'bg-purple-900 text-white shadow-sm scale-101'
+                    : 'text-purple-950 hover:bg-purple-100/80 font-bold'
+                }`}
+              >
+                <span>🔄</span>
+                <span>Chuyển Ca</span>
+              </button>
 
               <button
                 type="button"
@@ -1277,50 +1297,71 @@ export default function ModalXepLichQuick({
               )}
 
               {/* --- FORM THAY ĐỔI 2: CHUYỂN CA / LÀM THAY --- */}
-              {activeChangeTab === 'transfer' && isEditing && (
+              {activeChangeTab === 'transfer' && (
                 <div className="space-y-3 animate-fade-in">
                   {/* Tóm tắt ca hiện tại */}
-                  <div className="bg-purple-50 p-2.5 rounded-2xl border border-purple-200 text-xs space-y-1 shadow-2xs">
-                    <div className="font-extrabold text-purple-900">
-                      Ca làm hiện tại của <b className="text-purple-950">{currentEmp?.name}</b>:
+                  {isEditing ? (
+                    <div className="bg-purple-50 p-2.5 rounded-2xl border border-purple-200 text-xs space-y-1 shadow-2xs">
+                      <div className="font-extrabold text-purple-900">
+                        Ca làm hiện tại của <b className="text-purple-950">{currentEmp?.name}</b>:
+                      </div>
+                      <div className="font-black text-purple-950 text-sm">
+                        🕒 {startTime} - {endTime} ({hours} tiếng) • CN {currentBranch?.name}
+                      </div>
                     </div>
-                    <div className="font-black text-purple-950 text-sm">
-                      🕒 {startTime} - {endTime} ({hours} tiếng) • CN {currentBranch?.name}
+                  ) : (
+                    <div className="bg-rose-50 p-2.5 rounded-2xl border border-rose-200 text-xs space-y-1 shadow-2xs">
+                      <div className="font-extrabold text-rose-900">
+                        Trạng thái hiện tại của <b className="text-rose-950">{currentEmp?.name}</b>:
+                      </div>
+                      <div className="font-black text-rose-950 text-sm flex items-center gap-1.5 flex-wrap">
+                        <span>🛑 Đang OFF (Chưa có ca làm)</span>
+                        <span className="text-xs font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-md">
+                          👉 Chọn đồng nghiệp bên dưới để làm hộ ca
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* LÝ DO & HÌNH THỨC ĐỔI CA */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-black text-purple-950 uppercase tracking-wide">
-                      Hình thức / Lý do đổi ca:
-                    </label>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setTransferType('full')}
-                        className={`py-2 px-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                          transferType === 'full'
-                            ? 'bg-purple-900 text-white border-purple-800 shadow-sm ring-2 ring-purple-400 scale-[1.02]'
-                            : 'bg-white text-purple-950 border border-purple-200 hover:bg-purple-50 font-bold'
-                        }`}
-                      >
-                        <span>🔄</span>
-                        <span>Đổi Ca</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTransferType('peer')}
-                        className={`py-2 px-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                          transferType === 'peer'
-                            ? 'bg-purple-900 text-white border-purple-800 shadow-sm ring-2 ring-purple-400 scale-[1.02]'
-                            : 'bg-white text-purple-950 border border-purple-200 hover:bg-purple-50 font-bold'
-                        }`}
-                      >
-                        <span>👥</span>
-                        <span>Làm thay bạn khác</span>
-                      </button>
+                  {isEditing ? (
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-black text-purple-950 uppercase tracking-wide">
+                        Hình thức / Lý do đổi ca:
+                      </label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setTransferType('full')}
+                          className={`py-2 px-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                            transferType === 'full'
+                              ? 'bg-purple-900 text-white border-purple-800 shadow-sm ring-2 ring-purple-400 scale-[1.02]'
+                              : 'bg-white text-purple-950 border border-purple-200 hover:bg-purple-50 font-bold'
+                          }`}
+                        >
+                          <span>🔄</span>
+                          <span>Đổi Ca</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTransferType('peer')}
+                          className={`py-2 px-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                            transferType === 'peer'
+                              ? 'bg-purple-900 text-white border-purple-800 shadow-sm ring-2 ring-purple-400 scale-[1.02]'
+                              : 'bg-white text-purple-950 border border-purple-200 hover:bg-purple-50 font-bold'
+                          }`}
+                        >
+                          <span>👥</span>
+                          <span>Làm thay bạn khác</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-100/70 border border-purple-200 text-xs font-bold text-purple-950">
+                      <span className="text-base">👥</span>
+                      <span>Chế độ: <b>Làm hộ ca cho đồng nghiệp</b> (Tự động đồng bộ ca cả 2 người)</span>
+                    </div>
+                  )}
 
                   {/* =========================================================
                       HÌNH THỨC 1: CHUYỂN TOÀN BỘ CA CHO ĐỒNG NGHIỆP
@@ -1648,6 +1689,8 @@ export default function ModalXepLichQuick({
                                 </div>
                               </div>
 
+
+
                               {/* HIỂN THỊ TRỰC QUAN CA TỔNG HỢP CỦA NHÂN VIÊN */}
                               <div className="pt-2 border-t border-purple-200 text-xs space-y-1 font-bold text-purple-900">
                                 {origShiftInfo && (
@@ -1657,7 +1700,9 @@ export default function ModalXepLichQuick({
                                   </div>
                                 )}
                                 <div className="flex items-center justify-between text-purple-950 font-black pt-1 border-t border-purple-200/60 flex-wrap gap-1">
-                                  <span className="text-emerald-800">👉 Ca tổng sau khi gộp:</span>
+                                  <span className="text-emerald-800">
+                                    {origShiftInfo ? '👉 Ca tổng sau khi gộp:' : `👉 Ca làm của ${currentEmp?.name || 'bạn'}:`}
+                                  </span>
                                   <span className="text-xs sm:text-sm bg-emerald-100 text-emerald-950 px-2 py-0.5 rounded-lg border border-emerald-300">
                                     {mergedShiftForPeer.hasGap && origShiftInfo ? (
                                       <>
@@ -1691,14 +1736,26 @@ export default function ModalXepLichQuick({
                                   </div>
                                 )}
 
-                                {selectedPeer && selectedPeer.hasShift && peerCoverMode === 'partial' && (
-                                  <div className="flex items-center justify-between text-purple-950 font-black pt-1 border-t border-purple-200/60">
-                                    <span className="text-purple-800">⏱️ Ca đối ứng của {selectedPeer.name}:</span>
-                                    <span className="text-xs bg-purple-100 text-purple-950 px-2 py-0.5 rounded-lg border border-purple-200">
-                                      {selectedPeer.origStartTime || selectedPeer.startTime} - {coverStartTime} (Về sớm)
-                                    </span>
-                                  </div>
-                                )}
+                                {selectedPeer && selectedPeer.hasShift && peerCoverMode === 'partial' && (() => {
+                                  const pStart = selectedPeer.origStartTime || selectedPeer.startTime || '08:30';
+                                  const pEnd = selectedPeer.origEndTime || selectedPeer.endTime || '22:00';
+                                  let counterpartText = '';
+                                  if (coverStartTime <= pStart && coverEndTime < pEnd) {
+                                    counterpartText = `${coverEndTime} - ${pEnd} (Vào trễ lúc ${coverEndTime})`;
+                                  } else if (coverStartTime > pStart && coverEndTime >= pEnd) {
+                                    counterpartText = `${pStart} - ${coverStartTime} (Về sớm lúc ${coverStartTime})`;
+                                  } else {
+                                    counterpartText = `${pStart} - ${coverStartTime} (Về sớm)`;
+                                  }
+                                  return (
+                                    <div className="flex items-center justify-between text-purple-950 font-black pt-1 border-t border-purple-200/60">
+                                      <span className="text-purple-800">⏱️ Ca đối ứng của {selectedPeer.name}:</span>
+                                      <span className="text-xs bg-purple-100 text-purple-950 px-2 py-0.5 rounded-lg border border-purple-200 font-black">
+                                        {counterpartText}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
 
