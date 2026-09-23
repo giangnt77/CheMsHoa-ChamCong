@@ -360,7 +360,14 @@ export default function ModalShiftSwap({ employee, onClose, onRefresh }) {
     try {
       await createShiftSwap(ticketPayload);
       // Gửi thông báo Telegram tự động
-      sendTelegramNotification(ticketPayload).catch(console.error);
+      try {
+        await Promise.race([
+          sendTelegramNotification(ticketPayload),
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+        ]);
+      } catch (tgErr) {
+        console.warn('Lỗi gửi Telegram:', tgErr);
+      }
 
       toast.success(
         'Đã Gửi Thành Công',

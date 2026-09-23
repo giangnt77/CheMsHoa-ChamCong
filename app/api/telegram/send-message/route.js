@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import https from 'https';
 
-// Rate limiting đơn giản: tối đa 5 request/phút/IP
+// Rate limiting: tối đa 60 request/phút/IP (chống spam nhưng không nghẽn hệ thống)
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 phút
-const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_MAX = 60;
 
 function isRateLimited(ip) {
+  if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip === '::1') return false;
   const now = Date.now();
-  const key = ip || 'unknown';
-  const entry = rateLimitMap.get(key);
+  const entry = rateLimitMap.get(ip);
 
   if (!entry || now - entry.start > RATE_LIMIT_WINDOW_MS) {
-    rateLimitMap.set(key, { start: now, count: 1 });
+    rateLimitMap.set(ip, { start: now, count: 1 });
     return false;
   }
 
@@ -43,13 +43,47 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { token, chatId, text } = body;
+    const { token, chatId, text, isTest } = body;
 
-    const DEFAULT_BOT_TOKEN = '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8';
+    const DEFAULT_BOT_TOKEN = '8903834760:AAEdo7C9zdoj5uC63nMc_rnh7MWMavOhb98';
     const DEFAULT_CHAT_ID = '5616165281';
 
-    const botToken = token || process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || DEFAULT_BOT_TOKEN;
-    const targetChatId = chatId || process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || DEFAULT_CHAT_ID;
+    let botToken = (token && token !== '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8') ? token : null;
+    let targetChatId = chatId || null;
+
+    // Nếu thiếu token hoặc chatId, truy vấn cấu hình từ Supabase
+    if (!botToken || !targetChatId) {
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseKey) {
+          const sbRes = await fetch(`${supabaseUrl}/rest/v1/system_settings?key=eq.telegram_config&select=value`, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            cache: 'no-store',
+          });
+          if (sbRes.ok) {
+            const sbData = await sbRes.json();
+            if (Array.isArray(sbData) && sbData.length > 0 && sbData[0].value) {
+              const val = typeof sbData[0].value === 'string' ? JSON.parse(sbData[0].value) : sbData[0].value;
+              if (!botToken && val.bot_token && val.bot_token !== '8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8') {
+                botToken = val.bot_token;
+              }
+              if (!targetChatId && val.chat_id) {
+                targetChatId = val.chat_id;
+              }
+            }
+          }
+        }
+      } catch (sbErr) {
+        console.warn('Lỗi đọc telegram_config từ Supabase trong send-message:', sbErr.message);
+      }
+    }
+
+    botToken = botToken || process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || DEFAULT_BOT_TOKEN;
+    targetChatId = targetChatId || process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || DEFAULT_CHAT_ID;
 
     if (!botToken || !targetChatId || !text) {
       return NextResponse.json({ ok: false, message: 'Thiếu Bot Token, Chat ID hoặc nội dung tin nhắn' });

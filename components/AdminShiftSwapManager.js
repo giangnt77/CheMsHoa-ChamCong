@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { getAllShiftSwaps, updateShiftSwapStatus } from '@/lib/supabase';
+import { getAllShiftSwaps, updateShiftSwapStatus, getTelegramConfig, saveTelegramConfig, DEFAULT_TELEGRAM_BOT_TOKEN, DEFAULT_TELEGRAM_CHAT_ID } from '@/lib/supabase';
 import { formatDateWithDayVN, getCurrentMonth } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
 
@@ -28,51 +28,97 @@ export default function AdminShiftSwapManager() {
   const [showTelegramModal, setShowTelegramModal] = useState(false);
   const [tgBotToken, setTgBotToken] = useState('');
   const [tgChatId, setTgChatId] = useState('');
-  const [fetchingChatId, setFetchingChatId] = useState(false);
-  function handleOpenTelegramModal() {
-    if (typeof window !== 'undefined') {
-      const savedToken = localStorage.getItem('chems_telegram_bot_token') || '';
-      const savedChatId = localStorage.getItem('chems_telegram_chat_id') || '';
-      setTgBotToken(savedToken);
-      setTgChatId(savedChatId);
-    }
-    setShowTelegramModal(true);
-  }
+  const [testingBot, setTestingBot] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(false);
 
-  async function handleAutoFetchChatId() {
-    setFetchingChatId(true);
+  async function handleOpenTelegramModal() {
+    setShowTelegramModal(true);
+    setLoadingConfig(true);
     try {
-      const queryParam = tgBotToken.trim() ? `?token=${encodeURIComponent(tgBotToken.trim())}` : '';
-      const res = await fetch(`/api/telegram/get-updates${queryParam}`);
+      const cfg = await getTelegramConfig();
+      setTgBotToken(cfg.bot_token || DEFAULT_TELEGRAM_BOT_TOKEN);
+      setTgChatId(cfg.chat_id || DEFAULT_TELEGRAM_CHAT_ID);
+    } catch (e) {
+      console.error('Lỗi tải cấu hình Telegram:', e);
+    } finally {
+      setLoadingConfig(false);
+    }
+  }
+  async function handleTestBot() {
+    const token = tgBotToken.trim();
+    const chatId = tgChatId.trim();
+
+    if (!token) {
+      toast.warning('Thiếu Bot Token', 'Vui lòng nhập Telegram Bot Token trước khi gửi thử!');
+      return;
+    }
+    if (!chatId) {
+      toast.warning('Thiếu Chat ID', 'Vui lòng nhập Chat ID Telegram Quản Lý trước khi gửi thử!');
+      return;
+    }
+
+    setTestingBot(true);
+    try {
+      const res = await fetch('/api/telegram/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          chatId,
+          text: `🤖 <b>[KẾT NỐI THÀNH CÔNG]</b>\n\nXin chào! Bot Telegram đã được kết nối thành công với hệ thống <b>Tiệm Chè Ms Hoa</b>.\n\nMọi thông báo đổi ca, báo làm thêm, về sớm sẽ tự động gửi về đây! ✨`,
+          isTest: true,
+        }),
+      });
+
       const data = await res.json();
-      if (data && data.ok && Array.isArray(data.result) && data.result.length > 0) {
-        const lastMsg = data.result[data.result.length - 1];
-        const detectedChatId = lastMsg.message?.chat?.id || lastMsg.my_chat_member?.chat?.id || lastMsg.channel_post?.chat?.id;
-        if (detectedChatId) {
-          setTgChatId(String(detectedChatId));
-          toast.success('Bắt thành công!', `Đã phát hiện Chat ID: ${detectedChatId}`);
-        } else {
-          toast.warning('Chưa có tin nhắn', 'Hãy bấm START hoặc gửi 1 tin nhắn bất kỳ tới Bot rồi bấm lại nhé!');
-        }
+      if (res.ok && data.ok) {
+        toast.success(
+          'Gửi thử thành công! 🎉',
+          'Bot đã gửi tin nhắn kiểm tra tới Telegram của bạn. Hãy mở Telegram xem nhé!'
+        );
       } else {
-        toast.warning('Chưa thấy tin nhắn', 'Hãy mở Telegram, bấm START cho Bot rồi bấm lại nút này nhé!');
+        let msg = data.description || data.error || data.message || 'Không thể gửi tin nhắn';
+        if (msg.includes('chat not found')) {
+          msg = 'Chưa tìm thấy đoạn chat. Bạn hãy mở Telegram, tìm Bot và bấm nút START trước nhé!';
+        } else if (msg.includes('Unauthorized')) {
+          msg = 'Bot Token không hợp lệ. Vui lòng kiểm tra lại mã Token!';
+        } else if (msg.includes('blocked')) {
+          msg = 'Bot đang bị chặn bởi tài khoản của bạn trên Telegram!';
+        }
+        toast.error('Gửi thử thất bại', msg);
       }
     } catch (err) {
-      console.error(err);
-      toast.error('Lỗi', 'Không thể kết nối Telegram Bot!');
+      toast.error('Lỗi gửi thử', err?.message || 'Không thể gửi tin nhắn thử nghiệm');
     } finally {
-      setFetchingChatId(false);
+      setTestingBot(false);
     }
   }
 
-  function handleSaveTelegramConfig(e) {
+  async function handleSaveTelegramConfig(e) {
     e.preventDefault();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('chems_telegram_bot_token', tgBotToken.trim());
-      localStorage.setItem('chems_telegram_chat_id', tgChatId.trim());
+    const token = tgBotToken.trim();
+    const chatId = tgChatId.trim();
+
+    if (!token) {
+      toast.warning('Thiếu thông tin', 'Vui lòng nhập Telegram Bot Token!');
+      return;
     }
-    toast.success('Đã lưu Telegram Bot', 'Đã cài đặt Bot Token & Chat ID thành công!');
-    setShowTelegramModal(false);
+
+    setSavingConfig(true);
+    try {
+      await saveTelegramConfig({ bot_token: token, chat_id: chatId });
+      toast.success(
+        'Đã lưu thành công! ✅',
+        'Cấu hình Telegram Bot đã được cập nhật cho toàn bộ hệ thống & nhân viên!'
+      );
+      setShowTelegramModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi khi lưu', 'Không thể lưu cấu hình lên máy chủ. Vui lòng thử lại!');
+    } finally {
+      setSavingConfig(false);
+    }
   }
 
   useEffect(() => {
@@ -531,79 +577,108 @@ export default function AdminShiftSwapManager() {
       {/* MODAL CẤU HÌNH BOT TELEGRAM */}
       {mounted && showTelegramModal && createPortal(
         <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-fade-in overflow-y-auto">
-          <div className="relative max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-sky-300 animate-scale-in my-auto">
+          <div className="relative max-w-md w-full bg-white rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 border-2 border-sky-300 animate-scale-in my-auto">
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-sky-100 pb-3">
-              <div>
-                <h3 className="font-black text-base text-sky-950">Cài Đặt Telegram Bot</h3>
-                <p className="text-[11px] text-sky-700 font-bold">Nhận thông báo khi có yêu cầu mới</p>
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-600 font-black text-xl">
+                  ✈️
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-sky-950">Cài Đặt Telegram Bot</h3>
+                  <p className="text-[11px] text-sky-700 font-bold">Lưu tập trung Supabase — Đồng bộ toàn bộ hệ thống</p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowTelegramModal(false)}
-                className="w-8 h-8 rounded-full bg-purple-100 text-purple-900 font-black text-sm flex items-center justify-center border-0 cursor-pointer"
+                className="w-8 h-8 rounded-full bg-purple-100 text-purple-900 font-black text-sm flex items-center justify-center border-0 cursor-pointer hover:bg-purple-200 transition-colors"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveTelegramConfig} className="space-y-3.5 text-xs">
-              <div className="p-3 bg-sky-50 rounded-2xl border border-sky-200 text-sky-950 font-bold space-y-1">
-                <p className="font-black text-sky-900">
-                  Telegram Bot Thông Báo Tự Động
-                </p>
-                <p className="text-[11px]">
-                  Mỗi khi nhân viên gửi yêu cầu đổi ca hoặc báo làm thêm/về sớm, Bot Telegram sẽ tự động gửi tin nhắn tới Telegram của Quản Lý.
-                </p>
+            {loadingConfig ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-2 text-sky-800">
+                <span className="inline-block w-6 h-6 border-3 border-sky-600 border-t-transparent rounded-full animate-spin"></span>
+                <span className="text-xs font-bold">Đang tải cấu hình mới nhất...</span>
               </div>
+            ) : (
+              <form onSubmit={handleSaveTelegramConfig} className="space-y-4 text-xs">
+                {/* Input Bot Token */}
+                <div>
+                  <label className="block font-black text-purple-950 mb-1.5 text-[13px]">
+                    Telegram Bot Token:
+                  </label>
+                  <input
+                    type="text"
+                    value={tgBotToken}
+                    onChange={(e) => setTgBotToken(e.target.value)}
+                    placeholder="VD: 8903834760:AAEdo7C9zdoj5uC63nMc_rnh7MWMavOhb98"
+                    className="w-full px-3.5 py-2.5 bg-purple-50/70 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none font-mono text-[12px] shadow-2xs"
+                  />
+                </div>
 
-              <div>
-                <label className="block font-black text-purple-950 mb-1">Telegram Bot Token:</label>
-                <input
-                  type="text"
-                  value={tgBotToken}
-                  onChange={(e) => setTgBotToken(e.target.value)}
-                  placeholder="VD: 8840577376:AAFLKRa3e8e4wXFcu6hVXBuI6fJdo4WbPR8"
-                  className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none"
-                />
-              </div>
+                {/* Input Chat ID */}
+                <div>
+                  <label className="block font-black text-purple-950 mb-1.5 text-[13px]">
+                    Chat ID Telegram Quản Lý:
+                  </label>
+                  <input
+                    type="text"
+                    value={tgChatId}
+                    onChange={(e) => setTgChatId(e.target.value)}
+                    placeholder="VD: 5616165281"
+                    className="w-full px-3.5 py-2.5 bg-purple-50/70 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none font-mono text-[13px] shadow-2xs"
+                  />
+                </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-black text-purple-950">Chat ID Telegram Quản Lý:</label>
+                {/* Footer Buttons */}
+                <div className="pt-3 flex items-center justify-between gap-2 border-t border-purple-100">
                   <button
                     type="button"
-                    onClick={handleAutoFetchChatId}
-                    disabled={fetchingChatId}
-                    className="text-[11px] font-black text-sky-700 hover:text-sky-900 underline cursor-pointer"
+                    onClick={handleTestBot}
+                    disabled={testingBot || savingConfig}
+                    className="px-3.5 py-2.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-black border-0 cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    {fetchingChatId ? 'Đang quét...' : 'Tự động tìm Chat ID'}
+                    {testingBot ? (
+                      <>
+                        <span className="inline-block w-3 h-3 border-2 border-purple-800 border-t-transparent rounded-full animate-spin"></span>
+                        <span>Đang gửi thử...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🧪</span> Gửi Tin Nhắn Thử
+                      </>
+                    )}
                   </button>
-                </div>
-                <input
-                  type="text"
-                  value={tgChatId}
-                  onChange={(e) => setTgChatId(e.target.value)}
-                  placeholder="VD: 5616165281"
-                  className="w-full px-3 py-2 bg-purple-50 border border-purple-200 focus:border-sky-500 rounded-xl text-purple-950 font-bold outline-none"
-                />
-              </div>
 
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowTelegramModal(false)}
-                  className="px-4 py-2 rounded-xl bg-purple-100 text-purple-950 font-bold border-0 cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black border-0 cursor-pointer shadow-2xs"
-                >
-                  Lưu Cấu Hình
-                </button>
-              </div>
-            </form>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowTelegramModal(false)}
+                      className="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold border-0 cursor-pointer"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingConfig || testingBot}
+                      className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black border-0 cursor-pointer shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {savingConfig ? (
+                        <>
+                          <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                          <span>Đang lưu...</span>
+                        </>
+                      ) : (
+                        '💾 Lưu Cấu Hình'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>,
         document.body
