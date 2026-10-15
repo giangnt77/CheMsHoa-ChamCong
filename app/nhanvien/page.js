@@ -7,6 +7,7 @@ import EmployeeSelector from '@/components/EmployeeSelector';
 import WeeklyAvailability from '@/components/WeeklyAvailability';
 import WeeklyMatrixBoard from '@/components/WeeklyMatrixBoard';
 import ModalShiftSwap from '@/components/ModalShiftSwap';
+import SalaryConfirmationBox from '@/components/SalaryConfirmationBox';
 import { ToastProvider, useToast } from '@/components/Toast';
 import {
   getEmployeeByName,
@@ -21,11 +22,21 @@ import {
   getShiftSwapsByEmployee,
   getPenaltiesByEmployee,
   getHolidaySettings,
+  getBranches,
   updateEmployeeNickname,
   checkNicknameCooldown,
   verifyEmployeePin,
 } from '@/lib/supabase';
-import { getCurrentMonth, formatCurrency, getToday, formatDateFull, formatDateWithDayVN, validateNickname } from '@/lib/utils';
+import {
+  getCurrentMonth,
+  formatCurrency,
+  getToday,
+  formatDateFull,
+  formatDateWithDayVN,
+  validateNickname,
+  getBranchColorStyle,
+  getDayOfWeekLabel,
+} from '@/lib/utils';
 
 function EmployeeContent() {
   const toast = useToast();
@@ -64,6 +75,10 @@ function EmployeeContent() {
   const [monthlySalary, setMonthlySalary] = useState(0);
   const [empRates, setEmpRates] = useState([]);
   const [empPenalties, setEmpPenalties] = useState([]);
+  const [monthlyShiftDetails, setMonthlyShiftDetails] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [salaryViewMode, setSalaryViewMode] = useState('grid');
+  const [isSalaryConfirmed, setIsSalaryConfirmed] = useState(false);
   
   // Password change modal
   const [showPinModal, setShowPinModal] = useState(false);
@@ -177,15 +192,17 @@ function EmployeeContent() {
       const startDate = `${year}-${mStr}-01`;
       const endDate = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
 
-      const [schedData, rates, penaltiesData, holidayData] = await Promise.all([
+      const [schedData, rates, penaltiesData, holidayData, branchData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getEmployeeRates(employee.id),
         getPenaltiesByEmployee(employee.id, cleanMonth),
         getHolidaySettings(),
+        getBranches(),
       ]);
 
       setEmpRates(rates || []);
       setEmpPenalties(penaltiesData || []);
+      setBranches(branchData || []);
 
       // Quy tắc tính lương chuẩn: Chỉ cộng dồn ca làm ĐÃ DIỄN RA (s.date <= getToday())
       // Các ca tương lai được xếp sẵn chưa đến ngày sẽ KHÔNG bị dồn cộng trước!
@@ -194,7 +211,9 @@ function EmployeeContent() {
         (s) => s.employee_id === employee.id && s.date <= todayStr
       );
 
-      const { totalHours, grossSalary } = calculateSalaryFromShifts(
+      myShifts.sort((a, b) => a.date.localeCompare(b.date));
+
+      const { totalHours, grossSalary, shiftDetails } = calculateSalaryFromShifts(
         myShifts,
         rates || [],
         employee.hourly_rate || 20000,
@@ -204,6 +223,7 @@ function EmployeeContent() {
       setMonthlyHours(totalHours);
       setMonthlyShiftsCount(myShifts.length);
       setMonthlySalary(grossSalary);
+      setMonthlyShiftDetails(shiftDetails || []);
     } catch (err) {
       console.error('Error loading employee hours:', err);
     }
@@ -250,6 +270,81 @@ function EmployeeContent() {
     const m = parts[1] || String(new Date().getMonth() + 1).padStart(2, '0');
     return `${m}/${y}`;
   }, [selectedMonth]);
+
+  // Danh sách các ngày cho lịch tháng 7 cột
+  const calendarMonthDays = useMemo(() => {
+    if (!selectedMonth || !selectedMonth.includes('-')) return [];
+    const [yearStr, monthStr] = selectedMonth.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const shiftsByDate = {};
+    (monthlyShiftDetails || []).forEach((s) => {
+      if (!shiftsByDate[s.date]) shiftsByDate[s.date] = [];
+      shiftsByDate[s.date].push(s);
+    });
+
+    const firstDayObj = new Date(year, month - 1, 1);
+    const firstDow = firstDayObj.getDay();
+    // Monday is index 0:
+    const leadingBlanks = firstDow === 0 ? 6 : firstDow - 1;
+
+    // Ngày của tháng trước
+    const prevMonthLastDate = new Date(year, month - 1, 0).getDate();
+    const prevMonth = month === 1 ? 12 : month - 1;
+
+    const list = [];
+    // Các ngày cuối của tháng trước để lấp đầy hàng đầu
+    for (let i = leadingBlanks - 1; i >= 0; i--) {
+      const prevD = prevMonthLastDate - i;
+      list.push({
+        isOtherMonth: true,
+        key: `prev-${prevD}`,
+        dayDisplay: `${String(prevD).padStart(2, '0')}/${String(prevMonth).padStart(2, '0')}`,
+      });
+    }
+
+    // Các ngày trong tháng hiện tại
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${selectedMonth}-${String(d).padStart(2, '0')}`;
+      const dObj = new Date(year, month - 1, d);
+      const dow = dObj.getDay();
+      const dowLabel = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dow];
+      const dayShifts = shiftsByDate[dateStr] || [];
+      const totalDayHours = dayShifts.reduce((acc, cur) => acc + (cur.hours || 0), 0);
+      const totalDaySalary = dayShifts.reduce((acc, cur) => acc + (cur.shiftSalary || 0), 0);
+
+      list.push({
+        isOtherMonth: false,
+        key: dateStr,
+        dayNum: d,
+        dateStr,
+        dateFormatted: `${String(d).padStart(2, '0')}/${String(month).padStart(2, '0')}`,
+        dowLabel,
+        isWeekend: dow === 0 || dow === 6,
+        shifts: dayShifts,
+        totalHours: totalDayHours,
+        totalSalary: totalDaySalary,
+      });
+    }
+
+    // Các ngày đầu tháng sau để lấp đầy hàng cuối của lịch
+    const remainder = list.length % 7;
+    if (remainder > 0) {
+      const trailingCount = 7 - remainder;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      for (let i = 1; i <= trailingCount; i++) {
+        list.push({
+          isOtherMonth: true,
+          key: `next-${i}`,
+          dayDisplay: `${String(i).padStart(2, '0')}/${String(nextMonth).padStart(2, '0')}`,
+        });
+      }
+    }
+
+    return list;
+  }, [selectedMonth, monthlyShiftDetails]);
 
   function handlePrevMonth() {
     const clean = (!selectedMonth || selectedMonth.includes('NaN') || !selectedMonth.includes('-'))
@@ -511,7 +606,7 @@ function EmployeeContent() {
                   className="px-3 sm:px-4 py-1.5 rounded-full bg-purple-700 hover:bg-purple-800 text-white text-xs sm:text-sm font-black border border-purple-800 cursor-pointer transition-all active:scale-95 flex items-center justify-center shadow-2xs whitespace-nowrap"
                   title="Bấm để xem thu nhập cá nhân"
                 >
-                  <span>{isIncomeExpanded ? 'Thu nhỏ' : 'Xem Lương'}</span>
+                  <span>{isIncomeExpanded ? 'Thu nhỏ' : isSalaryConfirmed ? 'Xem Lương ✍️' : 'Xem Lương'}</span>
                 </button>
               </div>
             </div>
@@ -651,6 +746,239 @@ function EmployeeContent() {
                   </div>
                 </div>
               </div>
+
+              {/* KHUNG BẢNG TOÀN BỘ CÁC CA LÀM THÁNG & CHẾ ĐỘ XEM */}
+              <div className="bg-white rounded-2xl p-2.5 sm:p-3 border border-purple-200 shadow-2xs space-y-2">
+                {/* Header: Tiêu đề + Nút chuyển chế độ xem (Thẻ Gọn vs Lịch Tháng 7 cột) */}
+                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-purple-100 pb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm sm:text-base">📅</span>
+                    <h4 className="font-black text-xs sm:text-sm text-purple-950">
+                      Các Ca Làm Tháng {displayMonthStr}
+                    </h4>
+                    <span className="px-2 py-0.2 rounded-full bg-purple-100 text-purple-950 text-[10.5px] sm:text-xs font-black">
+                      {monthlyShiftDetails.length} ca làm
+                    </span>
+                  </div>
+
+                  {/* Nút Toggle 2 Chế Độ Xem */}
+                  <div className="flex items-center gap-1 bg-purple-50 p-0.5 rounded-xl border border-purple-200 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setSalaryViewMode('grid')}
+                      className={`px-2.5 py-1 rounded-lg font-black text-xs transition-all cursor-pointer border-0 ${
+                        salaryViewMode === 'grid'
+                          ? 'bg-purple-900 text-white shadow-xs'
+                          : 'text-purple-700 hover:text-purple-950 bg-transparent'
+                      }`}
+                      title="Hiển thị dạng thẻ rút gọn, nhìn rõ toàn bộ ca làm trong tháng"
+                    >
+                      🗂️ Thẻ Gọn ({monthlyShiftDetails.length} ca)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSalaryViewMode('calendar')}
+                      className={`px-2.5 py-1 rounded-lg font-black text-xs transition-all cursor-pointer border-0 ${
+                        salaryViewMode === 'calendar'
+                          ? 'bg-purple-900 text-white shadow-xs'
+                          : 'text-purple-700 hover:text-purple-950 bg-transparent'
+                      }`}
+                      title="Hiển thị theo dạng bảng lịch tháng 7 cột (T2 -> CN)"
+                    >
+                      📅 Lịch Tháng (7 cột)
+                    </button>
+                  </div>
+                </div>
+
+                {/* CHẾ ĐỘ 1: THẺ GỌN (TẤT CẢ CA LÀM ĐƯỢC BÀY TRÍ TRỰC QUAN NHƯ MẪU) */}
+                {salaryViewMode === 'grid' && (
+                  monthlyShiftDetails.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5">
+                      {monthlyShiftDetails.map((s) => {
+                        const branchObj = branches.find((b) => b.id === s.branch_id) || s.branches;
+                        const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
+                        const sTime = s.start_time ? s.start_time.slice(0, 5) : '08:30';
+                        const eTime = s.end_time ? s.end_time.slice(0, 5) : '22:00';
+                        const splitMatch = s.note ? s.note.match(/\[(?:Ca gốc|Gốc):\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})[^\]]*\].*?\((\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/i) : null;
+                        const isSplit = splitMatch && (splitMatch[2] < splitMatch[3] || splitMatch[4] < splitMatch[1]);
+                        const timeRangeDisplay = isSplit ? `${splitMatch[1]}-${splitMatch[2]} & ${splitMatch[3]}-${splitMatch[4]}` : `${sTime}-${eTime}`;
+                        const dow = getDayOfWeekLabel(s.date);
+
+                        return (
+                          <div
+                            key={s.id || `${s.date}_${s.start_time}`}
+                            className={`px-2 py-1.5 rounded-xl border text-xs transition-all shadow-2xs space-y-0.5 ${
+                              s.multiplier > 1
+                                ? 'bg-gradient-to-br from-amber-50 to-amber-100/90 border-amber-300 ring-1 ring-amber-300/60'
+                                : 'bg-purple-50/40 hover:bg-purple-100/70 border-purple-200/80'
+                            }`}
+                          >
+                            {/* Hàng 1: Ngày + Thứ (bên trái) và Thành Tiền (bên phải) - Thoáng đãng không bị đè */}
+                            <div className="flex items-center justify-between gap-1 leading-tight">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-100/90 text-purple-950 border border-purple-300 shadow-2xs shrink-0">
+                                <span className="font-black text-[11px] font-mono tracking-tight">
+                                  {s.date.split('-').reverse().slice(0, 2).join('/')}
+                                </span>
+                                <span className={`text-[9.5px] font-black ${dow === 'CN' ? 'text-rose-600' : 'text-purple-700'}`}>
+                                  {dow}
+                                </span>
+                              </span>
+                              <span className="font-black text-emerald-700 text-xs font-mono shrink-0">
+                                {formatCurrency(s.shiftSalary)}
+                              </span>
+                            </div>
+
+                            {/* Hàng 2: Chi Nhánh + Giờ Làm & Tổng Tiếng */}
+                            <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold text-slate-700 leading-tight pt-0.5">
+                              <div className="flex items-center gap-1 min-w-0 truncate">
+                                {(branchStyle?.badgeText || branchObj?.name) && (
+                                  <span
+                                    className="px-1 py-0.5 rounded text-[8.5px] font-black text-white shrink-0 shadow-2xs leading-none"
+                                    style={{ backgroundColor: branchStyle.hex }}
+                                  >
+                                    {branchStyle.badgeText || branchObj?.name}
+                                  </span>
+                                )}
+                                <span className="truncate text-slate-600" title={timeRangeDisplay}>
+                                  🕒 {timeRangeDisplay}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {s.multiplier > 1 && (
+                                  <span className="text-[9px] font-black text-amber-900 bg-amber-200 px-1 rounded shadow-2xs" title={s.holidayName}>
+                                    x{s.multiplier}
+                                  </span>
+                                )}
+                                <span className="font-black text-purple-950 text-[11px] font-mono">
+                                  ⏳ {s.hours}h
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Ghi chú ca nếu có */}
+                            {s.note && (
+                              <div
+                                className="text-[9px] font-bold truncate text-purple-700 leading-none pt-0.5 border-t border-purple-200/50"
+                                title={s.note}
+                              >
+                                {s.note.includes('[Gốc:') || s.note.includes('[Ca gốc:') ? `⚡ ${s.note}` : `📝 ${s.note}`}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center text-xs text-purple-600 font-bold italic bg-purple-50/60 rounded-xl border border-purple-200">
+                      Chưa có ca làm nào trong tháng {displayMonthStr}.
+                    </div>
+                  )
+                )}
+
+                {/* CHẾ ĐỘ 2: LỊCH THÁNG 7 CỘT (T2 -> CN) */}
+                {salaryViewMode === 'calendar' && (
+                  <div className="border border-purple-200 rounded-xl overflow-hidden shadow-2xs bg-white">
+                    <div className="grid grid-cols-7 bg-purple-950 text-white text-center font-black text-xs py-2 border-b border-purple-800">
+                      {[
+                        { label: 'THỨ 2', short: 'T2' },
+                        { label: 'THỨ 3', short: 'T3' },
+                        { label: 'THỨ 4', short: 'T4' },
+                        { label: 'THỨ 5', short: 'T5' },
+                        { label: 'THỨ 6', short: 'T6' },
+                        { label: 'THỨ 7', short: 'T7' },
+                        { label: 'CHỦ NHẬT', short: 'CN', isSun: true },
+                      ].map((d) => (
+                        <div key={d.short} className={d.isSun ? 'text-amber-300' : ''}>
+                          <span className="hidden sm:inline">{d.label}</span>
+                          <span className="sm:hidden">{d.short}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-px bg-purple-200">
+                      {calendarMonthDays.map((item) => {
+                        if (item.isOtherMonth) {
+                          return (
+                            <div key={item.key} className="bg-slate-50/60 p-1.5 min-h-[54px] flex flex-col justify-start">
+                              <span className="text-[10px] font-bold text-slate-300 font-mono">
+                                {item.dayDisplay}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        const hasShifts = item.shifts && item.shifts.length > 0;
+                        return (
+                          <div
+                            key={item.key}
+                            className={`p-1 sm:p-1.5 min-h-[62px] sm:min-h-[72px] flex flex-col justify-between transition-colors ${
+                              hasShifts
+                                ? 'bg-purple-50/30 hover:bg-purple-50/80'
+                                : item.isWeekend
+                                ? 'bg-amber-50/20'
+                                : 'bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`text-[11px] font-mono font-black ${
+                                item.isWeekend ? 'text-rose-600' : 'text-purple-950'
+                              }`}>
+                                {item.dayNum}
+                              </span>
+                              {hasShifts && (
+                                <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1 rounded">
+                                  {item.totalHours}h
+                                </span>
+                              )}
+                            </div>
+
+                            {hasShifts ? (
+                              <div className="space-y-0.5 mt-1">
+                                {item.shifts.map((s, idx) => {
+                                  const branchObj = branches.find((b) => b.id === s.branch_id) || s.branches;
+                                  const branchStyle = getBranchColorStyle(branchObj?.name, branchObj?.color);
+                                  const sTime = s.start_time ? s.start_time.slice(0, 5) : '';
+                                  const eTime = s.end_time ? s.end_time.slice(0, 5) : '';
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="px-1 py-0.5 rounded text-[9px] font-bold border flex items-center justify-between"
+                                      style={{
+                                        backgroundColor: `${branchStyle.hex}15`,
+                                        borderColor: `${branchStyle.hex}40`,
+                                      }}
+                                    >
+                                      <span className="truncate">{sTime}-{eTime}</span>
+                                      <span className="font-mono font-black text-emerald-800">
+                                        {formatCurrency(s.shiftSalary)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-[9px] text-slate-300 font-bold italic text-center py-1">
+                                -
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* KHỐI KÝ XÁC NHẬN BẢNG LƯƠNG ĐIỆN TỬ */}
+              <SalaryConfirmationBox
+                employee={employee}
+                month={selectedMonth}
+                displayMonthStr={displayMonthStr}
+                netSalary={netSalary}
+                monthlyHours={monthlyHours}
+                monthlyShiftsCount={monthlyShiftsCount}
+                onConfirmedChange={(isConf) => setIsSalaryConfirmed(isConf)}
+              />
             </div>
           )}
 

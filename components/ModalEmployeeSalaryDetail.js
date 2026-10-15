@@ -10,6 +10,7 @@ import {
   calculateSalaryFromShifts,
   updateEmployeeBankInfo,
   getHolidaySettings,
+  getSalaryConfirmations,
 } from '@/lib/supabase';
 import {
   formatCurrency,
@@ -23,6 +24,7 @@ import {
   getBankDisplayInfo,
 } from '@/lib/vietqr';
 import { useToast } from '@/components/Toast';
+import SalaryConfirmationBox from '@/components/SalaryConfirmationBox';
 
 function getDayOfWeekLabel(dateStr) {
   if (!dateStr) return '';
@@ -59,6 +61,7 @@ export default function ModalEmployeeSalaryDetail({
   const [penalties, setPenalties] = useState([]);
   const [branches, setBranches] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [confirmationInfo, setConfirmationInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Bank Info state
@@ -92,12 +95,13 @@ export default function ModalEmployeeSalaryDetail({
       const lastDayNum = new Date(year, month, 0).getDate();
       const endDate = `${selectedMonth}-${String(lastDayNum).padStart(2, '0')}`;
 
-      const [schedData, ratesData, penaltiesData, branchList, holidayData] = await Promise.all([
+      const [schedData, ratesData, penaltiesData, branchList, holidayData, confMap] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getEmployeeRates(empData.id),
         getPenaltiesByEmployee(empData.id, selectedMonth),
         getBranches(),
         getHolidaySettings(),
+        getSalaryConfirmations(selectedMonth),
       ]);
 
       // Lọc ca làm của nhân viên này trong tháng
@@ -117,6 +121,11 @@ export default function ModalEmployeeSalaryDetail({
       setPenalties(penaltiesData || []);
       setBranches(branchList || []);
       setHolidays(Array.isArray(holidayData) ? holidayData : []);
+      if (confMap && confMap[empData.id]) {
+        setConfirmationInfo(confMap[empData.id]);
+      } else {
+        setConfirmationInfo(null);
+      }
     } catch (err) {
       console.error('Lỗi khi tải chi tiết lương tháng:', err);
     } finally {
@@ -502,6 +511,20 @@ export default function ModalEmployeeSalaryDetail({
             </div>
           </div>
 
+          {/* BANNER / KHỐI KÝ XÁC NHẬN BẢNG LƯƠNG (CHẾ ĐỘ CHỦ QUÁN / QUẢN LÝ) */}
+          <SalaryConfirmationBox
+            employee={empData}
+            month={selectedMonth}
+            displayMonthStr={`${monthNumber < 10 ? '0' + monthNumber : monthNumber}/${yearStr}`}
+            netSalary={netSalary}
+            monthlyHours={totalHours}
+            monthlyShiftsCount={shifts.length}
+            isOwnerMode={true}
+            onConfirmedChange={(isConf, data) => {
+              setConfirmationInfo(isConf ? data : null);
+            }}
+          />
+
           {/* 2. 4 THẺ STAT CARDS TỔNG QUAN (2 CỘT TRÊN MOBILE, 4 CỘT TRÊN PC - GIỮ NGUYÊN CHUẨN 100% NHƯ ẢNH ĐIỆN THOẠI) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
             {/* Card 1: CA & SỐ GIỜ LÀM */}
@@ -754,34 +777,36 @@ export default function ModalEmployeeSalaryDetail({
                             : 'bg-purple-50/40 hover:bg-purple-100/70 border-purple-200/80'
                         }`}
                       >
-                        {/* Hàng 1: Ngày + Thứ (Khối Date Stamp tinh tế, đồng bộ tông tím thương hiệu) + Chi Nhánh + Thành Tiền */}
+                        {/* Hàng 1: Ngày + Thứ (bên trái) và Thành Tiền (bên phải) - Thoáng đãng không bị đè */}
                         <div className="flex items-center justify-between gap-1 leading-tight">
-                          <div className="flex items-center gap-1 min-w-0">
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-100/90 text-purple-950 border border-purple-300 shadow-2xs shrink-0">
-                              <span className="font-black text-[11px] font-mono tracking-tight">
-                                {s.date.split('-').reverse().slice(0, 2).join('/')}
-                              </span>
-                              <span className={`text-[9.5px] font-black ${dow === 'CN' ? 'text-rose-600' : 'text-purple-700'}`}>
-                                {dow}
-                              </span>
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-100/90 text-purple-950 border border-purple-300 shadow-2xs shrink-0">
+                            <span className="font-black text-[11px] font-mono tracking-tight">
+                              {s.date.split('-').reverse().slice(0, 2).join('/')}
                             </span>
-                            <span
-                              className="px-1 py-0.2 rounded text-[8.5px] font-black text-white shrink-0 shadow-2xs"
-                              style={{ backgroundColor: branchStyle.hex }}
-                            >
-                              {branchStyle.badgeText || branchObj?.name || 'A4'}
+                            <span className={`text-[9.5px] font-black ${dow === 'CN' ? 'text-rose-600' : 'text-purple-700'}`}>
+                              {dow}
                             </span>
-                          </div>
+                          </span>
                           <span className="font-black text-emerald-700 text-xs font-mono shrink-0">
-                            ={formatCurrency(s.shiftSalary)}
+                            {formatCurrency(s.shiftSalary)}
                           </span>
                         </div>
 
-                        {/* Hàng 2: Giờ Làm & Tổng Tiếng */}
-                        <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold text-slate-700 leading-tight">
-                          <span className="truncate text-slate-600" title={timeRangeDisplay}>
-                            🕒 {timeRangeDisplay}
-                          </span>
+                        {/* Hàng 2: Chi Nhánh + Giờ Làm & Tổng Tiếng */}
+                        <div className="flex items-center justify-between gap-1 text-[10.5px] font-bold text-slate-700 leading-tight pt-0.5">
+                          <div className="flex items-center gap-1 min-w-0 truncate">
+                            {(branchStyle?.badgeText || branchObj?.name) && (
+                              <span
+                                className="px-1 py-0.5 rounded text-[8.5px] font-black text-white shrink-0 shadow-2xs leading-none"
+                                style={{ backgroundColor: branchStyle.hex }}
+                              >
+                                {branchStyle.badgeText || branchObj?.name}
+                              </span>
+                            )}
+                            <span className="truncate text-slate-600" title={timeRangeDisplay}>
+                              🕒 {timeRangeDisplay}
+                            </span>
+                          </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {s.multiplier > 1 && (
                               <span className="text-[9px] font-black text-amber-900 bg-amber-200 px-1 rounded shadow-2xs" title={s.holidayName}>

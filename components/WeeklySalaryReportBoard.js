@@ -10,6 +10,7 @@ import {
   updateEmployeesSortOrders,
   getAllPenaltiesByMonth,
   getHolidaySettings,
+  getSalaryConfirmations,
 } from '@/lib/supabase';
 import {
   formatCurrency,
@@ -42,6 +43,7 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   const [ratesMap, setRatesMap] = useState({});
   const [penaltiesMap, setPenaltiesMap] = useState({});
   const [holidays, setHolidays] = useState([]);
+  const [confirmationsMap, setConfirmationsMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedEmpForDetail, setSelectedEmpForDetail] = useState(null);
   const [showWeekPickerModal, setShowWeekPickerModal] = useState(false);
@@ -63,18 +65,20 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
   async function loadWeekSalaryData() {
     setLoading(true);
     try {
-      const [schedData, monthSchedData, branchData, allPenalties, holidayData, allRatesData] = await Promise.all([
+      const [schedData, monthSchedData, branchData, allPenalties, holidayData, allRatesData, confData] = await Promise.all([
         getScheduleByDateRange(startDate, endDate),
         getScheduleByDateRange(monthStartDate, monthEndDate),
         getBranches(),
         getAllPenaltiesByMonth(selectedMonth),
         getHolidaySettings(),
         getAllEmployeeRates(),
+        getSalaryConfirmations(selectedMonth),
       ]);
       setSchedule(schedData);
       setMonthSchedule(monthSchedData || []);
       setBranches(branchData || []);
       setHolidays(Array.isArray(holidayData) ? holidayData : []);
+      setConfirmationsMap(confData || {});
 
       // Tạo map thưởng/phạt theo employee_id
       const pMap = {};
@@ -606,6 +610,34 @@ export default function WeeklySalaryReportBoard({ employees = [], toast, onSelec
                         >
                           <div className="text-xs font-black tracking-tight">{formatCurrency(empMTotal.netSalary)}</div>
                           <div className="text-[9.5px] font-extrabold text-purple-900">({empMTotal.totalHours}h • {empMTotal.shiftCount} ca)</div>
+                          {confirmationsMap[emp.id]?.confirmed ? (
+                            <div className="pt-0.5">
+                              <span
+                                className="text-[9px] bg-emerald-700 text-white font-black px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 shadow-2xs"
+                                title={`Đã ký xác nhận bởi ${confirmationsMap[emp.id]?.signed_by || emp.name}`}
+                              >
+                                ✓ Đã ký
+                              </span>
+                            </div>
+                          ) : confirmationsMap[emp.id]?.open_for_signing ? (
+                            <div className="pt-0.5">
+                              <span
+                                className="text-[8.5px] bg-amber-700 text-white font-black px-1.5 py-0.2 rounded-full inline-block shadow-2xs animate-pulse"
+                                title="Chủ đã mở quyền ký, đang chờ nhân viên ký"
+                              >
+                                ⏳ Chờ ký
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="pt-0.5">
+                              <span
+                                className="text-[8.5px] bg-purple-900/60 text-purple-200 font-extrabold px-1.5 py-0.2 rounded-full inline-block"
+                                title="Chưa mở quyền ký cho nhân viên"
+                              >
+                                Chưa mở
+                              </span>
+                            </div>
+                          )}
                           {(empMTotal.totalBonus > 0 || empMTotal.totalPenalty > 0) && (
                             <div className="space-y-0.5 pt-0.5 border-t border-amber-400/70 font-bold mt-0.5">
                               <div className="flex items-center justify-center gap-1 text-[9px]">
